@@ -1,0 +1,14 @@
+# Runtime dependencies for Dali Center Home Assistant Integration
+# These are required for the integration to function properly
+
+# MQTT client library for gateway communication
+paho-mqtt>=1.6.0
+
+# Cryptography library for AES encryption/decryption in gateway discovery
+cryptography>=36.0.0
+
+# Schema validation library for configuration forms
+voluptuous
+
+# System and process utilities for network interface detection
+psutil

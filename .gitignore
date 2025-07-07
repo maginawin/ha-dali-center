@@ -7,4 +7,5 @@ __pycache__
 venv/
 old/
 
-requirements.txt
+CLAUDE.md
+DEVELOPMENT_WORKFLOW.md 

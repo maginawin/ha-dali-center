@@ -1,0 +1,19 @@
+# Development dependencies for Dali Center Home Assistant Integration
+# These are needed for development, testing, and code quality checks
+
+# Include runtime dependencies
+-r requirements.txt
+
+# Static type checker
+mypy
+
+# Testing framework
+pytest
+
+# Code linting (if you want to add it)
+pylint
+
+# Additional useful development tools
+black        # Code formatter
+isort        # Import sorter
+pre-commit   # Pre-commit hooks
