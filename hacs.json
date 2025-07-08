@@ -1,0 +1,9 @@
+{
+  "name": "Dali Center",
+  "content_in_root": false,
+  "filename": "dali_center.zip",
+  "hacs": "1.6.0",
+  "homeassistant": "2024.4.1",
+  "render_readme": true,
+  "hide_default_branch": true
+}

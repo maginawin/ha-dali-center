@@ -30,23 +30,23 @@ jobs:
       - name: Static analyse the code with pylint
         run: |
           pylint $(git ls-files '*.py')
-          
+
   validate-mypy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
-        
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'
-          
+          python-version: "3.13"
+
       - name: Install minimal dependencies for mypy
         run: |
           python -m pip install --upgrade pip
           pip install mypy types-paho-mqtt types-cryptography voluptuous
-          
+
       - name: Type check with mypy
         run: |
           mypy --show-error-codes --pretty custom_components/dali_center
@@ -73,3 +73,11 @@ jobs:
         uses: ludeeus/setup-homeassistant@main
         with:
           config-dir: ./test_config
+
+  validate-hacs:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: HACS validation
+        uses: "hacs/action@main"
+        with:
+          category: "integration"
