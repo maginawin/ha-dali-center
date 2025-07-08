@@ -7,9 +7,9 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/maginawin/ha-dali-center/blob/main/README.md",
-  "issue_tracker": "https://github.com/maginawin/ha-dali-center/issues",
   "homekit": {},
   "iot_class": "local_push",
+  "issue_tracker": "https://github.com/maginawin/ha-dali-center/issues",
   "quality_scale": "bronze",
   "requirements": [
     "cryptography>=36.0.0",

@@ -1,6 +1,9 @@
 # Runtime dependencies for Dali Center Home Assistant Integration
 # These are required for the integration to function properly
 
+# Home Assistant core for development
+homeassistant>=2023.1.0
+
 # MQTT client library for gateway communication
 paho-mqtt>=1.6.0
 
@@ -12,3 +15,6 @@ voluptuous
 
 # System and process utilities for network interface detection
 psutil
+
+# Timeout management for async operations
+async_timeout>=4.0.0
