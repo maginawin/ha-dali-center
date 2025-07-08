@@ -11,7 +11,7 @@
 The DALI Center integration brings comprehensive DALI lighting control to Home Assistant through DALI Center gateways. Control individual lights, groups, and scenes with real-time status updates and energy monitoring.
 
 <p align="center">
-  <img src="docs/img/logo.png" alt="DALI Center Logo" width="500">
+  <img src="https://brands.home-assistant.io/dali_center/logo@2x.png" alt="DALI Center Logo" width="500">
 </p>
 
 ## Features
