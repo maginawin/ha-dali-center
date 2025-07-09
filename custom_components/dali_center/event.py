@@ -32,8 +32,9 @@ PANEL_EVENT_DESCRIPTION = EventEntityDescription(
         "button_6_single_click", "button_6_double_click", "button_6_long_press",
         "button_7_single_click", "button_7_double_click", "button_7_long_press",
         "button_8_single_click", "button_8_double_click", "button_8_long_press",
-        "button_1_rotate", "button_2_rotate", "button_3_rotate", "button_4_rotate",
-        "button_5_rotate", "button_6_rotate", "button_7_rotate", "button_8_rotate",
+        "button_1_rotate", "button_2_rotate", "button_3_rotate",
+        "button_4_rotate", "button_5_rotate", "button_6_rotate",
+        "button_7_rotate", "button_8_rotate",
     ],
     device_class=EventDeviceClass.BUTTON,
 )
