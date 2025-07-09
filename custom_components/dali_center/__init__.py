@@ -17,7 +17,9 @@ from .const import DOMAIN
 from PySrDaliGateway import DaliGateway
 from .types import DaliCenterConfigEntry
 
-_PLATFORMS: list[Platform] = [Platform.LIGHT, Platform.SENSOR, Platform.BUTTON]
+_PLATFORMS: list[Platform] = [
+    Platform.LIGHT, Platform.SENSOR, Platform.BUTTON, Platform.EVENT
+]
 _LOGGER = logging.getLogger(__name__)
 
 
