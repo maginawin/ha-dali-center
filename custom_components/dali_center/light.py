@@ -225,7 +225,10 @@ class DaliCenterLight(LightEntity):
 
         if 22 in props:
             brightness_value = props[22]
-            self._brightness = int(brightness_value / 1000 * 255)
+            if brightness_value == 0 and self._brightness is None:
+                self._brightness = 255
+            else:
+                self._brightness = int(brightness_value / 1000 * 255)
 
         if 23 in props and ColorMode.COLOR_TEMP in self._supported_color_modes:
             self._color_temp_kelvin = props[23]
@@ -235,6 +238,7 @@ class DaliCenterLight(LightEntity):
             h = int(hsv[0:4], 16)
             s = int(hsv[4:8], 16) / 10
             self._hs_color = (h, s)
+            _LOGGER.warning("HS color: %s", self._hs_color)
 
         if 24 in props and ColorMode.RGBW in self._supported_color_modes:
             hsv = props[24]
@@ -244,11 +248,16 @@ class DaliCenterLight(LightEntity):
             h_norm = max(0, min(360, h)) / 360.0
             s_norm = max(0, min(1000, s)) / 1000.0
             v_norm = max(0, min(1000, v)) / 1000.0
+
+            if v_norm == 0 and self._rgbw_color is None:
+                v_norm = 1
+
             rgb = colorsys.hsv_to_rgb(h_norm, s_norm, v_norm)
             w = self._white_level if self._white_level is not None else 0
             self._rgbw_color = (
                 int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255), w
             )
+            # _LOGGER.warning("RGBW color: %s", self._rgbw_color)
 
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
