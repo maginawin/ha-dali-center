@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.1] - 2025-01-06
+## [0.1.2] - 2025-07-15
+
+### Added
+
+- Automated release workflow for streamlined version management (8300c73)
+- Enhanced bug report forms with improved log instructions (234a2d7, c7b5394)
+
+### Changed
+
+- Updated PySrDaliGateway dependency to version 0.1.4 for improved compatibility (6448845)
+- Simplified event handling logic for better performance (6448845)
+- Simplified bug report form by removing description field (a2f403b)
+
+### Fixed
+
+- Code scanning security alert regarding workflow permissions (#5)
+
+### Infrastructure
+
+- Added comprehensive CI/CD pipeline with automated release management
+- Enhanced issue templates for better bug reporting experience
+
+## [0.1.1] - 2025-07-10
 
 ### Added
 
