@@ -16,7 +16,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_light_device, is_motion_sensor, is_illuminance_sensor
 
@@ -167,7 +167,7 @@ class DaliCenterMotionSensor(SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device.name,
-            "manufacturer": "Dali Center",
+            "manufacturer": MANUFACTURER,
             "model": f"Motion Sensor Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }
@@ -253,6 +253,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._device_id = device.unique_id
         self._available = device.status == "online"
         self._state: Optional[float] = None
+        self._sensor_enabled: bool = True  # Track sensor enable state
 
     @property
     def name(self) -> str:
@@ -267,7 +268,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device.name,
-            "manufacturer": "Dali Center",
+            "manufacturer": MANUFACTURER,
             "model": f"Illuminance Sensor Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }
@@ -295,8 +296,25 @@ class DaliCenterIlluminanceSensor(SensorEntity):
             )
         )
 
+        # Listen for sensor on/off state updates
+        signal = f"dali_center_sensor_on_off_{self._unique_id}"
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, signal, self._handle_sensor_on_off_update
+            )
+        )
+
         # Read initial status
         self._device.read_status()
+
+        # Query initial sensor enable state
+        try:
+            self._device.gateway.command_get_sensor_on_off(self._device.dev_id)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            _LOGGER.debug(
+                "Could not get initial sensor state for device %s: %s",
+                self._device_id, e
+            )
 
     def _handle_device_update_available(self, available: bool) -> None:
         self._available = available
@@ -305,6 +323,13 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         )
 
     def _handle_device_update(self, property_list: list) -> None:
+        # Only process sensor data if sensor is enabled
+        if not self._sensor_enabled:
+            _LOGGER.debug(
+                "Ignoring sensor data for disabled sensor %s",
+                self._unique_id
+            )
+            return
 
         for prop in property_list:
             dpid = prop.get("dpid")
@@ -326,6 +351,22 @@ class DaliCenterIlluminanceSensor(SensorEntity):
                     self._name, self._unique_id,
                     self._state, dpid, prop
                 )
+
+        self.hass.loop.call_soon_threadsafe(
+            self.schedule_update_ha_state
+        )
+
+    def _handle_sensor_on_off_update(self, on_off: bool) -> None:
+        """Handle sensor on/off state updates from gateway."""
+        self._sensor_enabled = on_off
+        _LOGGER.debug(
+            "Illuminance sensor enable state for device %s updated to: %s",
+            self._device_id, on_off
+        )
+
+        # If sensor is disabled, clear the current state
+        if not self._sensor_enabled:
+            self._state = None
 
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state

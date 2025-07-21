@@ -19,7 +19,7 @@ from homeassistant.components.light import (
     ATTR_HS_COLOR,
 )
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway, Device, Group
 from PySrDaliGateway.helper import is_light_device
 
@@ -114,7 +114,7 @@ class DaliCenterLight(LightEntity):
         return {
             "identifiers": {(DOMAIN, self._unique_id)},
             "name": self._light.name,
-            "manufacturer": "Dali Center",
+            "manufacturer": MANUFACTURER,
             "model": f"Dali Light Type {self._light.dev_type}",
             "via_device": (DOMAIN, self._light.gw_sn),
         }

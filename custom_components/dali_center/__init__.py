@@ -1,6 +1,9 @@
 """The Dali Center integration."""
 
 from __future__ import annotations
+from .types import DaliCenterConfigEntry
+from PySrDaliGateway import DaliGateway
+from .const import DOMAIN, MANUFACTURER
 
 import asyncio
 import logging
@@ -13,12 +16,9 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DOMAIN
-from PySrDaliGateway import DaliGateway
-from .types import DaliCenterConfigEntry
-
 _PLATFORMS: list[Platform] = [
-    Platform.LIGHT, Platform.SENSOR, Platform.BUTTON, Platform.EVENT
+    Platform.LIGHT, Platform.SENSOR, Platform.BUTTON,
+    Platform.EVENT, Platform.SWITCH
 ]
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up dali_center from a config entry using paho-mqtt."""
     gateway: DaliGateway = DaliGateway(entry.data["gateway"])
+    is_tls = entry.data["gateway"]["is_tls"]
     gw_sn = gateway.gw_sn
 
     try:
@@ -68,17 +69,32 @@ async def async_setup_entry(
             async_dispatcher_send, hass, signal, energy
         )
 
+    def on_sensor_on_off(unique_id: str, on_off: bool) -> None:
+        signal = f"dali_center_sensor_on_off_{unique_id}"
+        hass.add_job(
+            async_dispatcher_send, hass, signal, on_off
+        )
+
     gateway.on_online_status = on_online_status
     gateway.on_device_status = on_device_status
     gateway.on_energy_report = on_energy_report
+    gateway.on_sensor_on_off = on_sensor_on_off
+
+    version = await gateway.get_version()
+    if version is None:
+        raise ConfigEntryNotReady(
+            f"Failed to get gateway {gw_sn} version")
 
     dev_reg = dr.async_get(hass)
     dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, gw_sn)},
-        manufacturer="Dali Center",
-        name=f"Dali Gateway {gw_sn}",
-        model="Dali Gateway"
+        manufacturer=MANUFACTURER,
+        name=f"{gateway.name} (Secure)" if is_tls else gateway.name,
+        model="SR-GW-EDA",
+        sw_version=version["software"],
+        hw_version=version["firmware"],
+        serial_number=gw_sn,
     )
 
     # Store gateway instance
