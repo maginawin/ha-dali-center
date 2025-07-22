@@ -69,7 +69,7 @@ async def async_setup_entry(
         hass.add_job(
             async_dispatcher_send, hass, signal, energy
         )
-    
+
     def on_sensor_on_off(unique_id: str, on_off: bool) -> None:
         signal = f"dali_center_sensor_on_off_{unique_id}"
         hass.add_job(

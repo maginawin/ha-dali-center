@@ -295,7 +295,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
                 self.hass, signal, self._handle_device_update_available
             )
         )
-        
+
         # Listen for sensor on/off state updates
         signal = f"dali_center_sensor_on_off_{self._unique_id}"
         self.async_on_remove(
