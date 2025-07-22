@@ -39,7 +39,7 @@ async def async_setup_entry(
     """Set up dali_center from a config entry using paho-mqtt."""
     gateway: DaliGateway = DaliGateway(entry.data["gateway"])
     gw_sn = gateway.gw_sn
-    is_tls = entry.data["gateway"].get("tls", False)
+    is_tls = entry.data["gateway"].get("is_tls", False)
 
     try:
         async with async_timeout.timeout(30):
