@@ -55,10 +55,11 @@ body:
 
         ```yaml
         logger:
-          default: info
+          default: warning
           logs:
             custom_components.dali_center: debug
-            pysrdaligateway: debug
+            PySrDaliGateway: debug
+            paho: debug
         ```
 
         Then restart Home Assistant and reproduce the issue.
