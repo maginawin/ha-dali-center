@@ -13,7 +13,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway
 from .types import DaliCenterConfigEntry
 
@@ -76,7 +76,7 @@ async def async_setup_entry(
     dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, gw_sn)},
-        manufacturer="Dali Center",
+        manufacturer=MANUFACTURER,
         name=f"Dali Gateway {gw_sn}",
         model="Dali Gateway"
     )

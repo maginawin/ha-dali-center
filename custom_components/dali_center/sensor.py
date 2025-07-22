@@ -16,7 +16,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_light_device, is_motion_sensor, is_illuminance_sensor
 
@@ -167,7 +167,7 @@ class DaliCenterMotionSensor(SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device.name,
-            "manufacturer": "Dali Center",
+            "manufacturer": MANUFACTURER,
             "model": f"Motion Sensor Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }
@@ -267,7 +267,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device.name,
-            "manufacturer": "Dali Center",
+            "manufacturer": MANUFACTURER,
             "model": f"Illuminance Sensor Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }

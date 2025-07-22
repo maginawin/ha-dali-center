@@ -13,7 +13,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.const import BUTTON_EVENTS
@@ -89,7 +89,7 @@ class DaliCenterPanelEvent(EventEntity):
         return {
             "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device.name,
-            "manufacturer": "Dali Center",
+            "manufacturer": MANUFACTURER,
             "model": f"Panel Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }
