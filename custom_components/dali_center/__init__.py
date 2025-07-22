@@ -39,6 +39,7 @@ async def async_setup_entry(
     """Set up dali_center from a config entry using paho-mqtt."""
     gateway: DaliGateway = DaliGateway(entry.data["gateway"])
     gw_sn = gateway.gw_sn
+    is_tls = entry.data["gateway"].get("tls", False)
 
     try:
         async with async_timeout.timeout(30):
@@ -72,13 +73,21 @@ async def async_setup_entry(
     gateway.on_device_status = on_device_status
     gateway.on_energy_report = on_energy_report
 
+    version = await gateway.get_version()
+    if version is None:
+        raise ConfigEntryNotReady(
+            f"Failed to get gateway {gw_sn} version")
+
     dev_reg = dr.async_get(hass)
     dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, gw_sn)},
         manufacturer=MANUFACTURER,
-        name=f"Dali Gateway {gw_sn}",
-        model="Dali Gateway"
+        name=f"{gateway.name} (Secure)" if is_tls else gateway.name,
+        model="SR-GW-EDA",
+        sw_version=version["software"],
+        hw_version=version["firmware"],
+        serial_number=gw_sn,
     )
 
     # Store gateway instance
