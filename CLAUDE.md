@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Home Assistant custom integration for Dali Center lighting control systems. The integration communicates with Dali Center gateways via MQTT to control DALI lighting devices, groups, and scenes.
 
+## Development Principles
+
+- Use only English in the code, comments, and documentation
+
 ## Development Setup
 
 ### Virtual Environment

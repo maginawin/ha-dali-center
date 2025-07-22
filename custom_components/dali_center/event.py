@@ -52,10 +52,7 @@ async def async_setup_entry(
         for device in entry.data.get("devices", [])
     ]
 
-    _LOGGER.debug(
-        "Processing initially known devices for event entities: %s",
-        devices
-    )
+    _LOGGER.info("Setting up event platform: %d devices", len(devices))
 
     new_events: list[EventEntity] = []
     for device in devices:

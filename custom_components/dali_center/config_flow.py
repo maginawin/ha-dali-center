@@ -47,37 +47,46 @@ class EntityDiscoveryMixin:
         if discover_devices:
             try:
                 discovered["devices"] = await gateway.discover_devices()
-                _LOGGER.debug(
+                _LOGGER.info(
                     "Found %d devices on gateway %s",
                     len(discovered["devices"]),
                     gateway.gw_sn
                 )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                _LOGGER.error("Error discovering devices: %s", e)
+                _LOGGER.warning(
+                    "Error discovering devices on gateway %s: %s",
+                    gateway.gw_sn, e
+                )
                 discovered["devices"] = []
 
         if discover_groups:
             try:
                 discovered["groups"] = await gateway.discover_groups()
-                _LOGGER.debug(
+                _LOGGER.info(
                     "Found %d groups on gateway %s",
                     len(discovered["groups"]),
                     gateway.gw_sn
                 )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                _LOGGER.error("Error discovering groups: %s", e)
+                _LOGGER.warning(
+                    "Error discovering groups on gateway %s: %s",
+                    gateway.gw_sn, e
+                )
                 discovered["groups"] = []
 
         if discover_scenes:
             try:
                 discovered["scenes"] = await gateway.discover_scenes()
-                _LOGGER.debug(
+                _LOGGER.info(
                     "Found %d scenes on gateway %s",
                     len(discovered["scenes"]),
                     gateway.gw_sn
                 )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                _LOGGER.error("Error discovering scenes: %s", e)
+                _LOGGER.warning(
+                    "Error discovering scenes on gateway %s: %s", 
+                    gateway.gw_sn, e
+                )
                 discovered["scenes"] = []
 
         return discovered
@@ -288,8 +297,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
             )
 
             if self._config_entry.entry_id not in self.hass.data[DOMAIN]:
-                _LOGGER.error(
-                    "Gateway not found in hass.data[DOMAIN]")
+                _LOGGER.warning(
+                    "Gateway %s not found in hass.data[DOMAIN]",
+                    self._config_entry.data["sn"])
                 return self.async_abort(reason="gateway_not_found")
 
             gateway: DaliGateway = self.hass.data[DOMAIN][
@@ -310,7 +320,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
             return await self.async_step_select_entities()
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            _LOGGER.error("Error searching for devices: %s", e)
+            _LOGGER.warning("Error searching for devices on gateway %s: %s",
+                            self._config_entry.data["sn"], e)
             errors["base"] = "cannot_connect"
             return self.async_show_form(
                 step_id="refresh",
@@ -584,9 +595,9 @@ class DaliCenterConfigFlow(
                 await self._selected_gateway.connect()
                 return await self.async_step_configure_entities()
             else:
-                _LOGGER.error(
-                    "Selected gateway ID %s not found in discovered list: %s",
-                    user_input["selected_gateway"], self._gateways
+                _LOGGER.warning(
+                    "Selected gateway ID %s not found in discovered list",
+                    user_input["selected_gateway"]
                 )
                 errors["base"] = "device_not_found"
 
@@ -606,7 +617,7 @@ class DaliCenterConfigFlow(
                 if gateway["gw_sn"] not in configured_gateways
             ]
 
-            _LOGGER.debug(
+            _LOGGER.info(
                 "Found %d gateways, %d available after filtering configured",
                 len(discovered_gateways),
                 len(self._gateways)
@@ -673,7 +684,8 @@ class DaliCenterConfigFlow(
             await self._selected_gateway.disconnect()
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            _LOGGER.error("Error searching entities: %s", e)
+            _LOGGER.warning("Error searching entities on gateway %s: %s",
+                            self._config_data["sn"], e)
             errors["base"] = "cannot_connect"
             return self.async_show_form(
                 step_id="configure_entities",

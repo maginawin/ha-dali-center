@@ -36,10 +36,7 @@ async def async_setup_entry(
         for device in entry.data.get("devices", [])
     ]
 
-    _LOGGER.debug(
-        "Processing initially known devices for energy sensors: %s",
-        devices
-    )
+    _LOGGER.info("Setting up sensor platform: %d devices", len(devices))
 
     added_devices = set()
     new_sensors: list[SensorEntity] = []

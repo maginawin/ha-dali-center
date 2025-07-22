@@ -40,7 +40,11 @@ async def async_setup_entry(
         Scene(gateway, scene)
         for scene in entry.data.get("scenes", [])
     ]
-    _LOGGER.debug("Processing initially known scenes: %s", scenes)
+    devices = entry.data.get("devices", [])
+    _LOGGER.info(
+        "Setting up button platform: %d scenes, %d devices",
+        len(scenes), len(devices)
+    )
 
     new_entities: list[ButtonEntity] = []
 
@@ -51,7 +55,6 @@ async def async_setup_entry(
         new_entities.append(DaliCenterSceneButton(scene))
         added_scenes.add(scene.scene_id)
 
-    devices = entry.data.get("devices", [])
     for device_data in devices:
         if is_panel_device(device_data.get("dev_type", "")):
             device = Device(gateway, device_data)

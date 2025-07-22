@@ -41,8 +41,10 @@ async def async_setup_entry(
         for group in entry.data.get("groups", [])
     ]
 
-    _LOGGER.debug("Processing devices: %s", devices)
-    _LOGGER.debug("Processing groups: %s", groups)
+    _LOGGER.info(
+        "Setting up light platform: %d devices, %d groups",
+        len(devices), len(groups)
+    )
 
     added_entities = set()
     new_lights = []
