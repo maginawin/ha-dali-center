@@ -18,7 +18,8 @@ from PySrDaliGateway import DaliGateway
 from .types import DaliCenterConfigEntry
 
 _PLATFORMS: list[Platform] = [
-    Platform.LIGHT, Platform.SENSOR, Platform.BUTTON, Platform.EVENT
+    Platform.LIGHT, Platform.SENSOR, Platform.BUTTON,
+    Platform.EVENT, Platform.SWITCH
 ]
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,10 +69,17 @@ async def async_setup_entry(
         hass.add_job(
             async_dispatcher_send, hass, signal, energy
         )
+    
+    def on_sensor_on_off(unique_id: str, on_off: bool) -> None:
+        signal = f"dali_center_sensor_on_off_{unique_id}"
+        hass.add_job(
+            async_dispatcher_send, hass, signal, on_off
+        )
 
     gateway.on_online_status = on_online_status
     gateway.on_device_status = on_device_status
     gateway.on_energy_report = on_energy_report
+    gateway.on_sensor_on_off = on_sensor_on_off
 
     version = await gateway.get_version()
     if version is None:

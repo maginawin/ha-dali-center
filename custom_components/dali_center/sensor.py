@@ -253,6 +253,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._device_id = device.unique_id
         self._available = device.status == "online"
         self._state: Optional[float] = None
+        self._sensor_enabled: bool = True  # Track sensor enable state
 
     @property
     def name(self) -> str:
@@ -294,6 +295,14 @@ class DaliCenterIlluminanceSensor(SensorEntity):
                 self.hass, signal, self._handle_device_update_available
             )
         )
+        
+        # Listen for sensor on/off state updates
+        signal = f"dali_center_sensor_on_off_{self._unique_id}"
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, signal, self._handle_sensor_on_off_update
+            )
+        )
 
         # Read initial status
         self._device.read_status()
@@ -331,5 +340,18 @@ class DaliCenterIlluminanceSensor(SensorEntity):
             self.schedule_update_ha_state
         )
 
+    def _handle_sensor_on_off_update(self, on_off: bool) -> None:
+        """Handle sensor on/off state updates from gateway."""
+        self._sensor_enabled = on_off
+        _LOGGER.debug(
+            "Illuminance sensor enable state for device %s updated to: %s",
+            self._device_id, on_off
+        )
 
-# Panel devices are now handled by event entities in event.py
+        # If sensor is disabled, clear the current state
+        if not self._sensor_enabled:
+            self._state = None
+
+        self.hass.loop.call_soon_threadsafe(
+            self.schedule_update_ha_state
+        )
