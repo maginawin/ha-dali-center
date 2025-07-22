@@ -669,6 +669,9 @@ class DaliCenterConfigFlow(
                 discover_scenes=True
             )
 
+            # Disconnect from the gateway
+            await self._selected_gateway.disconnect()
+
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error("Error searching entities: %s", e)
             errors["base"] = "cannot_connect"
