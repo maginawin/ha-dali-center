@@ -2,6 +2,7 @@
   "domain": "dali_center",
   "name": "Dali Center",
   "codeowners": [
+    "@maginawin",
     "@niracler"
   ],
   "config_flow": true,
@@ -12,7 +13,7 @@
   "issue_tracker": "https://github.com/maginawin/ha-dali-center/issues",
   "quality_scale": "bronze",
   "requirements": [
-    "PySrDaliGateway==0.2.1"
+    "PySrDaliGateway==0.3.0"
   ],
   "ssdp": [],
   "version": "0.1.2",

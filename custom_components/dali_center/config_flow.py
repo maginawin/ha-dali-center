@@ -16,6 +16,7 @@ from .helper import find_set_differences
 from .types import ConfigData
 from PySrDaliGateway import DaliGateway, DaliGatewayType, DeviceType, GroupType, SceneType
 from PySrDaliGateway.discovery import DaliGatewayDiscovery
+from PySrDaliGateway.exceptions import DaliGatewayError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,9 +53,15 @@ class EntityDiscoveryMixin:
                     len(discovered["devices"]),
                     gateway.gw_sn
                 )
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except DaliGatewayError as e:
                 _LOGGER.warning(
                     "Error discovering devices on gateway %s: %s",
+                    gateway.gw_sn, e
+                )
+                discovered["devices"] = []
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                _LOGGER.warning(
+                    "Unexpected error discovering devices on gateway %s: %s",
                     gateway.gw_sn, e
                 )
                 discovered["devices"] = []
@@ -69,7 +76,7 @@ class EntityDiscoveryMixin:
                 )
             except Exception as e:  # pylint: disable=broad-exception-caught
                 _LOGGER.warning(
-                    "Error discovering groups on gateway %s: %s",
+                    "Unexpected error discovering groups on gateway %s: %s",
                     gateway.gw_sn, e
                 )
                 discovered["groups"] = []
@@ -84,7 +91,7 @@ class EntityDiscoveryMixin:
                 )
             except Exception as e:  # pylint: disable=broad-exception-caught
                 _LOGGER.warning(
-                    "Error discovering scenes on gateway %s: %s", 
+                    "Unexpected error discovering scenes on gateway %s: %s",
                     gateway.gw_sn, e
                 )
                 discovered["scenes"] = []
@@ -200,7 +207,6 @@ class EntityDiscoveryMixin:
                         scene_options[scene["unique_id"]] = \
                             f"[REMOVED] {scene["name"]}"
 
-            # Default selection
             if existing_selections is None:
                 # Select all for initial setup
                 default_scenes = list(scene_options.keys())
@@ -296,14 +302,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
                 self._config_entry.data["sn"]
             )
 
-            if self._config_entry.entry_id not in self.hass.data[DOMAIN]:
+            if not self._config_entry.runtime_data:
                 _LOGGER.warning(
-                    "Gateway %s not found in hass.data[DOMAIN]",
+                    "Gateway %s not found in runtime_data",
                     self._config_entry.data["sn"])
                 return self.async_abort(reason="gateway_not_found")
 
-            gateway: DaliGateway = self.hass.data[DOMAIN][
-                self._config_entry.entry_id]
+            gateway: DaliGateway = self._config_entry.runtime_data.gateway
 
             # Discover entities based on user selection
             discovered = await self._discover_entities(
@@ -592,8 +597,19 @@ class DaliCenterConfigFlow(
                     "gateway": self._selected_gateway.to_dict()
                 }
 
-                await self._selected_gateway.connect()
-                return await self.async_step_configure_entities()
+                try:
+                    await self._selected_gateway.connect()
+                    return await self.async_step_configure_entities()
+                except DaliGatewayError as e:
+                    _LOGGER.error(
+                        "Error connecting to gateway %s: %s",
+                        self._selected_gateway.gw_sn, e
+                    )
+                    errors["base"] = "cannot_connect"
+                    return self.async_show_form(
+                        step_id="user",
+                        errors=errors,
+                    )
             else:
                 _LOGGER.warning(
                     "Selected gateway ID %s not found in discovered list",
@@ -603,8 +619,16 @@ class DaliCenterConfigFlow(
 
         if not self._gateways:
             _LOGGER.debug("No gateways cached, starting discovery")
-            discovered_gateways = await DaliGatewayDiscovery()\
-                .discover_gateways()
+            try:
+                discovered_gateways = await DaliGatewayDiscovery()\
+                    .discover_gateways()
+            except DaliGatewayError as e:
+                _LOGGER.error("Error discovering gateways: %s", e)
+                errors["base"] = "discovery_failed"
+                return self.async_show_form(
+                    step_id="user",
+                    errors=errors,
+                )
 
             # Filter out already configured gateways
             configured_gateways = {
@@ -681,7 +705,28 @@ class DaliCenterConfigFlow(
             )
 
             # Disconnect from the gateway
-            await self._selected_gateway.disconnect()
+            try:
+                await self._selected_gateway.disconnect()
+            except DaliGatewayError as e:
+                _LOGGER.error(
+                    "Error disconnecting from gateway %s: %s",
+                    self._selected_gateway.gw_sn, e
+                )
+                errors["base"] = "cannot_disconnect"
+                return self.async_show_form(
+                    step_id="configure_entities",
+                    errors=errors,
+                )
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                _LOGGER.error(
+                    "Error disconnecting from gateway %s: %s",
+                    self._selected_gateway.gw_sn, e
+                )
+                errors["base"] = "cannot_disconnect"
+                return self.async_show_form(
+                    step_id="configure_entities",
+                    errors=errors,
+                )
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.warning("Error searching entities on gateway %s: %s",
