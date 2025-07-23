@@ -32,6 +32,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Dali Center button entities from config entry."""
+    # pylint: disable=unused-argument
     added_scenes = set()
     added_panel_buttons = set()
     gateway: DaliGateway = entry.runtime_data.gateway

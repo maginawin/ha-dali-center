@@ -31,6 +31,7 @@ async def async_setup_entry(
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    # pylint: disable=unused-argument
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
         Device(gateway, device)
