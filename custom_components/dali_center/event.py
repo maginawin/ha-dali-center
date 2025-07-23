@@ -7,7 +7,6 @@ from homeassistant.components.event import (
     EventEntity,
     EventEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -17,6 +16,7 @@ from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.const import BUTTON_EVENTS
+from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,11 +42,11 @@ PANEL_EVENT_DESCRIPTION = EventEntityDescription(
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Dali Center event entities from config entry."""
-    gateway: DaliGateway = hass.data[DOMAIN][entry.entry_id]
+    gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
         Device(gateway, device)
         for device in entry.data.get("devices", [])

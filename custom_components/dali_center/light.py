@@ -5,7 +5,6 @@ import logging
 from typing import Any, Optional
 import colorsys
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -22,16 +21,17 @@ from homeassistant.components.light import (
 from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway, Device, Group
 from PySrDaliGateway.helper import is_light_device
+from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    gateway: DaliGateway = hass.data[DOMAIN][entry.entry_id]
+    gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
         Device(gateway, device)
         for device in entry.data.get("devices", [])

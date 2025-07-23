@@ -9,7 +9,6 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfEnergy, LIGHT_LUX
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -19,18 +18,19 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_light_device, is_motion_sensor, is_illuminance_sensor
+from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     # pylint: disable=unused-argument
 
-    gateway: DaliGateway = hass.data[DOMAIN][entry.entry_id]
+    gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
         Device(gateway, device)
         for device in entry.data.get("devices", [])

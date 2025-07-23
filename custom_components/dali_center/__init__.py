@@ -7,7 +7,6 @@ import logging
 
 import async_timeout
 from homeassistant.components.persistent_notification import async_create
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -16,7 +15,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import DOMAIN, MANUFACTURER
 from PySrDaliGateway import DaliGateway
-from .types import DaliCenterConfigEntry
+from .types import DaliCenterConfigEntry, DaliCenterData
 
 _PLATFORMS: list[Platform] = [
     Platform.LIGHT, Platform.SENSOR, Platform.BUTTON,
@@ -51,16 +50,6 @@ async def _notify_user_error(
         title=full_title,
         notification_id=notification_id,
     )
-
-
-async def async_setup(hass: HomeAssistant, hass_config: dict) -> bool:
-    # pylint: disable=unused-argument
-    hass.data.setdefault(DOMAIN, {})
-
-    # Gateway discovery and credential updates would be implemented here
-    # if automatic discovery is needed in the future
-
-    return True
 
 
 async def async_setup_entry(
@@ -159,11 +148,8 @@ async def async_setup_entry(
         serial_number=gw_sn,
     )
 
-    # Store gateway instance
-    hass.data[DOMAIN][entry.entry_id] = gateway
-
-    # Register update listener
-    entry.async_on_unload(entry.add_update_listener(update_listener))
+    # Store gateway instance in runtime_data
+    entry.runtime_data = DaliCenterData(gateway=gateway)
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
@@ -171,18 +157,11 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    if entry.entry_id in hass.data[DOMAIN]:
-        gateway = hass.data[DOMAIN][entry.entry_id]
-        _LOGGER.info("Disconnecting from gateway %s", gateway.gw_sn)
-        await gateway.disconnect()
-        del hass.data[DOMAIN][entry.entry_id]
+async def async_unload_entry(
+    hass: HomeAssistant, entry: DaliCenterConfigEntry
+) -> bool:
+    gateway = entry.runtime_data.gateway
+    _LOGGER.info("Disconnecting from gateway %s", gateway.gw_sn)
+    await gateway.disconnect()
 
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
-
-
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    if entry.entry_id in hass.data[DOMAIN]:
-        _LOGGER.debug("Updating gateway instance")
-    else:
-        _LOGGER.warning("No gateway instance found in hass.data[DOMAIN]")

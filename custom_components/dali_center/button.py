@@ -4,13 +4,13 @@ import logging
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from PySrDaliGateway import DaliGateway, Scene, Device
 from PySrDaliGateway.helper import is_panel_device
+from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,13 +28,13 @@ def get_panel_button_count(dev_type: str) -> int:
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Dali Center button entities from config entry."""
     added_scenes = set()
     added_panel_buttons = set()
-    gateway: DaliGateway = hass.data[DOMAIN][entry.entry_id]
+    gateway: DaliGateway = entry.runtime_data.gateway
 
     scenes: list[Scene] = [
         Scene(gateway, scene)
