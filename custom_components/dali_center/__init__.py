@@ -68,28 +68,21 @@ async def async_setup_entry(
 
     try:
         async with async_timeout.timeout(30):
-            connected = await gateway.connect()
-            if not connected:
-                _LOGGER.warning("Failed to connect to gateway %s", gw_sn)
-                await _notify_user_error(
-                    hass, "Connection Failed",
-                    "Unable to connect to DALI Center gateway."
-                    "Please check if the gateway is online and accessible",
-                    gw_sn
-                )
-                raise ConfigEntryNotReady(
-                    f"Failed to connect to gateway {gw_sn}")
+            await gateway.connect()
             _LOGGER.info("Successfully connected to gateway %s", gw_sn)
+    except DaliGatewayError as exc:
+        _LOGGER.error("Error connecting to gateway %s: %s", gw_sn, exc)
+        await _notify_user_error(hass, "Connection Failed", str(exc), gw_sn)
+        raise ConfigEntryNotReady(
+            "You can try to delete the gateway and add it again"
+        ) from exc
     except asyncio.TimeoutError as exc:
         _LOGGER.warning("Overall timeout connecting to gateway %s", gw_sn)
         await _notify_user_error(
             hass, "Connection Timeout",
-            "Timeout while connecting to DALI Center gateway. "
-            "The gateway may be slow to respond or unreachable",
+            f"Timeout while connecting to DALI Center gateway. {exc}",
             gw_sn
         )
-        raise ConfigEntryNotReady(
-            f"Timeout connecting to gateway {gw_sn}") from exc
 
     def on_online_status(unique_id: str, available: bool) -> None:
         signal = f"dali_center_update_available_{unique_id}"
@@ -128,12 +121,8 @@ async def async_setup_entry(
         )
         await _notify_user_error(
             hass, "Version Query Failed",
-            "Unable to retrieve version information from DALI Center gateway. "
-            "The gateway may not be responding properly",
-            gw_sn
+            str(exc), gw_sn
         )
-        raise ConfigEntryNotReady(
-            f"Failed to get gateway {gw_sn} version") from exc
 
     _LOGGER.info(
         "Gateway %s version - Software: %s, Firmware: %s",
@@ -176,11 +165,7 @@ async def async_unload_entry(
         )
         await _notify_user_error(
             hass, "Disconnection Failed",
-            "Unable to disconnect from DALI Center gateway."
-            "Please check if the gateway is online and accessible",
-            gateway.gw_sn
+            str(exc), gateway.gw_sn
         )
-        raise ConfigEntryNotReady(
-            f"Failed to disconnect from gateway {gateway.gw_sn}") from exc
 
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
