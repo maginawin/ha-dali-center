@@ -61,6 +61,14 @@
         "step": {
             "user": {
                 "title": "Set up Dali Center Gateway",
+                "description": "## DALI Gateway Discovery\n\nThe system will search for gateways for **up to 3 minutes**.\n\n**IMPORTANT:** After clicking Submit, you must **press the RESET button** on your DALI gateway device **ONCE**. The gateway will respond immediately.\n\nEnsure the gateway is powered and on the same network.",
+                "data": {
+                    "selected_gateway": "Select Gateway"
+                }
+            },
+            "discovery": {
+                "title": "Gateway Discovery",
+                "description": "{message}",
                 "data": {
                     "selected_gateway": "Select Gateway"
                 }

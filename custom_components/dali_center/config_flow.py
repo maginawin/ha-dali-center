@@ -581,13 +581,33 @@ class DaliCenterConfigFlow(
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step to select a gateway."""
+        """Handle the initial step - show gateway discovery instructions."""
+        if user_input is not None:
+            # User confirmed, proceed to discovery
+            return await self.async_step_discovery()
+
+        # Show instructions to user before starting discovery
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema({}),
+        )
+
+    async def async_step_discovery(
+        self, discovery_info: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle gateway discovery and selection step."""
         errors = {}
 
-        if user_input is not None:
+        if discovery_info is not None:
+            # Check if this is a retry request (no gateway selection)
+            if "selected_gateway" not in discovery_info:
+                self._gateways = []
+                return await self.async_step_discovery()
+
+            # User selected a gateway, proceed to connection
             selected_gateway: Optional[DaliGatewayType] = next((
                 gateway for gateway in self._gateways
-                if gateway["gw_sn"] == user_input["selected_gateway"]
+                if gateway["gw_sn"] == discovery_info["selected_gateway"]
             ), None)
 
             if selected_gateway:
@@ -606,19 +626,16 @@ class DaliCenterConfigFlow(
                         self._selected_gateway.gw_sn, e
                     )
                     errors["base"] = "cannot_connect"
-                    return self.async_show_form(
-                        step_id="user",
-                        errors=errors,
-                    )
             else:
                 _LOGGER.warning(
                     "Selected gateway ID %s not found in discovered list",
-                    user_input["selected_gateway"]
+                    discovery_info["selected_gateway"]
                 )
                 errors["base"] = "device_not_found"
 
+        # Perform gateway discovery if not already done
         if not self._gateways:
-            _LOGGER.debug("No gateways cached, starting discovery")
+            _LOGGER.debug("Starting gateway discovery (3-minute timeout)")
             try:
                 discovered_gateways = await DaliGatewayDiscovery()\
                     .discover_gateways()
@@ -626,8 +643,21 @@ class DaliCenterConfigFlow(
                 _LOGGER.error("Error discovering gateways: %s", e)
                 errors["base"] = "discovery_failed"
                 return self.async_show_form(
-                    step_id="user",
+                    step_id="discovery",
                     errors=errors,
+                    description_placeholders={
+                        "message": (
+                            "## Discovery Failed\n\n"
+                            "Discovery timed out after **3 minutes**.\n\n"
+                            "Please ensure:\n"
+                            "- Gateway is **powered** and on "
+                            " **same network**\n"
+                            "- **RESET button was pressed** during "
+                            "discovery\n\n"
+                            "Click Submit to **retry**."
+                        )
+                    },
+                    data_schema=vol.Schema({}),
                 )
 
             # Filter out already configured gateways
@@ -647,22 +677,43 @@ class DaliCenterConfigFlow(
                 len(self._gateways)
             )
 
+        # Handle case where no gateways were found
         if not self._gateways:
-            _LOGGER.warning("No valid gateways found after parsing")
-            return self.async_abort(reason="no_devices_found")
+            _LOGGER.warning("No valid gateways found after discovery")
+            return self.async_show_form(
+                step_id="discovery",
+                errors={"base": "no_devices_found"},
+                description_placeholders={
+                    "message": (
+                        "## No Gateways Found\n\n"
+                        "Please check:\n"
+                        "- Gateway is **powered** and on **same network**\n"
+                        "- **RESET button was pressed** during discovery\n"
+                        "- Gateway **not already configured** elsewhere\n\n"
+                        "Click Submit to **retry**."
+                    )
+                },
+                data_schema=vol.Schema({}),
+            )
 
+        # Show gateway selection
         _LOGGER.debug("Presenting gateway selection: %s", self._gateways)
         return self.async_show_form(
-            step_id="user",
+            step_id="discovery",
             data_schema=vol.Schema(
                 {
                     vol.Required("selected_gateway"): vol.In({
-                        gateway["gw_sn"]: gateway["name"]
+                        gateway["gw_sn"]: f"{gateway["name"]} "
+                        f"({gateway["gw_sn"]})"
                         for gateway in self._gateways
                     }),
                 }
             ),
             errors=errors,
+            description_placeholders={
+                "message": f"## Success!\n\nFound **{len(self._gateways)} "
+                "gateway(s)**. Select one to configure:"
+            }
         )
 
     async def async_step_configure_entities(
