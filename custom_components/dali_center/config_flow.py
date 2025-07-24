@@ -594,9 +594,9 @@ class DaliCenterConfigFlow(
                 "message": (
                     "## DALI Gateway Discovery\n\n"
                     "**Two-step process:**\n\n"
-                    "1. **Click Submit** to start discovery "
+                    "1. **Click SUBMIT** to start discovery "
                     "(searches for up to 3 minutes)\n"
-                    "2. **Press the RESET button** on your DALI "
+                    "2. **Short press the RESET button** on your DALI "
                     "gateway device **ONCE**\n\n"
                     "The gateway will respond immediately "
                     "after the button press.\n"
