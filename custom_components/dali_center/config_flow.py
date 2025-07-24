@@ -590,6 +590,19 @@ class DaliCenterConfigFlow(
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({}),
+            description_placeholders={
+                "message": (
+                    "## DALI Gateway Discovery\n\n"
+                    "**Two-step process:**\n\n"
+                    "1. **Click Submit** to start discovery "
+                    "(searches for up to 3 minutes)\n"
+                    "2. **Press the RESET button** on your DALI "
+                    "gateway device **ONCE**\n\n"
+                    "The gateway will respond immediately "
+                    "after the button press.\n"
+                    "Ensure the gateway is powered and on the same network."
+                )
+            }
         )
 
     async def async_step_discovery(
