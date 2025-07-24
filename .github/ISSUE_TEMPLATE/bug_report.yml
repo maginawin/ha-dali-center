@@ -66,7 +66,6 @@ body:
           default: warning
           logs:
             custom_components.dali_center: debug
-            paho: debug
         ```
 
         Then restart Home Assistant and reproduce the issue.
