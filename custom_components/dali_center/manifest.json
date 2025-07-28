@@ -13,7 +13,7 @@
   "issue_tracker": "https://github.com/maginawin/ha-dali-center/issues",
   "quality_scale": "bronze",
   "requirements": [
-    "PySrDaliGateway==0.3.0"
+    "PySrDaliGateway==0.4.0"
   ],
   "ssdp": [],
   "version": "0.2.0",
