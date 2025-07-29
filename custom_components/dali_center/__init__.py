@@ -43,7 +43,8 @@ async def _notify_user_error(
 ) -> None:
     """Create persistent notification for user-visible errors."""
     notification_id = f"dali_center_{gw_sn}_{hash(title + message)}"
-    full_title = f"DALI Center{f" ({gw_sn})" if gw_sn else ""}: {title}"
+    gw_part = f" ({gw_sn})" if gw_sn else ""
+    full_title = f"DALI Center{gw_part}: {title}"
 
     async_create(
         hass,

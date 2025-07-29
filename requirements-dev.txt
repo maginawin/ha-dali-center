@@ -9,7 +9,8 @@ mypy
 
 # Testing framework
 pytest
-pytest-cov    # Code coverage plugin for pytest
+pytest-cov       # Code coverage plugin for pytest
+pytest-asyncio   # Asyncio support for pytest
 
 # Code linting (if you want to add it)
 pylint
