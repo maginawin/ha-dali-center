@@ -277,7 +277,7 @@ def mock_config_entry():
         unique_id=MOCK_GATEWAY_SN,
         options={},
         discovery_keys={},
-        subentries_data={},
+        subentries_data=None,
     )
 
 
