@@ -1,22 +1,29 @@
 """Test config flow for Dali Center integration."""
+# pylint: disable=protected-access
 
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 
 from custom_components.dali_center.config_flow import (
+    OptionsFlowHandler,
     DaliCenterConfigFlow,
     EntityDiscoveryMixin,
     OPTIONS_SCHEMA
 )
 from custom_components.dali_center.const import DOMAIN
+from custom_components.dali_center.config_flow import dr, er
 from tests.conftest import (
     MockDaliGateway,
     MockDaliGatewayDiscovery,
     MOCK_GATEWAY_SN,
     MOCK_GATEWAY_IP
 )
+
+# Module path constant to avoid repetition
+CFM = "custom_components.dali_center.config_flow"
 
 
 class TestConfigFlowConstants:
@@ -81,7 +88,7 @@ class TestEntityDiscoveryMixin:
             mock_discover_groups.return_value = mock_gateway.groups
             mock_discover_scenes.return_value = mock_gateway.scenes
 
-            result = await mixin_instance._discover_entities(mock_gateway) # pylint: disable=protected-access
+            result = await mixin_instance._discover_entities(mock_gateway)  # pylint: disable=protected-access
 
             # Verify all discovery methods were called
             mock_discover_devices.assert_called_once()
@@ -209,14 +216,14 @@ class TestDaliCenterConfigFlow:
 
         discovery_instance = MockDaliGatewayDiscovery()
         with patch(
-            "custom_components.dali_center.config_flow.DaliGatewayDiscovery",
+            f"{CFM}.DaliGatewayDiscovery",
             return_value=discovery_instance
         ), \
             patch.object(
                 discovery_instance,
                 "discover_gateways",
                 new_callable=AsyncMock
-            ) as mock_discover_gateways:
+        ) as mock_discover_gateways:
 
             mock_discover_gateways.return_value = []
 
@@ -229,3 +236,337 @@ class TestDaliCenterConfigFlow:
             assert "errors" in result
             assert result["errors"]["base"] == "no_devices_found"
             assert "description_placeholders" in result
+
+
+class TestDaliCenterConfigFlowComplete:
+    """Test additional DaliCenterConfigFlow functionality."""
+
+    @pytest.fixture
+    def mock_hass(self):
+        """Create mock HomeAssistant instance."""
+        return Mock(spec=HomeAssistant)
+
+    @pytest.fixture
+    def config_flow(self, mock_hass):
+        """Create DaliCenterConfigFlow instance."""
+        flow = DaliCenterConfigFlow()
+        flow.hass = mock_hass
+        return flow
+
+    @pytest.mark.asyncio
+    async def test_async_step_discovery_with_selected_gateway_success(
+            self, config_flow):
+        """Test discovery step with successful gateway selection."""
+        mock_gateways = [{"gw_sn": MOCK_GATEWAY_SN,
+                          "ip": MOCK_GATEWAY_IP, "name": "Test Gateway"}]
+        config_flow._gateways = mock_gateways
+
+        with patch(f"{CFM}.DaliGateway") as mock_gateway_class:
+            mock_gateway = MockDaliGateway()
+            mock_gateway.connect = AsyncMock()
+            mock_gateway_class.return_value = mock_gateway
+
+            with patch.object(
+                config_flow, "async_step_configure_entities"
+            ) as mock_configure:
+                mock_configure.return_value = {
+                    "type": FlowResultType.CREATE_ENTRY}
+
+                await config_flow.async_step_discovery({
+                    "selected_gateway": MOCK_GATEWAY_SN
+                })
+
+                mock_configure.assert_called_once()
+                assert config_flow._selected_gateway is not None
+
+    @pytest.mark.asyncio
+    async def test_async_step_configure_entities_with_user_input(
+            self, config_flow):
+        """Test configure entities with user selection."""
+        mock_gateway = MockDaliGateway()
+        config_flow._selected_gateway = mock_gateway
+        config_flow._discovered_entities = {
+            "devices": [{"sn": "dev1", "name": "Device 1"}],
+            "groups": [],
+            "scenes": []
+        }
+
+        user_input = {"devices": ["dev1"]}
+
+        with patch.object(
+            config_flow, "_filter_selected_entities"
+        ) as mock_filter:
+            mock_filter.return_value = {"devices": [
+                {"sn": "dev1", "name": "Device 1"}]}
+
+            with patch.object(config_flow, "async_create_entry") as mock_create:
+                mock_create.return_value = {
+                    "type": FlowResultType.CREATE_ENTRY}
+
+                await config_flow.async_step_configure_entities(user_input)
+
+                mock_create.assert_called_once()
+
+    def test_prepare_entity_selection_schema_with_devices(self, config_flow):
+        """Test preparing entity selection schema with devices."""
+        devices = [
+            {"sn": "dev1", "name": "Device 1",
+                "dev_type": "light", "unique_id": "gw123_dev1"},
+            {"sn": "dev2", "name": "Device 2",
+                "dev_type": "sensor", "unique_id": "gw123_dev2"}
+        ]
+        groups = []
+        scenes = []
+
+        schema = config_flow._prepare_entity_selection_schema(
+            devices, groups, scenes)
+
+        assert schema is not None
+
+    def test_prepare_entity_selection_schema_with_groups(self, config_flow):
+        """Test preparing entity selection schema with groups."""
+        devices = []
+        groups = [
+            {"sn": "grp1", "name": "Group 1",
+                "unique_id": "gw123_grp1", "channel": 1, "id": 1},
+            {"sn": "grp2", "name": "Group 2",
+                "unique_id": "gw123_grp2", "channel": 1, "id": 2}
+        ]
+        scenes = []
+
+        schema = config_flow._prepare_entity_selection_schema(
+            devices, groups, scenes)
+
+        assert schema is not None
+
+    def test_prepare_entity_selection_schema_with_scenes(self, config_flow):
+        """Test preparing entity selection schema with scenes."""
+        devices = []
+        groups = []
+        scenes = [
+            {"sn": "scn1", "name": "Scene 1",
+                "unique_id": "gw123_scn1", "channel": 1, "id": 1},
+            {"sn": "scn2", "name": "Scene 2",
+                "unique_id": "gw123_scn2", "channel": 1, "id": 2}
+        ]
+
+        schema = config_flow._prepare_entity_selection_schema(
+            devices, groups, scenes)
+
+        assert schema is not None
+
+    def test_filter_selected_entities_all_types(self, config_flow):
+        """Test filtering selected entities for all types."""
+        user_input = {
+            "devices": ["gw123_dev1"],
+            "groups": ["gw123_grp1"],
+            "scenes": ["gw123_scn1"]
+        }
+        discovered_entities = {
+            "devices": [
+                {"sn": "dev1", "name": "Device 1", "unique_id": "gw123_dev1"}
+            ],
+            "groups": [
+                {"sn": "grp1", "name": "Group 1", "unique_id": "gw123_grp1"}
+            ],
+            "scenes": [
+                {"sn": "scn1", "name": "Scene 1", "unique_id": "gw123_scn1"}
+            ]
+        }
+
+        result = config_flow._filter_selected_entities(
+            user_input, discovered_entities)
+
+        assert len(result["devices"]) == 1
+        assert len(result["groups"]) == 1
+        assert len(result["scenes"]) == 1
+
+
+class TestOptionsFlowHandlerComplete:
+    """Test additional OptionsFlowHandler functionality."""
+
+    @pytest.fixture
+    def mock_config_entry(self):
+        """Create mock config entry."""
+        return ConfigEntry(
+            version=1,
+            minor_version=1,
+            domain=DOMAIN,
+            title="Test Gateway",
+            data={
+                "sn": MOCK_GATEWAY_SN,
+                "gateway": {"gw_sn": MOCK_GATEWAY_SN, "ip": MOCK_GATEWAY_IP},
+                "devices": [{"sn": "dev1", "name": "Device 1"}],
+                "groups": [],
+                "scenes": []
+            },
+            source="user",
+            entry_id="test_entry_id",
+            unique_id=MOCK_GATEWAY_SN,
+            options={},
+            discovery_keys={},
+            subentries_data=None,
+        )
+
+    @pytest.fixture
+    def options_flow(self, mock_config_entry):
+        """Create OptionsFlowHandler instance."""
+        flow = OptionsFlowHandler(mock_config_entry)
+        flow.hass = Mock(spec=HomeAssistant)
+        return flow
+
+    @pytest.mark.asyncio
+    async def test_async_step_refresh_with_entity_discovery(self, options_flow):
+        """Test refresh step with entity discovery."""
+        options_flow._refresh_devices = True
+
+        # Mock runtime_data to avoid gateway_not_found abort
+        mock_runtime_data = Mock()
+        mock_gateway = MockDaliGateway()
+        mock_runtime_data.gateway = mock_gateway
+        options_flow._config_entry.runtime_data = mock_runtime_data
+
+        with patch.object(options_flow, "_discover_entities") as mock_discover:
+            mock_discover.return_value = {
+                "devices": [{"sn": "dev2", "name": "Device 2"}],
+                "groups": [],
+                "scenes": []
+            }
+
+            with patch.object(
+                options_flow, "async_step_select_entities"
+            ) as mock_select:
+                mock_select.return_value = {"type": FlowResultType.FORM}
+
+                await options_flow.async_step_refresh()
+
+                mock_select.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_async_step_select_entities_with_user_input(
+            self, options_flow):
+        """Test select entities step with user selection."""
+        options_flow._discovered_entities = {
+            "devices": [
+                {"sn": "dev1", "name": "Device 1", "unique_id": "gw123_dev1"}
+            ],
+            "groups": [],
+            "scenes": []
+        }
+
+        user_input = {"devices": ["gw123_dev1"]}
+
+        with patch.object(
+            options_flow, "_filter_selected_entities"
+        ) as mock_filter:
+            mock_filter.return_value = {"devices": [
+                {"sn": "dev1", "name": "Device 1", "unique_id": "gw123_dev1"}]}
+
+            with patch.object(
+                options_flow, "async_step_refresh_result"
+            ) as mock_result:
+                mock_result.return_value = {
+                    "type": FlowResultType.CREATE_ENTRY}
+
+                # Mock the necessary registry operations
+                with patch(f"{CFM}.dr.async_get") as mock_dr, \
+                        patch(f"{CFM}.er.async_get") as mock_er:
+                    mock_device_reg = Mock()
+                    mock_entity_reg = Mock()
+                    mock_dr.return_value = mock_device_reg
+                    mock_er.return_value = mock_entity_reg
+                    mock_device_reg.async_remove_device = Mock()
+                    mock_entity_reg.async_remove = Mock()
+
+                    # Mock registry entries
+                    with patch.object(
+                        dr, "async_entries_for_config_entry", return_value=[]
+                    ), patch.object(
+                        er, "async_entries_for_config_entry", return_value=[]
+                    ):
+
+                        # Mock hass.config_entries.async_update_entry to avoid
+                        # the data modification error
+                        options_flow.hass.config_entries.async_update_entry = (
+                            Mock()
+                        )
+
+                        # Mock hass.async_create_task for the reload task
+                        options_flow.hass.async_create_task = Mock()
+
+                        await options_flow.async_step_select_entities(
+                            user_input
+                        )
+
+                        mock_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_async_step_refresh_result_with_changes(self, options_flow):
+        """Test refresh result step with entity changes."""
+        options_flow._refresh_results = {
+            "devices_added": [{"name": "New Device"}],
+            "devices_removed": [],
+            "groups_added": [],
+            "groups_removed": [],
+            "scenes_added": [],
+            "scenes_removed": []
+        }
+
+        with patch.object(options_flow, "async_create_entry") as mock_create:
+            mock_create.return_value = {"type": FlowResultType.CREATE_ENTRY}
+
+            # Pass user_input to trigger the create_entry call
+            await options_flow.async_step_refresh_result(user_input={})
+
+            mock_create.assert_called_once()
+
+    def test_calculate_entity_differences_added_devices(self, options_flow):
+        """Test calculating entity differences with added devices."""
+        # Set refresh flag to enable devices processing
+        options_flow._refresh_devices = True
+
+        selected = {
+            "devices": [
+                {"sn": "dev1", "name": "Device 1", "unique_id": "gw123_dev1"},
+                {"sn": "dev2", "name": "Device 2", "unique_id": "gw123_dev2"}
+            ],
+            "groups": [],
+            "scenes": []
+        }
+        current_data = {
+            "devices": [
+                {"sn": "dev1", "name": "Device 1", "unique_id": "gw123_dev1"}
+            ],
+            "groups": [],
+            "scenes": []
+        }
+
+        options_flow._calculate_entity_differences(selected, current_data)
+
+        assert len(options_flow._refresh_results["devices_added"]) == 1
+        assert options_flow._refresh_results["devices_added"][0]["sn"] == "dev2"
+
+    def test_calculate_entity_differences_removed_devices(self, options_flow):
+        """Test calculating entity differences with removed devices."""
+        # Set refresh flag to enable devices processing
+        options_flow._refresh_devices = True
+
+        selected = {
+            "devices": [],
+            "groups": [],
+            "scenes": []
+        }
+        current_data = {
+            "devices": [
+                {"sn": "dev1", "name": "Device 1", "unique_id": "gw123_dev1"}
+            ],
+            "groups": [],
+            "scenes": []
+        }
+
+        options_flow._calculate_entity_differences(selected, current_data)
+
+        assert len(options_flow._refresh_results["devices_removed"]) == 1
+        assert (
+            options_flow._refresh_results["devices_removed"][0]["sn"] == "dev1"
+        )

@@ -1,1 +1,1 @@
-"""Tests for the Dali Center component.""" 
+"""Tests for the Dali Center component."""

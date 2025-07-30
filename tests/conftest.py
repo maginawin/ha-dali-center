@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from homeassistant.config_entries import ConfigEntry
 
 from custom_components.dali_center.const import DOMAIN
@@ -40,24 +40,36 @@ MOCK_SCENE_DATA = {
 class MockDevice:
     """Mock Device class for testing."""
 
-    def __init__(self, data: dict | None = None):
+    def __init__(self, gateway=None, data: dict | None = None):
         data = data or MOCK_DEVICE_DATA
         self.sn = data.get("sn", "001")
         self.name = data.get("name", "Test Device")
         self.type = data.get("type", 1)
-        self.dev_type = data.get("type", 1)  # Add dev_type for compatibility
+        # Add dev_type for compatibility
+        self.dev_type = data.get("dev_type", str(data.get("type", 1)))
         self.brightness = data.get("brightness", 100)
         self.power = data.get("power", True)
-        self.energy = data.get("energy", 0.0)
+        self.energy = data.get("energy", 15.5)  # Match test expectations
         self.status = "online"
-        self.unique_id = f"{self.sn}_device"
-        self.dev_id = self.sn
+
+        # Create proper unique_id and dev_id based on gateway
+        if gateway:
+            self.gw_sn = gateway.gw_sn
+            self.unique_id = f"{gateway.gw_sn}_{self.sn}"
+            self.dev_id = self.sn
+        else:
+            self.gw_sn = MOCK_GATEWAY_SN
+            self.unique_id = f"{MOCK_GATEWAY_SN}_{self.sn}"
+            self.dev_id = self.sn
+
         # Add light-specific attributes
         self.color_mode = "brightness"
         self.brightness_range = (0, 100)
         self.color_temp_range = None
         self.features = []
-        self.gw_sn = MOCK_GATEWAY_SN  # Add gateway serial number
+        self.press_button = lambda button_id: None  # Mock press_button method
+        self.read_status = lambda: None  # Mock read_status method
+        self.set_sensor_enabled = Mock()  # For switch tests
 
     def turn_on(self, **kwargs):
         """Mock turn_on method."""
@@ -87,11 +99,17 @@ class MockGroup:
 class MockScene:
     """Mock Scene class for testing."""
 
-    def __init__(self, data: dict | None = None):
+    def __init__(self, gateway=None, data: dict | None = None):
         data = data or MOCK_SCENE_DATA
         self.sn = data.get("sn", "scene001")
         self.name = data.get("name", "Test Scene")
         self.type = data.get("type", 1)
+        self.scene_id = self.sn
+        self.unique_id = f"{
+            gateway.gw_sn if gateway else MOCK_GATEWAY_SN
+        }_scene_{self.sn}"
+        self.gw_sn = gateway.gw_sn if gateway else MOCK_GATEWAY_SN
+        self.activate = lambda: None  # Mock activate method
 
 
 class MockDaliGateway:
@@ -102,10 +120,12 @@ class MockDaliGateway:
             self.sn = gateway_data
             self.gw_sn = gateway_data
             self.ip = MOCK_GATEWAY_IP
+            self.name = f"DALI Gateway {gateway_data}"
         else:
             self.sn = gateway_data.get("gw_sn", MOCK_GATEWAY_SN)
             self.gw_sn = gateway_data.get("gw_sn", MOCK_GATEWAY_SN)
             self.ip = gateway_data.get("ip", MOCK_GATEWAY_IP)
+            self.name = gateway_data.get("name", f"DALI Gateway {self.gw_sn}")
 
         self.connected = False
         self.devices = [MockDevice()]
@@ -222,7 +242,7 @@ def mock_pysrdaligateway():
     ), patch.multiple(
         "custom_components.dali_center.light",
         DaliGateway=MockDaliGateway,
-        Device=lambda gateway, device_data: MockDevice(device_data),
+        Device=MockDevice,
         Group=lambda gateway, group_data: MockGroup(group_data),
         is_light_device=mock_is_light_device,
     ), patch.multiple(
@@ -265,11 +285,23 @@ def mock_config_entry():
         title="Test Gateway",
         data={
             "sn": MOCK_GATEWAY_SN,
+            "gateway": {
+                "gw_sn": MOCK_GATEWAY_SN,
+                "ip": MOCK_GATEWAY_IP,
+            },
             "devices": [
-                {"sn": "light001", "name": "Test Light", "type": 1}
+                {
+                    "sn": "light001",
+                    "name": "Test Light",
+                    "type": 1,
+                    "dev_type": "1"
+                }
             ],
             "groups": [
                 {"sn": "group001", "name": "Test Group", "type": 1}
+            ],
+            "scenes": [
+                {"sn": "scene001", "name": "Test Scene", "type": 1}
             ]
         },
         source="user",
@@ -291,6 +323,43 @@ def mock_dali_gateway():
 def mock_device():
     """Create a mock Device instance."""
     return MockDevice()
+
+
+@pytest.fixture
+def mock_light_device():
+    """Create a mock light Device instance."""
+    gateway = MockDaliGateway()
+    return MockDevice(gateway, {
+        "sn": "light001",
+        "name": "Test Light",
+        "type": 1,
+        "dev_type": "1",
+        "energy": 15.5
+    })
+
+
+@pytest.fixture
+def mock_motion_device():
+    """Create a mock motion sensor Device instance."""
+    gateway = MockDaliGateway()
+    return MockDevice(gateway, {
+        "sn": "motion001",
+        "name": "Test Motion Sensor",
+        "type": 3,
+        "dev_type": "3"
+    })
+
+
+@pytest.fixture
+def mock_illuminance_device():
+    """Create a mock illuminance sensor Device instance."""
+    gateway = MockDaliGateway()
+    return MockDevice(gateway, {
+        "sn": "lux001",
+        "name": "Test Illuminance Sensor",
+        "type": 4,
+        "dev_type": "4"
+    })
 
 
 @pytest.fixture

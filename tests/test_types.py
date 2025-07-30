@@ -1,4 +1,5 @@
 """Test type definitions for Dali Center integration."""
+# pylint: disable=protected-access
 
 from custom_components.dali_center.types import ConfigData, DaliCenterData
 from tests.conftest import MockDaliGateway, MOCK_GATEWAY_SN

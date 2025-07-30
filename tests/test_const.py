@@ -1,4 +1,6 @@
 """Test the constants for Dali Center integration."""
+# pylint: disable=protected-access
+
 from custom_components.dali_center.const import DOMAIN, MANUFACTURER
 
 

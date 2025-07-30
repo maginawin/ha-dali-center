@@ -1,4 +1,5 @@
 """Test helper functions for Dali Center integration."""
+# pylint: disable=protected-access
 
 from custom_components.dali_center.helper import find_set_differences
 
