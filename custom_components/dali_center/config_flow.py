@@ -43,7 +43,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._discovered_entities: dict[str, list] = {}
 
     async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
+        self, user_input: dict[str, bool] | None = None
     ) -> ConfigFlowResult:
         _LOGGER.warning("OptionsFlowHandler: async_step_init %s", user_input)
 
