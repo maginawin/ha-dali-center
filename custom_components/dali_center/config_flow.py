@@ -8,16 +8,16 @@ import asyncio
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.core import callback
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import device_registry as dr
 
-from .helper import find_set_differences
 from .types import ConfigData
-from PySrDaliGateway import DaliGateway, DaliGatewayType, DeviceType, GroupType, SceneType
+from PySrDaliGateway import DaliGateway, DaliGatewayType
 from PySrDaliGateway.discovery import DaliGatewayDiscovery
 from PySrDaliGateway.exceptions import DaliGatewayError
 from .const import DOMAIN
+from .config_flow_helpers.entity_helpers import EntityDiscoveryHelper
+from .config_flow_helpers.ui_helpers import UIFormattingHelper
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,233 +30,7 @@ OPTIONS_SCHEMA = vol.Schema(
 )
 
 
-class EntityDiscoveryMixin:
-    """Mixin class for entity discovery and selection logic."""
-
-    async def _discover_entities(
-        self,
-        gateway: DaliGateway,
-        discover_devices: bool = True,
-        discover_groups: bool = True,
-        discover_scenes: bool = True
-    ) -> dict[str, list[DeviceType] | list[GroupType] | list[SceneType]]:
-        """Discover entities from gateway."""
-        discovered: dict[
-            str, list[DeviceType] | list[GroupType] | list[SceneType]
-        ] = {}
-
-        if discover_devices:
-            try:
-                discovered["devices"] = await gateway.discover_devices()
-                _LOGGER.info(
-                    "Found %d devices on gateway %s",
-                    len(discovered["devices"]),
-                    gateway.gw_sn
-                )
-            except DaliGatewayError as e:
-                _LOGGER.warning(
-                    "Error discovering devices on gateway %s: %s",
-                    gateway.gw_sn, e
-                )
-                discovered["devices"] = []
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                _LOGGER.warning(
-                    "Unexpected error discovering devices on gateway %s: %s",
-                    gateway.gw_sn, e
-                )
-                discovered["devices"] = []
-
-        if discover_groups:
-            try:
-                discovered["groups"] = await gateway.discover_groups()
-                _LOGGER.info(
-                    "Found %d groups on gateway %s",
-                    len(discovered["groups"]),
-                    gateway.gw_sn
-                )
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                _LOGGER.warning(
-                    "Unexpected error discovering groups on gateway %s: %s",
-                    gateway.gw_sn, e
-                )
-                discovered["groups"] = []
-
-        if discover_scenes:
-            try:
-                discovered["scenes"] = await gateway.discover_scenes()
-                _LOGGER.info(
-                    "Found %d scenes on gateway %s",
-                    len(discovered["scenes"]),
-                    gateway.gw_sn
-                )
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                _LOGGER.warning(
-                    "Unexpected error discovering scenes on gateway %s: %s",
-                    gateway.gw_sn, e
-                )
-                discovered["scenes"] = []
-
-        return discovered
-
-    def _prepare_entity_selection_schema(
-        self,
-        devices: list,
-        groups: list,
-        scenes: list,
-        existing_selections: Optional[dict[str, list]] = None,
-        show_diff: bool = False
-    ) -> vol.Schema:
-        schema_dict = {}
-
-        # Prepare device selection options
-        if devices:
-            device_options = {}
-            existing_device_ids = {
-                d["unique_id"] for d in existing_selections.get("devices", [])
-            } if existing_selections else set()
-
-            for device in devices:
-                label = f"{device["name"]}"
-                if show_diff and existing_selections and \
-                        device["unique_id"] not in existing_device_ids:
-                    label = f"[NEW] {label}"
-                device_options[device["unique_id"]] = label
-
-            # Add removed devices if showing diff
-            if show_diff and existing_selections and \
-                    "devices" in existing_selections:
-                current_device_ids = {d["unique_id"] for d in devices}
-                for device in existing_selections["devices"]:
-                    if device["unique_id"] not in current_device_ids:
-                        device_options[device["unique_id"]] = \
-                            f"[REMOVED] {device["name"]}"
-
-            # Default selection
-            if existing_selections is None:
-                # Select all for initial setup
-                default_devices = list(device_options.keys())
-            else:
-                # Keep existing selections that are still available
-                default_devices = [
-                    unique_id for unique_id in existing_device_ids
-                    if unique_id in device_options
-                ]
-
-            schema_dict[vol.Optional("devices", default=default_devices)] = \
-                cv.multi_select(device_options)
-
-        # Prepare group selection options
-        if groups:
-            group_options = {}
-            existing_ids = {
-                g["unique_id"] for g in existing_selections.get("groups", [])
-            } if existing_selections else set()
-
-            for group in groups:
-                label = f"{group["name"]} (Channel {
-                    group["channel"]}, Group {group["id"]})"
-                if show_diff and existing_selections and \
-                        group["unique_id"] not in existing_ids:
-                    label = f"[NEW] {label}"
-                group_options[group["unique_id"]] = label
-
-            # Add removed groups if showing diff
-            if show_diff and existing_selections and \
-                    "groups" in existing_selections:
-                current_ids = {g["unique_id"] for g in groups}
-                for group in existing_selections["groups"]:
-                    if group["unique_id"] not in current_ids:
-                        group_options[group["unique_id"]] = \
-                            f"[REMOVED] {group["name"]}"
-
-            # Default selection
-            if existing_selections is None:
-                # Select all for initial setup
-                default_groups = list(group_options.keys())
-            else:
-                # Keep existing selections
-                default_groups = [
-                    unique_id for unique_id in existing_ids
-                    if unique_id in group_options
-                ]
-
-            schema_dict[vol.Optional("groups", default=default_groups)] = \
-                cv.multi_select(group_options)
-
-        # Prepare scene selection options
-        if scenes:
-            scene_options = {}
-            existing_ids = {
-                s["unique_id"] for s in existing_selections.get("scenes", [])
-            } if existing_selections else set()
-
-            for scene in scenes:
-                label = f"{scene["name"]} (Channel {
-                    scene["channel"]}, Scene {scene["id"]})"
-                if show_diff and existing_selections and \
-                        scene["unique_id"] not in existing_ids:
-                    label = f"[NEW] {label}"
-                scene_options[scene["unique_id"]] = label
-
-            # Add removed scenes if showing diff
-            if show_diff and existing_selections and \
-                    "scenes" in existing_selections:
-                current_ids = {s["unique_id"] for s in scenes}
-                for scene in existing_selections["scenes"]:
-                    if scene["unique_id"] not in current_ids:
-                        scene_options[scene["unique_id"]] = \
-                            f"[REMOVED] {scene["name"]}"
-
-            if existing_selections is None:
-                # Select all for initial setup
-                default_scenes = list(scene_options.keys())
-            else:
-                # Keep existing selections
-                default_scenes = [
-                    unique_id for unique_id in existing_ids
-                    if unique_id in scene_options
-                ]
-
-            schema_dict[vol.Optional("scenes", default=default_scenes)] = \
-                cv.multi_select(scene_options)
-
-        return vol.Schema(schema_dict)
-
-    def _filter_selected_entities(
-        self,
-        user_input: dict[str, Any],
-        discovered_entities: dict[str, list]
-    ) -> ConfigData:
-        selected: ConfigData = {}
-
-        # Filter devices
-        if "devices" in user_input and "devices" in discovered_entities:
-            selected_ids = user_input["devices"]
-            selected["devices"] = [
-                device for device in discovered_entities["devices"]
-                if device["unique_id"] in selected_ids
-            ]
-
-        # Filter groups
-        if "groups" in user_input and "groups" in discovered_entities:
-            selected_ids = user_input["groups"]
-            selected["groups"] = [
-                group for group in discovered_entities["groups"]
-                if group["unique_id"] in selected_ids
-            ]
-
-        # Filter scenes
-        if "scenes" in user_input and "scenes" in discovered_entities:
-            selected_ids = user_input["scenes"]
-            selected["scenes"] = [
-                scene for scene in discovered_entities["scenes"]
-                if scene["unique_id"] in selected_ids
-            ]
-
-        return selected
-
-
-class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
+class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle a options flow for Dali Center."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
@@ -310,8 +84,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
 
             gateway: DaliGateway = self._config_entry.runtime_data.gateway
 
-            # Discover entities based on user selection
-            discovered = await self._discover_entities(
+            # Discover entities based on user selection using helper
+            discovered = await EntityDiscoveryHelper.discover_entities(
                 gateway,
                 discover_devices=self._refresh_devices,
                 discover_groups=self._refresh_groups,
@@ -339,11 +113,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
         """Allow user to select entities with diff display."""
         if user_input is not None:
             current_data = dict(self._config_entry.data)
-            selected = self._filter_selected_entities(
+            selected = EntityDiscoveryHelper.filter_selected_entities(
                 user_input, self._discovered_entities)
 
             # Calculate differences between current config and user selection
-            self._calculate_entity_differences(selected, current_data)
+            self._refresh_results = UIFormattingHelper.\
+                calculate_entity_differences(
+                dict(selected),
+                current_data,
+                self._refresh_devices,
+                self._refresh_groups,
+                self._refresh_scenes
+            )
 
             # Update config data with selected entities
             updated_data = {**current_data, **selected}
@@ -414,9 +195,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
 
             return await self.async_step_refresh_result()
 
-        # Prepare schema with existing selections and diff display
+        # Prepare schema with existing selections and diff display using helper
         current_data = dict(self._config_entry.data)
-        schema = self._prepare_entity_selection_schema(
+        schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
             devices=self._discovered_entities.get("devices", []),
             groups=self._discovered_entities.get("groups", []),
             scenes=self._discovered_entities.get("scenes", []),
@@ -428,24 +209,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
             step_id="select_entities",
             data_schema=schema,
             description_placeholders={
-                "diff_summary": self._format_discovery_summary()}
+                "diff_summary": UIFormattingHelper.format_discovery_summary(
+                    self._discovered_entities,
+                    self._refresh_devices,
+                    self._refresh_groups,
+                    self._refresh_scenes
+                )}
         )
-
-    def _format_discovery_summary(self) -> str:
-        """Format a summary of discovered entities."""
-        entity_types = [
-            ("devices", self._refresh_devices),
-            ("groups", self._refresh_groups),
-            ("scenes", self._refresh_scenes)
-        ]
-
-        summary = []
-        for entity_type, should_refresh in entity_types:
-            if should_refresh and entity_type in self._discovered_entities:
-                total = len(self._discovered_entities[entity_type])
-                summary.append(f"Discovered {entity_type.title()}: {total}")
-
-        return "\n".join(summary) if summary else "No entities discovered"
 
     async def async_step_refresh_result(
         self, user_input: dict[str, Any] | None = None
@@ -455,118 +225,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow, EntityDiscoveryMixin):
             return self.async_show_form(
                 step_id="refresh_result",
                 description_placeholders={
-                    "result_message": self._format_refresh_results()
+                    "result_message": UIFormattingHelper.format_refresh_results(
+                        self._refresh_results
+                    )
                 },
                 data_schema=vol.Schema({}),
             )
 
         return self.async_create_entry(data={})
 
-    def _format_refresh_results(self) -> str:
-        """Format refresh results for display."""
-        if not hasattr(self, "_refresh_results"):
-            return "No items refreshed"
 
-        results = self._refresh_results
-        result_parts = []
-
-        # Define entity types and their formatters
-        entity_configs = [
-            ("devices", "name", "unique_id"),
-            ("groups", "name", lambda g: f"Channel: {
-                g.get("channel", "N/A")
-            }, Group: {g.get("id", "N/A")}"),
-            ("scenes", "name", lambda s: f"Channel: {
-                s.get("channel", "N/A")
-            }, Scene: {s.get("id", "N/A")}")
-        ]
-
-        for entity_type, name_key, id_formatter in entity_configs:
-            count_key = f"{entity_type}_count"
-            if count_key in results:
-                result_parts.append(
-                    f"Total {entity_type.title()}: {results[count_key]}")
-                details = self._format_added_removed(
-                    results, entity_type, name_key, id_formatter
-                )
-                if details:
-                    result_parts.append(details)
-                result_parts.append("")  # Empty line
-
-        return "\n".join(result_parts).strip() or "No items refreshed"
-
-    def _format_added_removed(
-        self, results: dict, prefix: str, name_key: str,
-        id_formatter: object
-    ) -> str:
-        """Format added and removed items."""
-        def format_items(items: list, action: str) -> list[str]:
-            if not items:
-                return [f"No {prefix} {action}"]
-
-            lines = [f"{action.title()} {prefix.title()} ({len(items)}):"]
-            for item in items:
-                id_str = (
-                    id_formatter(item) if callable(id_formatter)
-                    else f"ID: {item.get(id_formatter, "N/A")}"
-                )
-                lines.append(f"  - {item.get(name_key, "Unnamed")} ({id_str})")
-            lines.append("")
-            return lines
-
-        message_parts = []
-        message_parts.extend(format_items(
-            results.get(f"{prefix}_added", []), "added"))
-        message_parts.extend(format_items(
-            results.get(f"{prefix}_removed", []), "removed"))
-
-        return "\n".join(message_parts)
-
-    def _calculate_entity_differences(
-        self,
-        selected: ConfigData,
-        current_data: dict[str, Any]
-    ) -> None:
-        """Calculate differences between selected and current entities."""
-        self._refresh_results = {}
-
-        # Process devices
-        if self._refresh_devices and "devices" in selected:
-            added, removed = find_set_differences(
-                selected["devices"],
-                current_data.get("devices", []),
-                "unique_id"
-            )
-            self._refresh_results["devices_added"] = added
-            self._refresh_results["devices_removed"] = removed
-            self._refresh_results["devices_count"] = len(selected["devices"])
-
-        # Process groups
-        if self._refresh_groups and "groups" in selected:
-            added, removed = find_set_differences(
-                selected["groups"],
-                current_data.get("groups", []),
-                "unique_id"
-            )
-            self._refresh_results["groups_added"] = added
-            self._refresh_results["groups_removed"] = removed
-            self._refresh_results["groups_count"] = len(selected["groups"])
-
-        # Process scenes
-        if self._refresh_scenes and "scenes" in selected:
-            added, removed = find_set_differences(
-                selected["scenes"],
-                current_data.get("scenes", []),
-                "unique_id"
-            )
-            self._refresh_results["scenes_added"] = added
-            self._refresh_results["scenes_removed"] = removed
-            self._refresh_results["scenes_count"] = len(selected["scenes"])
-
-
-class DaliCenterConfigFlow(
-    ConfigFlow, EntityDiscoveryMixin, domain=DOMAIN
-):  # type: ignore[call-arg]
+class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Dali Center."""
 
     VERSION = 1
@@ -591,17 +260,7 @@ class DaliCenterConfigFlow(
             step_id="user",
             data_schema=vol.Schema({}),
             description_placeholders={
-                "message": (
-                    "## DALI Gateway Discovery\n\n"
-                    "**Two-step process:**\n\n"
-                    "1. **Click SUBMIT** to start discovery "
-                    "(searches for up to 3 minutes)\n"
-                    "2. **Short press the RESET button** on your DALI "
-                    "gateway device **ONCE**\n\n"
-                    "The gateway will respond immediately "
-                    "after the button press.\n"
-                    "Ensure the gateway is powered and on the same network."
-                )
+                "message": UIFormattingHelper.get_discovery_instructions()
             }
         )
 
@@ -659,16 +318,8 @@ class DaliCenterConfigFlow(
                     step_id="discovery",
                     errors=errors,
                     description_placeholders={
-                        "message": (
-                            "## Discovery Failed\n\n"
-                            "Discovery timed out after **3 minutes**.\n\n"
-                            "Please ensure:\n"
-                            "- Gateway is **powered** and on "
-                            " **same network**\n"
-                            "- **RESET button was pressed** during "
-                            "discovery\n\n"
-                            "Click Submit to **retry**."
-                        )
+                        "message": UIFormattingHelper.\
+                            get_discovery_failed_message()
                     },
                     data_schema=vol.Schema({}),
                 )
@@ -697,14 +348,7 @@ class DaliCenterConfigFlow(
                 step_id="discovery",
                 errors={"base": "no_devices_found"},
                 description_placeholders={
-                    "message": (
-                        "## No Gateways Found\n\n"
-                        "Please check:\n"
-                        "- Gateway is **powered** and on **same network**\n"
-                        "- **RESET button was pressed** during discovery\n"
-                        "- Gateway **not already configured** elsewhere\n\n"
-                        "Click Submit to **retry**."
-                    )
+                    "message": UIFormattingHelper.get_no_gateways_message()
                 },
                 data_schema=vol.Schema({}),
             )
@@ -715,17 +359,17 @@ class DaliCenterConfigFlow(
             step_id="discovery",
             data_schema=vol.Schema(
                 {
-                    vol.Required("selected_gateway"): vol.In({
-                        gateway["gw_sn"]: f"{gateway["name"]} "
-                        f"({gateway["gw_sn"]})"
-                        for gateway in self._gateways
-                    }),
+                    vol.Required("selected_gateway"): vol.In(
+                        UIFormattingHelper.format_gateway_options(
+                            self._gateways)
+                    ),
                 }
             ),
             errors=errors,
             description_placeholders={
-                "message": f"## Success!\n\nFound **{len(self._gateways)} "
-                "gateway(s)**. Select one to configure:"
+                "message": UIFormattingHelper.get_success_message(
+                    len(self._gateways)
+                )
             }
         )
 
@@ -740,8 +384,8 @@ class DaliCenterConfigFlow(
             return self.async_abort(reason="no_gateway_selected")
 
         if user_input is not None:
-            # Filter selected entities
-            selected = self._filter_selected_entities(
+            # Filter selected entities using helper
+            selected = EntityDiscoveryHelper.filter_selected_entities(
                 user_input,
                 self._discovered_entities
             )
@@ -760,8 +404,9 @@ class DaliCenterConfigFlow(
                 self._config_data["sn"]
             )
 
-            # Discover all entities
-            self._discovered_entities = await self._discover_entities(
+            # Discover all entities using helper
+            self._discovered_entities = await EntityDiscoveryHelper.\
+                discover_entities(
                 self._selected_gateway,
                 discover_devices=True,
                 discover_groups=True,
@@ -801,8 +446,7 @@ class DaliCenterConfigFlow(
                 errors=errors,
             )
 
-        # Prepare selection schema with all entities selected by default
-        schema = self._prepare_entity_selection_schema(
+        schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
             devices=self._discovered_entities.get("devices", []),
             groups=self._discovered_entities.get("groups", []),
             scenes=self._discovered_entities.get("scenes", []),
