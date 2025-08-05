@@ -5,7 +5,7 @@
 -r requirements.txt
 
 # Static type checker
-mypy
+mypy>=1.16.0
 
 # Testing framework
 pytest
