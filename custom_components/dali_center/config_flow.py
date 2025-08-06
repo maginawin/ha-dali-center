@@ -44,8 +44,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._refresh_results: dict[str, Any] = {}
         self._discovered_entities: dict[str, list] = {}
 
-    async def _reload_with_delay(self) -> None:
-        """Reload config entry with a delay to ensure clean state."""
+    async def _reload_with_delay(self) -> bool:
+        """Reload config entry with a delay to ensure clean state.
+
+        Returns:
+            bool: True if reload was successful, False otherwise
+        """
         try:
             _LOGGER.debug(
                 "Unloading config entry %s",
@@ -63,13 +67,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 "Setting up config entry %s with new configuration",
                 self._config_entry.entry_id
             )
-            await self.hass.config_entries.async_setup(
+            result = await self.hass.config_entries.async_setup(
                 self._config_entry.entry_id
             )
+
+            if result:
+                _LOGGER.debug("Config entry reload completed successfully")
+                # Wait a bit more for runtime_data to be fully initialized
+                await asyncio.sleep(1.0)
+                return True
+            else:
+                _LOGGER.error("Config entry setup failed")
+                return False
+
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error(
                 "Error during config entry reload: %s", e
             )
+            return False
 
     async def async_step_init(
         self, user_input: dict[str, bool] | None = None
@@ -198,8 +213,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 )
                 entity_reg.async_remove(entity.entity_id)
 
-            # Schedule the reload
-            self.hass.async_create_task(self._reload_with_delay())
+            # Wait for reload to complete
+            await self._reload_with_delay()
 
             return await self.async_step_refresh_result()
 
@@ -254,6 +269,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             # Get current gateway serial number
             current_sn = self._config_entry.data["sn"]
+            gateway: DaliGateway = self._config_entry.runtime_data.gateway
+            await gateway.disconnect()
 
             # Perform discovery with serial number to get updated IP
             discovery = DaliGatewayDiscovery()
@@ -286,8 +303,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 current_sn, updated_gateway["gw_ip"]
             )
 
-            # Schedule the reload using extracted method
-            self.hass.async_create_task(self._reload_with_delay())
+            # Wait for reload to complete
+            reload_success = await self._reload_with_delay()
+
+            if not reload_success:
+                _LOGGER.error("Failed to reload integration after IP update")
+                errors["base"] = "cannot_connect"
+                return self.async_show_form(
+                    step_id="refresh_gateway_ip",
+                    errors=errors,
+                    data_schema=vol.Schema({}),
+                )
 
             # If other refreshes are also requested, continue to entity refresh
             if (self._refresh_devices or self._refresh_groups or
@@ -326,7 +352,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_create_entry(data={})
 
 
-class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN): # type: ignore[call-arg]
+# type: ignore[call-arg]
+class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Dali Center."""
 
     VERSION = 1
