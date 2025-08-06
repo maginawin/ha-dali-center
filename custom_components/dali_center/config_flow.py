@@ -98,7 +98,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         # If IP refresh is requested, do it first
         if self._refresh_gateway_ip:
             return await self.async_step_refresh_gateway_ip()
-        
+
         return await self.async_step_refresh()
 
     async def async_step_refresh(self) -> ConfigFlowResult:
@@ -154,12 +154,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             # Calculate differences between current config and user selection
             self._refresh_results = UIFormattingHelper.\
                 calculate_entity_differences(
-                dict(selected),
-                current_data,
-                self._refresh_devices,
-                self._refresh_groups,
-                self._refresh_scenes
-            )
+                    dict(selected),
+                    current_data,
+                    self._refresh_devices,
+                    self._refresh_groups,
+                    self._refresh_scenes
+                )
 
             # Update config data with selected entities
             updated_data = {**current_data, **selected}
@@ -254,13 +254,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             # Get current gateway serial number
             current_sn = self._config_entry.data["sn"]
-            
+
             # Perform discovery with serial number to get updated IP
             discovery = DaliGatewayDiscovery()
             discovered_gateways = await discovery.discover_gateways(current_sn)
-            
+
             if not discovered_gateways:
-                _LOGGER.warning("Gateway %s not found during IP refresh", current_sn)
+                _LOGGER.warning(
+                    "Gateway %s not found during IP refresh", current_sn)
                 errors["base"] = "gateway_not_found"
                 return self.async_show_form(
                     step_id="refresh_gateway_ip",
@@ -270,35 +271,36 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             # Get the first (and should be only) gateway found
             updated_gateway = discovered_gateways[0]
-            
+
             # Update config entry with new IP
             current_data = dict(self._config_entry.data)
             current_data["gateway"]["gw_ip"] = updated_gateway["gw_ip"]
-            
+
             # Update config entry
             self.hass.config_entries.async_update_entry(
                 self._config_entry, data=current_data
             )
-            
+
             _LOGGER.info(
-                "Gateway %s IP updated to %s", 
+                "Gateway %s IP updated to %s",
                 current_sn, updated_gateway["gw_ip"]
             )
 
             # Schedule the reload using extracted method
             self.hass.async_create_task(self._reload_with_delay())
-            
+
             # If other refreshes are also requested, continue to entity refresh
-            if (self._refresh_devices or self._refresh_groups or self._refresh_scenes):
+            if (self._refresh_devices or self._refresh_groups or
+                    self._refresh_scenes):
                 return await self.async_step_refresh()
-            
+
             # Otherwise, show success result
             return self.async_show_form(
                 step_id="refresh_gateway_ip_result",
                 data_schema=vol.Schema({}),
                 description_placeholders={
                     "gateway_sn": current_sn,
-                    "new_ip": updated_gateway['gw_ip']
+                    "new_ip": updated_gateway["gw_ip"]
                 }
             )
 
@@ -324,7 +326,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_create_entry(data={})
 
 
-class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
+class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN): # type: ignore[call-arg]
     """Handle a config flow for Dali Center."""
 
     VERSION = 1
@@ -407,7 +409,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                     step_id="discovery",
                     errors=errors,
                     description_placeholders={
-                        "message": UIFormattingHelper.\
+                        "message": UIFormattingHelper.
                             get_discovery_failed_message()
                     },
                     data_schema=vol.Schema({}),
@@ -496,11 +498,11 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             # Discover all entities using helper
             self._discovered_entities = await EntityDiscoveryHelper.\
                 discover_entities(
-                self._selected_gateway,
-                discover_devices=True,
-                discover_groups=True,
-                discover_scenes=True
-            )
+                    self._selected_gateway,
+                    discover_devices=True,
+                    discover_groups=True,
+                    discover_scenes=True
+                )
 
             # Disconnect from the gateway
             try:
