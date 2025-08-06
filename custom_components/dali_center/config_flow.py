@@ -267,10 +267,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 self._config_entry.data["sn"]
             )
 
-            # Get current gateway serial number
             current_sn = self._config_entry.data["sn"]
-            gateway: DaliGateway = self._config_entry.runtime_data.gateway
-            await gateway.disconnect()
+
+            if hasattr(self._config_entry, "runtime_data"):
+                gateway: DaliGateway = self._config_entry.runtime_data.gateway
+                await gateway.disconnect()
+                _LOGGER.debug("Disconnected existing gateway connection")
 
             # Perform discovery with serial number to get updated IP
             discovery = DaliGatewayDiscovery()
@@ -293,7 +295,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             current_data = dict(self._config_entry.data)
             current_data["gateway"]["gw_ip"] = updated_gateway["gw_ip"]
 
-            # Update config entry
             self.hass.config_entries.async_update_entry(
                 self._config_entry, data=current_data
             )
@@ -303,7 +304,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 current_sn, updated_gateway["gw_ip"]
             )
 
-            # Wait for reload to complete
             reload_success = await self._reload_with_delay()
 
             if not reload_success:
@@ -315,12 +315,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     data_schema=vol.Schema({}),
                 )
 
-            # If other refreshes are also requested, continue to entity refresh
             if (self._refresh_devices or self._refresh_groups or
                     self._refresh_scenes):
                 return await self.async_step_refresh()
 
-            # Otherwise, show success result
             return self.async_show_form(
                 step_id="refresh_gateway_ip_result",
                 data_schema=vol.Schema({}),
@@ -342,7 +340,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_refresh_gateway_ip_result(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Display gateway IP refresh result."""
         if user_input is None:
             return self.async_show_form(
                 step_id="refresh_gateway_ip_result",
@@ -368,12 +365,10 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step - show gateway discovery instructions."""
         if user_input is not None:
             # User confirmed, proceed to discovery
             return await self.async_step_discovery()
 
-        # Show instructions to user before starting discovery
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({}),
@@ -385,7 +380,6 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_discovery(
         self, discovery_info: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle gateway discovery and selection step."""
         errors = {}
 
         if discovery_info is not None:
