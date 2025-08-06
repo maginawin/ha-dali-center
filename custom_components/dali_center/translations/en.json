@@ -109,6 +109,10 @@
         "abort": {
             "gateway_not_found": "Gateway not found in Home Assistant"
         },
+        "error": {
+            "gateway_not_found": "Gateway not found during IP refresh. Please check if gateway is online.",
+            "cannot_connect": "Failed to refresh gateway IP. Please try again."
+        },
         "step": {
             "init": {
                 "title": "Configuration Options",
@@ -116,7 +120,8 @@
                 "data": {
                     "refresh_devices": "Refresh Device List",
                     "refresh_groups": "Refresh Group List",
-                    "refresh_scenes": "Refresh Scene List"
+                    "refresh_scenes": "Refresh Scene List",
+                    "refresh_gateway_ip": "Refresh Gateway IP Address"
                 }
             },
             "select_entities": {
@@ -140,6 +145,16 @@
                 "data": {
                     "refresh_result": "Refresh Result"
                 }
+            },
+            "refresh_gateway_ip": {
+                "title": "Refresh Gateway IP",
+                "description": "Searching for gateway to update IP address...",
+                "data": {}
+            },
+            "refresh_gateway_ip_result": {
+                "title": "Gateway IP Updated",
+                "description": "Gateway {gateway_sn} IP address has been updated to {new_ip}",
+                "data": {}
             }
         }
     }
