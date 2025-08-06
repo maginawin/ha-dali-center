@@ -352,8 +352,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_create_entry(data={})
 
 
-# type: ignore[call-arg]
 class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
+    # type: ignore[call-arg]
     """Handle a config flow for Dali Center."""
 
     VERSION = 1
