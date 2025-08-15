@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import logging
+from typing import TypedDict
+
 from homeassistant.components.event import (
     EventDeviceClass,
     EventEntity,
-    EventEntityDescription,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -20,40 +21,77 @@ from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
-PANEL_EVENT_DESCRIPTION = EventEntityDescription(
-    key="panel_buttons",
-    translation_key="panel_buttons",
-    event_types=[
-        "button_1_single_click", "button_1_double_click", "button_1_long_press",
-        "button_2_single_click", "button_2_double_click", "button_2_long_press",
-        "button_3_single_click", "button_3_double_click", "button_3_long_press",
-        "button_4_single_click", "button_4_double_click", "button_4_long_press",
-        "button_5_single_click", "button_5_double_click", "button_5_long_press",
-        "button_6_single_click", "button_6_double_click", "button_6_long_press",
-        "button_7_single_click", "button_7_double_click", "button_7_long_press",
-        "button_8_single_click", "button_8_double_click", "button_8_long_press",
-        "button_1_rotate", "button_2_rotate", "button_3_rotate",
-        "button_4_rotate", "button_5_rotate", "button_6_rotate",
-        "button_7_rotate", "button_8_rotate",
-    ],
-    device_class=EventDeviceClass.BUTTON,
-)
+
+class PanelConfig(TypedDict):
+    """Panel configuration type definition."""
+    button_count: int
+    events: list[str]
+
+
+# Panel configurations based on device type (from specification table)
+PANEL_CONFIGS: dict[str, PanelConfig] = {
+    "0302": {  # 2-button panel
+        "button_count": 2,
+        "events": [
+            "single_click", "long_press", "double_click", "long_press_stop"
+        ]
+    },
+    "0304": {  # 4-button panel
+        "button_count": 4,
+        "events": [
+            "single_click", "long_press", "double_click", "long_press_stop"
+        ]
+    },
+    "0306": {  # 6-button panel
+        "button_count": 6,
+        "events": [
+            "single_click", "long_press", "double_click", "long_press_stop"
+        ]
+    },
+    "0308": {  # 8-button panel
+        "button_count": 8,
+        "events": [
+            "single_click", "long_press", "double_click", "long_press_stop"
+        ]
+    },
+    "0300": {  # rotary knob panel
+        "button_count": 1,
+        "events": ["single_click", "double_click", "rotate"]
+    }
+}
+
+
+def _generate_event_types_for_panel(dev_type: str) -> list[str]:
+    """Generate event types based on panel device type."""
+    config = PANEL_CONFIGS.get(dev_type)
+    if not config:
+        return [
+            "button_1_single_click",
+            "button_1_double_click",
+            "button_1_long_press"
+        ]
+
+    event_types = []
+    for button_num in range(1, config["button_count"] + 1):
+        for event in config["events"]:
+            event_types.append(f"button_{button_num}_{event}")
+
+    return event_types
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
+    _: HomeAssistant,
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Dali Center event entities from config entry."""
-    # pylint: disable=unused-argument
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
         Device(gateway, device)
         for device in entry.data.get("devices", [])
     ]
 
-    _LOGGER.info("Setting up event platform: %d devices", len(devices))
+    _LOGGER.debug("Setting up event platform: %d devices", len(devices))
 
     new_events: list[EventEntity] = []
     for device in devices:
@@ -67,8 +105,8 @@ async def async_setup_entry(
 class DaliCenterPanelEvent(EventEntity):
     """Representation of a Dali Center Panel Event Entity."""
 
-    entity_description = PANEL_EVENT_DESCRIPTION
     _attr_has_entity_name = True
+    _attr_device_class = EventDeviceClass.BUTTON
 
     def __init__(self, device: Device) -> None:
         """Initialize the panel event entity."""
@@ -77,6 +115,10 @@ class DaliCenterPanelEvent(EventEntity):
         self._attr_unique_id = f"{device.unique_id}_panel_events"
         self._device_id = device.unique_id
         self._available = device.status == "online"
+
+        self._attr_event_types = _generate_event_types_for_panel(
+            device.dev_type
+        )
 
     @property
     def icon(self) -> str:
@@ -134,19 +176,30 @@ class DaliCenterPanelEvent(EventEntity):
                 event_name = f"button_{key_no}_{event_type}"
 
             if event_name is None:
-                _LOGGER.warning(
-                    "%s %s unknown event value: %s (dpid: %s)",
-                    self.name, self.unique_id, event_name, dpid
+                _LOGGER.debug(
+                    "Unknown event for %s: dpid=%s, keyNo=%s, value=%s",
+                    self.unique_id, dpid, key_no, value
                 )
                 continue
 
             _LOGGER.debug(
-                "%s %s triggering event: %s (dpid: %s, value: %s)",
-                self.name, self.unique_id,
-                event_name, dpid, value
+                "Panel event triggered: %s (device=%s, dpid=%s, value=%s)",
+                event_name, self.unique_id, dpid, value
             )
 
+            # Fire the event on the HA event bus for device triggers
+            event_data = {
+                "entity_id": self.entity_id,
+                "event_type": event_name,
+            }
+
             if dpid == 4:
+                event_data["rotate_value"] = value
                 self._trigger_event(event_name, {"rotate_value": value})
             else:
                 self._trigger_event(event_name)
+
+            # Fire the event on HA event bus for device automation triggers
+            self.hass.bus.async_fire(f"{DOMAIN}_event", event_data)
+
+            self.async_write_ha_state()

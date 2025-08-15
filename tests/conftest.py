@@ -256,8 +256,6 @@ def mock_pysrdaligateway():
         "custom_components.dali_center.button",
         DaliGateway=MockDaliGateway,
         Scene=MockScene,
-        Device=MockDevice,
-        is_panel_device=mock_is_panel_device,
     ), patch.multiple(
         "custom_components.dali_center.event",
         DaliGateway=MockDaliGateway,
