@@ -33,30 +33,30 @@ PANEL_CONFIGS: dict[str, PanelConfig] = {
     "0302": {  # 2-button panel
         "button_count": 2,
         "events": [
-            "single_click", "long_press", "double_click", "long_press_stop"
+            "press", "hold", "double_press", "release"
         ]
     },
     "0304": {  # 4-button panel
         "button_count": 4,
         "events": [
-            "single_click", "long_press", "double_click", "long_press_stop"
+            "press", "hold", "double_press", "release"
         ]
     },
     "0306": {  # 6-button panel
         "button_count": 6,
         "events": [
-            "single_click", "long_press", "double_click", "long_press_stop"
+            "press", "hold", "double_press", "release"
         ]
     },
     "0308": {  # 8-button panel
         "button_count": 8,
         "events": [
-            "single_click", "long_press", "double_click", "long_press_stop"
+            "press", "hold", "double_press", "release"
         ]
     },
     "0300": {  # rotary knob panel
         "button_count": 1,
-        "events": ["single_click", "double_click", "rotate"]
+        "events": ["press", "double_press", "rotate"]
     }
 }
 
@@ -66,9 +66,9 @@ def _generate_event_types_for_panel(dev_type: str) -> list[str]:
     config = PANEL_CONFIGS.get(dev_type)
     if not config:
         return [
-            "button_1_single_click",
-            "button_1_double_click",
-            "button_1_long_press"
+            "button_1_press",
+            "button_1_double_press",
+            "button_1_hold"
         ]
 
     event_types = []
