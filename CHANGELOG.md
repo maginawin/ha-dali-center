@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2025-08-16
+
+### Technical
+
+- Updated button event naming convention for consistency: `single_click` → `press`, `double_click` → `double_press`, `long_press` → `hold`, `long_press_stop` → `release` (#22)
+- Updated all translation files and panel configurations to use new event names (#22)
+- Updated PySrDaliGateway dependency to v0.6.0 (6eac361)
+
 ## [0.5.0] - 2025-08-15
 
 ### Added
@@ -155,7 +163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/maginawin/ha-dali-center/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/maginawin/ha-dali-center/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/maginawin/ha-dali-center/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/maginawin/ha-dali-center/compare/v0.2.0...v0.3.0
