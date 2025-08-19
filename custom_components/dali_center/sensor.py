@@ -214,7 +214,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
-        self._attr_native_value = None
+        self._attr_native_value: float | None = None
         self._sensor_enabled: bool = True  # Track sensor enable state
 
     @cached_property
