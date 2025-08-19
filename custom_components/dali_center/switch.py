@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from functools import cached_property
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
@@ -20,12 +21,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
+    hass: HomeAssistant,  # pylint: disable=unused-argument
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Dali Center illuminance sensor enable/disable switches."""
-    # pylint: disable=unused-argument
 
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
@@ -38,7 +38,7 @@ async def async_setup_entry(
         devices
     )
 
-    added_devices = set()
+    added_devices: set[str] = set()
     new_switches: list[SwitchEntity] = []
     for device in devices:
         if device.dev_id in added_devices:
@@ -61,12 +61,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
     _attr_has_entity_name = True
 
     def __init__(self, device: Device) -> None:
+        super().__init__()
         self._device = device
-        self._name = "Sensor Enable"
-        self._unique_id = f"{device.unique_id}_sensor_enable"
+        self._attr_name = "Sensor Enable"
+        self._attr_unique_id = f"{device.unique_id}_sensor_enable"
         self._device_id = device.unique_id
-        self._available = device.status == "online"
-        self._is_on: bool = True  # Default to enabled
+        self._attr_available = device.status == "online"
+        self._attr_is_on: bool | None = True  # Default to enabled
 
         self._sync_sensor_state()
 
@@ -79,15 +80,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
                 self._device_id, e
             )
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def unique_id(self) -> str:
-        return self._unique_id
-
-    @property
+    @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
             "identifiers": {(DOMAIN, self._device_id)},
@@ -97,20 +90,11 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
-    @property
-    def available(self) -> bool:
-        return self._available
-
-    @property
-    def is_on(self) -> bool:
-        return self._is_on
-
-    @property
+    @cached_property
     def icon(self) -> str:
         return "mdi:brightness-6"
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
-        # pylint: disable=unused-argument
+    async def async_turn_on(self, **_kwargs: Any) -> None:
         try:
             self._device.set_sensor_enabled(True)
             _LOGGER.debug(
@@ -129,8 +113,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
                 self._device_id, e
             )
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        # pylint: disable=unused-argument
+    async def async_turn_off(self, **_kwargs: Any) -> None:
         try:
             self._device.set_sensor_enabled(False)
             _LOGGER.debug(
@@ -169,13 +152,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         self._sync_sensor_state()
 
     def _handle_device_update_available(self, available: bool) -> None:
-        self._available = available
+        self._attr_available = available
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state
         )
 
     def _handle_sensor_on_off_update(self, on_off: bool) -> None:
-        self._is_on = on_off
+        self._attr_is_on = on_off
         _LOGGER.warning(
             "Illuminance sensor enable state for device %s updated to: %s",
             self._device_id, on_off

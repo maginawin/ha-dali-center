@@ -1,7 +1,7 @@
 """Entity discovery and selection helpers for config flow."""
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import voluptuous as vol
 
 from homeassistant.helpers import config_validation as cv
@@ -21,11 +21,9 @@ class EntityDiscoveryHelper:
         discover_devices: bool = True,
         discover_groups: bool = True,
         discover_scenes: bool = True
-    ) -> dict[str, list[DeviceType] | list[GroupType] | list[SceneType]]:
+    ) -> dict[str, Any]:
         """Discover entities from gateway."""
-        discovered: dict[
-            str, list[DeviceType] | list[GroupType] | list[SceneType]
-        ] = {}
+        discovered: dict[str, Any] = {}
 
         if discover_devices:
             try:
@@ -82,10 +80,10 @@ class EntityDiscoveryHelper:
 
     @staticmethod
     def prepare_entity_selection_schema(
-        devices: list,
-        groups: list,
-        scenes: list,
-        existing_selections: Optional[dict[str, list]] = None,
+        devices: list[DeviceType],
+        groups: list[GroupType],
+        scenes: list[SceneType],
+        existing_selections: Optional[dict[str, Any]] = None,
         show_diff: bool = False
     ) -> vol.Schema:
         """Prepare entity selection schema."""
@@ -93,28 +91,46 @@ class EntityDiscoveryHelper:
 
         # Prepare device selection options
         if devices:
-            device_options = {}
-            existing_device_ids = {
-                d["unique_id"] for d in existing_selections.get("devices", [])
-            } if existing_selections else set()
+            device_options: dict[str, str] = {}
+            existing_device_ids: set[str] = set()
+            if existing_selections:
+                existing_devices = cast(
+                    list[dict[str, Any]],
+                    existing_selections.get("devices", [])
+                )
+                existing_device_ids = {
+                    str(d.get("unique_id", "")) for d in existing_devices
+                    if "unique_id" in d
+                }
 
             for device in devices:
-                label = f"{device["name"]}"
-                if show_diff and existing_selections and \
-                        device["unique_id"] not in existing_device_ids:
+                device_dict = cast(dict[str, Any], device)
+                unique_id = str(device_dict.get("unique_id", ""))
+                name = str(device_dict.get("name", ""))
+                label = f"{name}"
+                if (show_diff and existing_selections and
+                        unique_id not in existing_device_ids):
                     label = f"[NEW] {label}"
-                device_options[device["unique_id"]] = label
+                device_options[unique_id] = label
 
             # Add removed devices if showing diff
-            if show_diff and existing_selections and \
-                    "devices" in existing_selections:
-                current_device_ids = {d["unique_id"] for d in devices}
+            if (show_diff and existing_selections and
+                    "devices" in existing_selections):
+                current_device_ids = {
+                    str(cast(dict[str, Any], d).get("unique_id", ""))
+                    for d in devices
+                }
                 for device in existing_selections["devices"]:
-                    if device["unique_id"] not in current_device_ids:
-                        device_options[device["unique_id"]] = \
-                            f"[REMOVED] {device["name"]}"
+                    device_dict = cast(dict[str, Any], device)
+                    device_unique_id = str(device_dict.get("unique_id", ""))
+                    device_name = str(device_dict.get("name", ""))
+                    if device_unique_id not in current_device_ids:
+                        device_options[device_unique_id] = (
+                            f"[REMOVED] {device_name}"
+                        )
 
             # Default selection
+            default_devices: list[str] = []
             if existing_selections is None:
                 # Select all for initial setup
                 default_devices = list(device_options.keys())
@@ -130,29 +146,43 @@ class EntityDiscoveryHelper:
 
         # Prepare group selection options
         if groups:
-            group_options = {}
-            existing_ids = {
-                g["unique_id"] for g in existing_selections.get("groups", [])
-            } if existing_selections else set()
+            group_options: dict[str, str] = {}
+            existing_ids: set[str] = set()
+            if existing_selections:
+                existing_groups = cast(
+                    list[dict[str, Any]], existing_selections.get("groups", []))
+                existing_ids = {
+                    str(g.get("unique_id", "")) for g in existing_groups
+                    if "unique_id" in g
+                }
 
             for group in groups:
-                label = f"{group["name"]} (Channel {
-                    group["channel"]}, Group {group["id"]})"
-                if show_diff and existing_selections and \
-                        group["unique_id"] not in existing_ids:
+                group_dict = cast(dict[str, Any], group)
+                unique_id = str(group_dict.get("unique_id", ""))
+                name = str(group_dict.get("name", ""))
+                channel = str(group_dict.get("channel", ""))
+                group_id = str(group_dict.get("id", ""))
+                label = f"{name} (Channel {channel}, Group {group_id})"
+                if show_diff and existing_selections \
+                        and unique_id not in existing_ids:
                     label = f"[NEW] {label}"
-                group_options[group["unique_id"]] = label
+                group_options[unique_id] = label
 
             # Add removed groups if showing diff
-            if show_diff and existing_selections and \
-                    "groups" in existing_selections:
-                current_ids = {g["unique_id"] for g in groups}
+            if show_diff and existing_selections \
+                    and "groups" in existing_selections:
+                current_ids = {str(cast(dict[str, Any], g).get(
+                    "unique_id", "")) for g in groups}
                 for group in existing_selections["groups"]:
-                    if group["unique_id"] not in current_ids:
-                        group_options[group["unique_id"]] = \
-                            f"[REMOVED] {group["name"]}"
+                    group_dict = cast(dict[str, Any], group)
+                    group_unique_id = str(group_dict.get("unique_id", ""))
+                    group_name = str(group_dict.get("name", ""))
+                    if group_unique_id not in current_ids:
+                        group_options[group_unique_id] \
+                            = f"[REMOVED] {group_name}"
 
             # Default selection
+            default_groups: list[str] = []
             if existing_selections is None:
                 # Select all for initial setup
                 default_groups = list(group_options.keys())
@@ -168,35 +198,50 @@ class EntityDiscoveryHelper:
 
         # Prepare scene selection options
         if scenes:
-            scene_options = {}
-            existing_ids = {
-                s["unique_id"] for s in existing_selections.get("scenes", [])
-            } if existing_selections else set()
+            scene_options: dict[str, str] = {}
+            existing_scene_ids: set[str] = set()
+            if existing_selections:
+                existing_scenes = cast(
+                    list[dict[str, Any]], existing_selections.get("scenes", []))
+                existing_scene_ids = {
+                    str(s.get("unique_id", "")) for s in existing_scenes
+                    if "unique_id" in s
+                }
 
             for scene in scenes:
-                label = f"{scene["name"]} (Channel {
-                    scene["channel"]}, Scene {scene["id"]})"
+                scene_dict = cast(dict[str, Any], scene)
+                unique_id = str(scene_dict.get("unique_id", ""))
+                name = str(scene_dict.get("name", ""))
+                channel = str(scene_dict.get("channel", ""))
+                scene_id = str(scene_dict.get("id", ""))
+                label = f"{name} (Channel {channel}, Scene {scene_id})"
                 if show_diff and existing_selections and \
-                        scene["unique_id"] not in existing_ids:
+                        unique_id not in existing_scene_ids:
                     label = f"[NEW] {label}"
-                scene_options[scene["unique_id"]] = label
+                scene_options[unique_id] = label
 
             # Add removed scenes if showing diff
-            if show_diff and existing_selections and \
-                    "scenes" in existing_selections:
-                current_ids = {s["unique_id"] for s in scenes}
+            if show_diff and existing_selections \
+                    and "scenes" in existing_selections:
+                current_ids = {str(cast(dict[str, Any], s).get(
+                    "unique_id", "")) for s in scenes}
                 for scene in existing_selections["scenes"]:
-                    if scene["unique_id"] not in current_ids:
-                        scene_options[scene["unique_id"]] = \
-                            f"[REMOVED] {scene["name"]}"
+                    scene_dict = cast(dict[str, Any], scene)
+                    scene_unique_id = str(scene_dict.get("unique_id", ""))
+                    scene_name = str(scene_dict.get("name", ""))
+                    if scene_unique_id not in current_ids:
+                        scene_options[scene_unique_id] =\
+                            f"[REMOVED] {scene_name}"
 
+            # Default selection
+            default_scenes: list[str] = []
             if existing_selections is None:
                 # Select all for initial setup
                 default_scenes = list(scene_options.keys())
             else:
                 # Keep existing selections
                 default_scenes = [
-                    unique_id for unique_id in existing_ids
+                    unique_id for unique_id in existing_scene_ids
                     if unique_id in scene_options
                 ]
 
@@ -208,7 +253,9 @@ class EntityDiscoveryHelper:
     @staticmethod
     def filter_selected_entities(
         user_input: dict[str, Any],
-        discovered_entities: dict[str, list]
+        discovered_entities: dict[
+            str, list[DeviceType]
+            | list[GroupType] | list[SceneType]]
     ) -> ConfigData:
         """Filter selected entities from user input."""
         selected: ConfigData = {}
@@ -216,24 +263,27 @@ class EntityDiscoveryHelper:
         # Filter devices
         if "devices" in user_input and "devices" in discovered_entities:
             selected_ids = user_input["devices"]
+            devices = cast(list[DeviceType], discovered_entities["devices"])
             selected["devices"] = [
-                device for device in discovered_entities["devices"]
+                device for device in devices
                 if device["unique_id"] in selected_ids
             ]
 
         # Filter groups
         if "groups" in user_input and "groups" in discovered_entities:
             selected_ids = user_input["groups"]
+            groups = cast(list[GroupType], discovered_entities["groups"])
             selected["groups"] = [
-                group for group in discovered_entities["groups"]
+                group for group in groups
                 if group["unique_id"] in selected_ids
             ]
 
         # Filter scenes
         if "scenes" in user_input and "scenes" in discovered_entities:
             selected_ids = user_input["scenes"]
+            scenes = cast(list[SceneType], discovered_entities["scenes"])
             selected["scenes"] = [
-                scene for scene in discovered_entities["scenes"]
+                scene for scene in scenes
                 if scene["unique_id"] in selected_ids
             ]
 

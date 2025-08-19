@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TypedDict
+from functools import cached_property
+from typing import Any, TypedDict
 
 from homeassistant.components.event import (
     EventDeviceClass,
@@ -71,7 +72,7 @@ def _generate_event_types_for_panel(dev_type: str) -> list[str]:
             "button_1_hold"
         ]
 
-    event_types = []
+    event_types: list[str] = []
     for button_num in range(1, config["button_count"] + 1):
         for event in config["events"]:
             event_types.append(f"button_{button_num}_{event}")
@@ -120,11 +121,11 @@ class DaliCenterPanelEvent(EventEntity):
             device.dev_type
         )
 
-    @property
+    @cached_property
     def icon(self) -> str:
         return "mdi:gesture-tap-button"
 
-    @property
+    @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
             "identifiers": {(DOMAIN, self._device_id)},
@@ -134,7 +135,7 @@ class DaliCenterPanelEvent(EventEntity):
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
-    @property
+    @cached_property
     def available(self) -> bool:
         return self._available
 
@@ -163,7 +164,9 @@ class DaliCenterPanelEvent(EventEntity):
         self.async_write_ha_state()
 
     @callback
-    def _handle_device_update(self, property_list: list) -> None:
+    def _handle_device_update(
+        self, property_list: list[dict[str, Any]]
+    ) -> None:
         """Handle device property updates and trigger events."""
         for prop in property_list:
             dpid = prop.get("dpid")
@@ -171,7 +174,7 @@ class DaliCenterPanelEvent(EventEntity):
             value = prop.get("value")
 
             event_name = None
-            event_type = BUTTON_EVENTS.get(dpid, None)
+            event_type = BUTTON_EVENTS.get(dpid) if dpid is not None else None
             if event_type:
                 event_name = f"button_{key_no}_{event_type}"
 
@@ -193,7 +196,7 @@ class DaliCenterPanelEvent(EventEntity):
                 "event_type": event_name,
             }
 
-            if dpid == 4:
+            if dpid == 4 and value is not None:
                 event_data["rotate_value"] = value
                 self._trigger_event(event_name, {"rotate_value": value})
             else:
