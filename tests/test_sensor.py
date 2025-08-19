@@ -274,7 +274,7 @@ class TestDaliCenterEnergySensor:
         """Test energy sensor device_info property."""
         device_info = energy_sensor.device_info
         assert device_info is not None
-        assert device_info["identifiers"] == {(DOMAIN, mock_device.unique_id)}
+        assert device_info["identifiers"] == {(DOMAIN, mock_device.dev_id)}
 
     def test_energy_sensor_available_default(self, energy_sensor):
         """Test energy sensor available property default value."""
@@ -283,7 +283,7 @@ class TestDaliCenterEnergySensor:
     def test_energy_sensor_native_value(self, energy_sensor):
         """Test energy sensor native_value property."""
         # Initially _state is 0.0, need to set it to test
-        energy_sensor._state = 15.5
+        energy_sensor._attr_native_value = 15.5
         assert energy_sensor.native_value == 15.5
 
     def test_energy_sensor_device_class(self, energy_sensor):
@@ -316,7 +316,7 @@ class TestDaliCenterEnergySensor:
         with patch.object(energy_sensor, "schedule_update_ha_state"):
             energy_sensor._handle_device_update_available(False)
 
-            assert energy_sensor._available is False
+            assert energy_sensor._attr_available is False
             # Verify hass.loop.call_soon_threadsafe was called
             energy_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -325,7 +325,7 @@ class TestDaliCenterEnergySensor:
         with patch.object(energy_sensor, "schedule_update_ha_state"):
             energy_sensor._handle_energy_update(25.7)
 
-            assert energy_sensor._state == 25.7
+            assert energy_sensor._attr_native_value == 25.7
             # Verify hass.loop.call_soon_threadsafe was called
             energy_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -369,7 +369,7 @@ class TestDaliCenterMotionSensor:
         """Test motion sensor device_info property."""
         device_info = motion_sensor.device_info
         assert device_info is not None
-        assert device_info["identifiers"] == {(DOMAIN, mock_device.unique_id)}
+        assert device_info["identifiers"] == {(DOMAIN, mock_device.dev_id)}
 
     def test_motion_sensor_available_default(self, motion_sensor):
         """Test motion sensor available property default value."""
@@ -377,12 +377,12 @@ class TestDaliCenterMotionSensor:
 
     def test_motion_sensor_native_value_no_motion(self, motion_sensor):
         """Test motion sensor native_value when no motion detected."""
-        motion_sensor._state = "no_motion"
+        motion_sensor._attr_native_value = "no_motion"
         assert motion_sensor.native_value == "no_motion"
 
     def test_motion_sensor_native_value_motion_detected(self, motion_sensor):
         """Test motion sensor native_value when motion detected."""
-        motion_sensor._state = "motion"
+        motion_sensor._attr_native_value = "motion"
         assert motion_sensor.native_value == "motion"
 
     @pytest.mark.asyncio
@@ -402,7 +402,7 @@ class TestDaliCenterMotionSensor:
         """Test _handle_device_update_available method."""
         motion_sensor._handle_device_update_available(False)
 
-        assert motion_sensor._available is False
+        assert motion_sensor._attr_available is False
         # Verify hass.loop.call_soon_threadsafe was called
         motion_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -415,7 +415,7 @@ class TestDaliCenterMotionSensor:
 
         motion_sensor._handle_device_update(property_list)
 
-        assert motion_sensor._state == "motion"
+        assert motion_sensor._attr_native_value == "motion"
         # Verify hass.loop.call_soon_threadsafe was called
         motion_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -427,7 +427,7 @@ class TestDaliCenterMotionSensor:
 
         motion_sensor._handle_device_update(property_list)
 
-        assert motion_sensor._state == "no_motion"
+        assert motion_sensor._attr_native_value == "no_motion"
         # Verify hass.loop.call_soon_threadsafe was called
         motion_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -439,7 +439,7 @@ class TestDaliCenterMotionSensor:
 
         motion_sensor._handle_device_update(property_list)
 
-        assert motion_sensor._state == "no_motion"
+        assert motion_sensor._attr_native_value == "no_motion"
         # Verify hass.loop.call_soon_threadsafe was called
         motion_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -506,7 +506,7 @@ class TestDaliCenterIlluminanceSensor:
         """Test illuminance sensor device_info property."""
         device_info = illuminance_sensor.device_info
         assert device_info is not None
-        assert device_info["identifiers"] == {(DOMAIN, mock_device.unique_id)}
+        assert device_info["identifiers"] == {(DOMAIN, mock_device.dev_id)}
 
     def test_illuminance_sensor_available_default(self, illuminance_sensor):
         """Test illuminance sensor available property default value."""
@@ -514,7 +514,7 @@ class TestDaliCenterIlluminanceSensor:
 
     def test_illuminance_sensor_native_value(self, illuminance_sensor):
         """Test illuminance sensor native_value property."""
-        illuminance_sensor._state = 750
+        illuminance_sensor._attr_native_value = 750
         assert illuminance_sensor.native_value == 750
 
     @pytest.mark.asyncio
@@ -538,7 +538,7 @@ class TestDaliCenterIlluminanceSensor:
         """Test _handle_device_update_available method."""
         illuminance_sensor._handle_device_update_available(False)
 
-        assert illuminance_sensor._available is False
+        assert illuminance_sensor._attr_available is False
         # Verify hass.loop.call_soon_threadsafe was called
         illuminance_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -551,7 +551,7 @@ class TestDaliCenterIlluminanceSensor:
 
         illuminance_sensor._handle_device_update(property_list)
 
-        assert illuminance_sensor._state == 500.0
+        assert illuminance_sensor._attr_native_value == 500.0
         # Verify hass.loop.call_soon_threadsafe was called
         illuminance_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -574,7 +574,7 @@ class TestDaliCenterIlluminanceSensor:
     def test_illuminance_sensor_available_when_sensor_disabled(
             self, illuminance_sensor):
         """Test illuminance sensor availability when sensor is disabled."""
-        illuminance_sensor._available = True
+        illuminance_sensor._attr_available = True
         illuminance_sensor._sensor_enabled = False
 
         # Based on implementation, available should be _available AND
@@ -584,14 +584,14 @@ class TestDaliCenterIlluminanceSensor:
     def test_illuminance_sensor_available_when_device_offline(
             self, illuminance_sensor):
         """Test illuminance sensor availability when device is offline."""
-        illuminance_sensor._available = False
+        illuminance_sensor._attr_available = False
         illuminance_sensor._sensor_enabled = True
 
         assert illuminance_sensor.available is False
 
     def test_illuminance_sensor_available_when_both_enabled(
             self, illuminance_sensor):
-        illuminance_sensor._available = True
+        illuminance_sensor._attr_available = True
         illuminance_sensor._sensor_enabled = True
 
         assert illuminance_sensor.available is True

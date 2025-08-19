@@ -1,9 +1,11 @@
 """Helper functions for Dali Center."""
 
+from typing import Any
+
 
 def find_set_differences(
-    list1: list, list2: list, attr_name: str
-) -> tuple[list, list]:
+    list1: list[dict[str, Any]], list2: list[dict[str, Any]], attr_name: str
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Calculate the difference between two object lists.
 

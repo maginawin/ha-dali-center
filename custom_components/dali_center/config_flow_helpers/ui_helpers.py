@@ -1,11 +1,9 @@
 """UI formatting and display helpers for config flow."""
 
-import logging
-from typing import Any
+from typing import Any, Callable
 
 from ..helper import find_set_differences
 
-_LOGGER = logging.getLogger(__name__)
 
 
 class UIFormattingHelper:
@@ -13,7 +11,7 @@ class UIFormattingHelper:
 
     @staticmethod
     def format_discovery_summary(
-        discovered_entities: dict[str, list],
+        discovered_entities: dict[str, Any],
         refresh_devices: bool,
         refresh_groups: bool,
         refresh_scenes: bool
@@ -25,7 +23,7 @@ class UIFormattingHelper:
             ("scenes", refresh_scenes)
         ]
 
-        summary = []
+        summary: list[str] = []
         for entity_type, should_refresh in entity_types:
             if should_refresh and entity_type in discovered_entities:
                 total = len(discovered_entities[entity_type])
@@ -39,17 +37,25 @@ class UIFormattingHelper:
         if not refresh_results:
             return "No items refreshed"
 
-        result_parts = []
+        result_parts: list[str] = []
 
         # Define entity types and their formatters
-        entity_configs = [
+        def format_group(g: dict[str, Any]) -> str:
+            channel = g.get("channel", "N/A")
+            group_id = g.get("id", "N/A")
+            return f"Channel: {channel}, Group: {group_id}"
+
+        def format_scene(s: dict[str, Any]) -> str:
+            channel = s.get("channel", "N/A")
+            scene_id = s.get("id", "N/A")
+            return f"Channel: {channel}, Scene: {scene_id}"
+
+        entity_configs: list[tuple[
+            str, str, str | Callable[[dict[str, Any]], str]
+        ]] = [
             ("devices", "name", "unique_id"),
-            ("groups", "name", lambda g: f"Channel: {
-                g.get("channel", "N/A")
-            }, Group: {g.get("id", "N/A")}"),
-            ("scenes", "name", lambda s: f"Channel: {
-                s.get("channel", "N/A")
-            }, Scene: {s.get("id", "N/A")}")
+            ("groups", "name", format_group),
+            ("scenes", "name", format_scene),
         ]
 
         for entity_type, name_key, id_formatter in entity_configs:
@@ -71,11 +77,11 @@ class UIFormattingHelper:
 
     @staticmethod
     def _format_added_removed(
-        results: dict, prefix: str, name_key: str,
-        id_formatter: object
+        results: dict[str, Any], prefix: str, name_key: str,
+        id_formatter: str | Callable[[dict[str, Any]], str]
     ) -> str:
         """Format added and removed items."""
-        def format_items(items: list, action: str) -> list[str]:
+        def format_items(items: list[Any], action: str) -> list[str]:
             if not items:
                 return [f"No {prefix} {action}"]
 
@@ -89,7 +95,7 @@ class UIFormattingHelper:
             lines.append("")
             return lines
 
-        message_parts = []
+        message_parts: list[str] = []
         message_parts.extend(format_items(
             results.get(f"{prefix}_added", []), "added"))
         message_parts.extend(format_items(
@@ -191,7 +197,7 @@ class UIFormattingHelper:
             "gateway(s)**. Select one to configure:"
 
     @staticmethod
-    def format_gateway_options(gateways: list) -> dict[str, str]:
+    def format_gateway_options(gateways: list[Any]) -> dict[str, str]:
         """Format gateway selection options."""
         return {
             gateway["gw_sn"]: f"{gateway["name"]} "

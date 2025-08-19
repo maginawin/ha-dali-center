@@ -1,7 +1,7 @@
 """Config flow for the Dali Center integration."""
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import voluptuous as vol
 import asyncio
 
@@ -12,7 +12,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import device_registry as dr
 
 from .types import ConfigData
-from PySrDaliGateway import DaliGateway, DaliGatewayType
+from PySrDaliGateway import DaliGateway, DaliGatewayType, DeviceType, GroupType, SceneType
 from PySrDaliGateway.discovery import DaliGatewayDiscovery
 from PySrDaliGateway.exceptions import DaliGatewayError
 from .const import DOMAIN
@@ -42,14 +42,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._refresh_scenes = False
         self._refresh_gateway_ip = False
         self._refresh_results: dict[str, Any] = {}
-        self._discovered_entities: dict[str, list] = {}
+        self._discovered_entities: dict[
+            str, list[DeviceType] |
+            list[GroupType] | list[SceneType]
+        ] = {}
 
     async def _reload_with_delay(self) -> bool:
-        """Reload config entry with a delay to ensure clean state.
-
-        Returns:
-            bool: True if reload was successful, False otherwise
-        """
         try:
             _LOGGER.debug(
                 "Unloading config entry %s",
@@ -118,7 +116,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_refresh(self) -> ConfigFlowResult:
         """Search for devices and automatically update configuration."""
-        errors = {}
+        errors: dict[str, str] = {}
 
         try:
             _LOGGER.debug(
@@ -177,7 +175,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 )
 
             # Update config data with selected entities
-            updated_data = {**current_data, **selected}
+            updated_data: dict[str, Any] = {**current_data, **selected}
 
             # Update config entry
             self.hass.config_entries.async_update_entry(
@@ -221,9 +219,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         # Prepare schema with existing selections and diff display using helper
         current_data = dict(self._config_entry.data)
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
-            devices=self._discovered_entities.get("devices", []),
-            groups=self._discovered_entities.get("groups", []),
-            scenes=self._discovered_entities.get("scenes", []),
+            devices=cast(
+                list[DeviceType],
+                self._discovered_entities.get("devices", [])),
+            groups=cast(list[GroupType],
+                        self._discovered_entities.get("groups", [])),
+            scenes=cast(list[SceneType],
+                        self._discovered_entities.get("scenes", [])),
             existing_selections=current_data,
             show_diff=True
         )
@@ -259,7 +261,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_refresh_gateway_ip(self) -> ConfigFlowResult:
         """Refresh gateway IP address by serial number discovery."""
-        errors = {}
+        errors: dict[str, str] = {}
 
         try:
             _LOGGER.debug(
@@ -275,7 +277,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 _LOGGER.debug("Disconnected existing gateway connection")
 
             # Perform discovery with serial number to get updated IP
-            discovery = DaliGatewayDiscovery()
+            discovery = DaliGatewayDiscovery()  # type: ignore[no-untyped-call]
             discovered_gateways = await discovery.discover_gateways(current_sn)
 
             if not discovered_gateways:
@@ -358,7 +360,9 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         super().__init__()
         self._gateways: list[DaliGatewayType] = []
-        self._discovered_entities: dict[str, list] = {}
+        self._discovered_entities: dict[
+            str, list[DeviceType] | list[GroupType] | list[SceneType]
+        ] = {}
         self._selected_gateway: Optional[DaliGateway] = None
         self._config_data: ConfigData = {}
 
@@ -380,7 +384,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_discovery(
         self, discovery_info: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        errors = {}
+        errors: dict[str, str] = {}
 
         if discovery_info is not None:
             # Check if this is a retry request (no gateway selection)
@@ -421,8 +425,9 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
         if not self._gateways:
             _LOGGER.debug("Starting gateway discovery (3-minute timeout)")
             try:
-                discovered_gateways = await DaliGatewayDiscovery()\
-                    .discover_gateways()
+                # type: ignore[no-untyped-call]
+                discovered_gateways = await DaliGatewayDiscovery().\
+                    discover_gateways()
             except DaliGatewayError as e:
                 _LOGGER.error("Error discovering gateways: %s", e)
                 errors["base"] = "discovery_failed"
@@ -489,7 +494,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: Optional[dict[str, Any]] = None
     ) -> ConfigFlowResult:
         """Search for devices, groups, and scenes"""
-        errors = {}
+        errors: dict[str, str] = {}
 
         if not self._selected_gateway:
             _LOGGER.error("No selected gateway found")
@@ -513,7 +518,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             _LOGGER.debug(
                 "Searching for entities on gateway %s",
-                self._config_data["sn"]
+                self._config_data.get("sn", "unknown")
             )
 
             # Discover all entities using helper
@@ -551,7 +556,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.warning("Error searching entities on gateway %s: %s",
-                            self._config_data["sn"], e)
+                            self._config_data.get("sn", "unknown"), e)
             errors["base"] = "cannot_connect"
             return self.async_show_form(
                 step_id="configure_entities",
@@ -559,9 +564,14 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
-            devices=self._discovered_entities.get("devices", []),
-            groups=self._discovered_entities.get("groups", []),
-            scenes=self._discovered_entities.get("scenes", []),
+            devices=cast(
+                list[DeviceType],
+                self._discovered_entities.get("devices", [])
+            ),
+            groups=cast(list[GroupType],
+                        self._discovered_entities.get("groups", [])),
+            scenes=cast(list[SceneType],
+                        self._discovered_entities.get("scenes", [])),
             existing_selections=None,
             show_diff=False
         )

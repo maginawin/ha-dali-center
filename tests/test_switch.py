@@ -221,7 +221,7 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
     def test_illuminance_switch_unique_id(
             self, illuminance_switch, mock_device):
         """Test illuminance switch unique_id property."""
-        expected_id = f"{mock_device.unique_id}_sensor_enable"
+        expected_id = f"{mock_device.dev_id}_sensor_enable"
         assert illuminance_switch.unique_id == expected_id
 
     def test_illuminance_switch_device_info(
@@ -229,7 +229,7 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
         """Test illuminance switch device_info property."""
         device_info = illuminance_switch.device_info
         assert device_info is not None
-        assert device_info["identifiers"] == {(DOMAIN, mock_device.unique_id)}
+        assert device_info["identifiers"] == {(DOMAIN, mock_device.dev_id)}
 
     def test_illuminance_switch_available_default(self, illuminance_switch):
         """Test illuminance switch available property default value."""
@@ -237,12 +237,12 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
 
     def test_illuminance_switch_is_on_when_enabled(self, illuminance_switch):
         """Test is_on property when sensor is enabled."""
-        illuminance_switch._is_on = True
+        illuminance_switch._attr_is_on = True
         assert illuminance_switch.is_on is True
 
     def test_illuminance_switch_is_on_when_disabled(self, illuminance_switch):
         """Test is_on property when sensor is disabled."""
-        illuminance_switch._is_on = False
+        illuminance_switch._attr_is_on = False
         assert illuminance_switch.is_on is False
 
     def test_illuminance_switch_icon(self, illuminance_switch):
@@ -328,7 +328,7 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
         """Test _handle_device_update_available method."""
         illuminance_switch._handle_device_update_available(False)
 
-        assert illuminance_switch._available is False
+        assert illuminance_switch._attr_available is False
         # Verify hass.loop.call_soon_threadsafe was called
         illuminance_switch.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -336,7 +336,7 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
         """Test _handle_sensor_on_off_update when sensor is enabled."""
         illuminance_switch._handle_sensor_on_off_update(True)
 
-        assert illuminance_switch._is_on is True
+        assert illuminance_switch._attr_is_on is True
         # Verify hass.loop.call_soon_threadsafe was called
         illuminance_switch.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -344,29 +344,29 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
         """Test _handle_sensor_on_off_update when sensor is disabled."""
         illuminance_switch._handle_sensor_on_off_update(False)
 
-        assert illuminance_switch._is_on is False
+        assert illuminance_switch._attr_is_on is False
         # Verify hass.loop.call_soon_threadsafe was called
         illuminance_switch.hass.loop.call_soon_threadsafe.assert_called_once()
 
     def test_illuminance_switch_available_when_device_offline(
             self, illuminance_switch):
         """Test switch availability when device is offline."""
-        illuminance_switch._available = False
+        illuminance_switch._attr_available = False
         assert illuminance_switch.available is False
 
     def test_illuminance_switch_available_when_device_online(
             self, illuminance_switch):
         """Test switch availability when device is online."""
-        illuminance_switch._available = True
+        illuminance_switch._attr_available = True
         assert illuminance_switch.available is True
 
     def test_illuminance_switch_state_persistence(self, illuminance_switch):
         """Test that switch state persists across multiple checks."""
-        illuminance_switch._is_on = True
+        illuminance_switch._attr_is_on = True
         assert illuminance_switch.is_on is True
         assert illuminance_switch.is_on is True  # Should be consistent
 
-        illuminance_switch._is_on = False
+        illuminance_switch._attr_is_on = False
         assert illuminance_switch.is_on is False
         assert illuminance_switch.is_on is False  # Should be consistent
 

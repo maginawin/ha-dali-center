@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
 import voluptuous as vol
 
 from homeassistant.components.device_automation import DEVICE_TRIGGER_BASE_SCHEMA
@@ -10,6 +11,7 @@ from homeassistant.const import (
     CONF_DEVICE_ID,
     CONF_DOMAIN,
     CONF_ENTITY_ID,
+    CONF_EVENT_DATA,
     CONF_PLATFORM,
     CONF_TYPE,
 )
@@ -25,7 +27,7 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
+TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(  # type: ignore[misc]
     {
         vol.Required(CONF_ENTITY_ID): cv.entity_id_or_uuid,
         vol.Required(CONF_TYPE): str,
@@ -35,10 +37,10 @@ TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
 
 async def async_get_triggers(
     hass: HomeAssistant, device_id: str
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     """List device triggers for event entities."""
     registry = er.async_get(hass)
-    triggers = []
+    triggers: list[dict[str, Any]] = []
 
     # Find all event entities for this device from our domain
     entries = [
@@ -61,7 +63,7 @@ async def async_get_triggers(
             continue
 
         for event_type in event_types:
-            trigger = {
+            trigger: dict[str, Any] = {
                 CONF_PLATFORM: "device",
                 CONF_DEVICE_ID: device_id,
                 CONF_DOMAIN: DOMAIN,
@@ -83,10 +85,10 @@ async def async_attach_trigger(
     """Attach a trigger."""
     # Use event trigger to listen for actual events, not state changes
     # This prevents triggering on entity reloads
-    event_config = {
-        event_trigger.CONF_PLATFORM: "event",
+    event_config: dict[str, Any] = {
+        CONF_PLATFORM: "event",
         event_trigger.CONF_EVENT_TYPE: f"{DOMAIN}_event",
-        event_trigger.CONF_EVENT_DATA: {
+        CONF_EVENT_DATA: {
             "entity_id": config[CONF_ENTITY_ID],
             "event_type": config[CONF_TYPE],
         },
@@ -97,9 +99,10 @@ async def async_attach_trigger(
         config[CONF_ENTITY_ID], config[CONF_TYPE]
     )
 
-    event_config = event_trigger.TRIGGER_SCHEMA(event_config)
+    validated_config = cast(
+        ConfigType, event_trigger.TRIGGER_SCHEMA(event_config))
     return await event_trigger.async_attach_trigger(
-        hass, event_config, action, trigger_info, platform_type="device"
+        hass, validated_config, action, trigger_info, platform_type="device"
     )
 
 
@@ -107,4 +110,4 @@ async def async_validate_trigger_config(
     _: HomeAssistant, config: ConfigType
 ) -> ConfigType:
     """Validate config."""
-    return TRIGGER_SCHEMA(config)
+    return cast(ConfigType, TRIGGER_SCHEMA(config))

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import EntityCategory, UnitOfEnergy, LIGHT_LUX
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
+from functools import cached_property
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
@@ -24,11 +25,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
+    hass: HomeAssistant,  # pylint: disable=unused-argument  # noqa: ARG001
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    # pylint: disable=unused-argument
 
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
@@ -38,7 +38,7 @@ async def async_setup_entry(
 
     _LOGGER.info("Setting up sensor platform: %d devices", len(devices))
 
-    added_devices = set()
+    added_devices: set[str] = set()
     new_sensors: list[SensorEntity] = []
     for device in devices:
         if device.dev_id in added_devices:
@@ -75,44 +75,27 @@ class DaliCenterEnergySensor(SensorEntity):
     def __init__(self, device: Device) -> None:
         self._device = device
 
-        self._name = "Energy"
-        self._unique_id = f"{device.unique_id}_energy"
-        self._device_id = device.unique_id
+        self._attr_name = "Energy"
+        self._attr_unique_id = f"{device.unique_id}_energy"
 
-        self._available = device.status == "online"
-        self._state: float = 0.0
+        self._attr_available = device.status == "online"
+        self._attr_native_value = 0.0
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def unique_id(self) -> str:
-        return self._unique_id
-
-    @property
+    @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
         }
 
-    @property
-    def available(self) -> bool:
-        return self._available
-
-    @property
-    def native_value(self) -> float | None:
-        return self._state
-
     async def async_added_to_hass(self) -> None:
-        signal = f"dali_center_energy_update_{self._device_id}"
+        signal = f"dali_center_energy_update_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_energy_update
             )
         )
 
-        signal = f"dali_center_update_available_{self._device_id}"
+        signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update_available
@@ -120,13 +103,13 @@ class DaliCenterEnergySensor(SensorEntity):
         )
 
     def _handle_device_update_available(self, available: bool) -> None:
-        self._available = available
+        self._attr_available = available
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state
         )
 
     def _handle_energy_update(self, energy_value: float) -> None:
-        self._state = energy_value
+        self._attr_native_value = energy_value
 
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state
@@ -139,54 +122,34 @@ class DaliCenterMotionSensor(SensorEntity):
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ["no_motion", "motion", "vacant", "presence", "occupancy"]
     _attr_has_entity_name = True
+    _attr_icon = "mdi:motion-sensor"
 
     def __init__(self, device: Device) -> None:
         self._device = device
-        self._name = "State"
-        self._unique_id = f"{device.unique_id}"
-        self._device_id = device.unique_id
-        self._available = device.status == "online"
-        self._state: str = "no_motion"
+        self._attr_name = "State"
+        self._attr_unique_id = f"{device.unique_id}"
+        self._attr_available = device.status == "online"
+        self._attr_native_value = "no_motion"
 
-    @property
-    def icon(self) -> str:
-        return "mdi:motion-sensor"
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def unique_id(self) -> str:
-        return self._unique_id
-
-    @property
+    @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
             "model": f"Motion Sensor Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
-    @property
-    def available(self) -> bool:
-        return self._available
-
-    @property
-    def native_value(self) -> str | None:
-        return self._state
-
     async def async_added_to_hass(self) -> None:
-        signal = f"dali_center_update_{self._unique_id}"
+        signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update
             )
         )
 
-        signal = f"dali_center_update_available_{self._unique_id}"
+        signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update_available
@@ -197,12 +160,14 @@ class DaliCenterMotionSensor(SensorEntity):
         self._device.read_status()
 
     def _handle_device_update_available(self, available: bool) -> None:
-        self._available = available
+        self._attr_available = available
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state
         )
 
-    def _handle_device_update(self, property_list: list) -> None:
+    def _handle_device_update(
+        self, property_list: list[dict[str, Any]]
+    ) -> None:
 
         for prop in property_list:
             dpid = prop.get("dpid")
@@ -217,18 +182,18 @@ class DaliCenterMotionSensor(SensorEntity):
                     5: "presence"
                 }
                 if dpid in motion_map:
-                    self._state = motion_map[dpid]
+                    self._attr_native_value = motion_map[dpid]
                     _LOGGER.debug(
                         "%s %s state changed to: %s (dpid: %s) %s",
-                        self._name, self._unique_id,
-                        self._state, dpid, prop
+                        self._attr_name, self._attr_unique_id,
+                        self._attr_native_value, dpid, prop
                     )
                 else:
                     # Default to no_motion for unknown dpid values
-                    self._state = "no_motion"
+                    self._attr_native_value = "no_motion"
                     _LOGGER.debug(
                         "%s %s unknown dpid: %s, setting to no_motion",
-                        self._name, self._unique_id, dpid
+                        self._attr_name, self._attr_unique_id, dpid
                     )
 
         self.hass.loop.call_soon_threadsafe(
@@ -246,48 +211,31 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
     def __init__(self, device: Device) -> None:
         self._device = device
-        self._name = "State"
-        self._unique_id = f"{device.unique_id}"
-        self._device_id = device.unique_id
-        self._available = device.status == "online"
-        self._state: Optional[float] = None
+        self._attr_name = "State"
+        self._attr_unique_id = f"{device.unique_id}"
+        self._attr_available = device.status == "online"
+        self._attr_native_value: float | None = None
         self._sensor_enabled: bool = True  # Track sensor enable state
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def unique_id(self) -> str:
-        return self._unique_id
-
-    @property
+    @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
             "model": f"Illuminance Sensor Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
-    @property
-    def available(self) -> bool:
-        return self._available
-
-    @property
-    def native_value(self) -> float | None:
-        return self._state
-
     async def async_added_to_hass(self) -> None:
-        signal = f"dali_center_update_{self._unique_id}"
+        signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update
             )
         )
 
-        signal = f"dali_center_update_available_{self._unique_id}"
+        signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update_available
@@ -295,7 +243,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         )
 
         # Listen for sensor on/off state updates
-        signal = f"dali_center_sensor_on_off_{self._unique_id}"
+        signal = f"dali_center_sensor_on_off_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_sensor_on_off_update
@@ -306,32 +254,34 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._device.read_status()
 
     def _handle_device_update_available(self, available: bool) -> None:
-        self._available = available
+        self._attr_available = available
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state
         )
 
-    def _handle_device_update(self, property_list: list) -> None:
+    def _handle_device_update(
+        self, property_list: list[dict[str, Any]]
+    ) -> None:
 
         for prop in property_list:
             dpid = prop.get("dpid")
-            value = prop.get("value")
+            value: float | None = prop.get("value")
 
             # Handle illuminance sensor status (dpid 4 for illuminance value)
             if dpid == 4 and value is not None:
                 if value > 1000 or value <= 0:
                     _LOGGER.warning(
                         "%s %s value is not normal: %s lux (dpid: %s) %s",
-                        self._name, self._unique_id,
+                        self._attr_name, self._attr_unique_id,
                         value, dpid, prop
                     )
                     continue
 
-                self._state = float(value)
+                self._attr_native_value = value
                 _LOGGER.debug(
                     "%s %s value updated to: %s lux (dpid: %s) %s",
-                    self._name, self._unique_id,
-                    self._state, dpid, prop
+                    self._attr_name, self._attr_unique_id,
+                    self._attr_native_value, dpid, prop
                 )
 
         self.hass.loop.call_soon_threadsafe(
@@ -343,12 +293,12 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._sensor_enabled = on_off
         _LOGGER.debug(
             "Illuminance sensor enable state for device %s updated to: %s",
-            self._device_id, on_off
+            self._device.dev_id, on_off
         )
 
         # If sensor is disabled, clear the current state
         if not self._sensor_enabled:
-            self._state = None
+            self._attr_native_value = None
 
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state

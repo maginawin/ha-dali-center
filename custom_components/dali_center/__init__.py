@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 import async_timeout
 from homeassistant.components.persistent_notification import async_create
@@ -91,7 +92,9 @@ async def async_setup_entry(
             async_dispatcher_send, hass, signal, available
         )
 
-    def on_device_status(unique_id: str, property_list: list) -> None:
+    def on_device_status(
+        unique_id: str, property_list: list[dict[str, Any]]
+    ) -> None:
         signal = f"dali_center_update_{unique_id}"
         hass.add_job(
             async_dispatcher_send, hass, signal, property_list
@@ -124,11 +127,13 @@ async def async_setup_entry(
             hass, "Version Query Failed",
             str(exc), gw_sn
         )
+        version = None
 
-    _LOGGER.info(
-        "Gateway %s version - Software: %s, Firmware: %s",
-        gw_sn, version.get("software"), version.get("firmware")
-    )
+    if version:
+        _LOGGER.info(
+            "Gateway %s version - Software: %s, Firmware: %s",
+            gw_sn, version.get("software"), version.get("firmware")
+        )
 
     dev_reg = dr.async_get(hass)
     dev_reg.async_get_or_create(
@@ -137,8 +142,8 @@ async def async_setup_entry(
         manufacturer=MANUFACTURER,
         name=f"{gateway.name} (Secure)" if is_tls else gateway.name,
         model="SR-GW-EDA",
-        sw_version=version["software"],
-        hw_version=version["firmware"],
+        sw_version=version["software"] if version else None,
+        hw_version=version["firmware"] if version else None,
         serial_number=gw_sn,
     )
 
