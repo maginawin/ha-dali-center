@@ -1,28 +1,24 @@
 """Test sensor platform for Dali Center integration."""
 # pylint: disable=protected-access
 
-import pytest
-from unittest.mock import Mock, patch
 from contextlib import ExitStack
+from unittest.mock import Mock, patch
 
+import pytest
+
+from custom_components.dali_center.const import DOMAIN
+from custom_components.dali_center.sensor import (
+    DaliCenterEnergySensor,
+    DaliCenterIlluminanceSensor,
+    DaliCenterMotionSensor,
+    async_setup_entry,
+)
+from custom_components.dali_center.types import DaliCenterData
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-
-from custom_components.dali_center.sensor import (
-    async_setup_entry,
-    DaliCenterEnergySensor,
-    DaliCenterMotionSensor,
-    DaliCenterIlluminanceSensor
-)
-from custom_components.dali_center.const import DOMAIN
-from custom_components.dali_center.types import DaliCenterData
-from tests.conftest import (
-    MockDaliGateway,
-    MockDevice,
-    MOCK_GATEWAY_SN
-)
+from tests.conftest import MOCK_GATEWAY_SN, MockDaliGateway, MockDevice
 
 # Module path constant to avoid repetition
 SM = "custom_components.dali_center.sensor"
@@ -82,17 +78,15 @@ class TestSensorPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with light devices that have energy sensors."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "light001", "name": "Light 1",
-                    "dev_type": "0101", "type": 1}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {"sn": "light001", "name": "Light 1", "dev_type": "0101", "type": 1}
+                ]
+            }
+        )
 
-        with patch(
-            f"{SM}.is_light_device",
-            return_value=True
-        ):
+        with patch(f"{SM}.is_light_device", return_value=True):
             await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_called_once()
@@ -105,25 +99,22 @@ class TestSensorPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with motion sensor devices."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "motion001", "name": "Motion 1",
-                    "dev_type": "0201", "type": 3}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {
+                        "sn": "motion001",
+                        "name": "Motion 1",
+                        "dev_type": "0201",
+                        "type": 3,
+                    }
+                ]
+            }
+        )
 
-        with patch(
-            f"{SM}.is_light_device",
-            return_value=False
-        ):
-            with patch(
-                f"{SM}.is_motion_sensor",
-                return_value=True
-            ):
-                await async_setup_entry(
-                    mock_hass, config_entry,
-                    mock_add_entities
-                )
+        with patch(f"{SM}.is_light_device", return_value=False):
+            with patch(f"{SM}.is_motion_sensor", return_value=True):
+                await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_called_once()
         entities = mock_add_entities.call_args[0][0]
@@ -135,18 +126,18 @@ class TestSensorPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with illuminance sensor devices."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "lux001", "name": "Lux 1", "dev_type": "0301", "type": 4}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {"sn": "lux001", "name": "Lux 1", "dev_type": "0301", "type": 4}
+                ]
+            }
+        )
 
         with patch(f"{SM}.is_light_device", return_value=False):
             with patch(f"{SM}.is_motion_sensor", return_value=False):
                 with patch(f"{SM}.is_illuminance_sensor", return_value=True):
-                    await async_setup_entry(
-                        mock_hass, config_entry, mock_add_entities
-                    )
+                    await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_called_once()
         entities = mock_add_entities.call_args[0][0]
@@ -154,19 +145,27 @@ class TestSensorPlatformSetup:
         assert isinstance(entities[0], DaliCenterIlluminanceSensor)
 
     @pytest.mark.asyncio
-    async def test_async_setup_entry_mixed_devices(
-        self, mock_hass, mock_add_entities
-    ):
+    async def test_async_setup_entry_mixed_devices(self, mock_hass, mock_add_entities):
         """Test setup with mixed device types."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "light001", "name": "Light 1",
-                    "dev_type": "0101", "type": 1},
-                {"sn": "motion001", "name": "Motion 1",
-                    "dev_type": "0201", "type": 3},
-                {"sn": "lux001", "name": "Lux 1", "dev_type": "0301", "type": 4}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {
+                        "sn": "light001",
+                        "name": "Light 1",
+                        "dev_type": "0101",
+                        "type": 1,
+                    },
+                    {
+                        "sn": "motion001",
+                        "name": "Motion 1",
+                        "dev_type": "0201",
+                        "type": 3,
+                    },
+                    {"sn": "lux001", "name": "Lux 1", "dev_type": "0301", "type": 4},
+                ]
+            }
+        )
 
         def mock_is_light_device(dev_type):
             # dev_type is a string like "0101"
@@ -181,24 +180,22 @@ class TestSensorPlatformSetup:
             return dev_type.startswith("03")
 
         with patch(f"{SM}.is_light_device", side_effect=mock_is_light_device):
-            with patch(f"{SM}.is_motion_sensor",
-                       side_effect=mock_is_motion_sensor):
-                with patch(f"{SM}.is_illuminance_sensor",
-                           side_effect=mock_is_illuminance_sensor):
-                    await async_setup_entry(
-                        mock_hass, config_entry, mock_add_entities
-                    )
+            with patch(f"{SM}.is_motion_sensor", side_effect=mock_is_motion_sensor):
+                with patch(
+                    f"{SM}.is_illuminance_sensor",
+                    side_effect=mock_is_illuminance_sensor,
+                ):
+                    await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_called_once()
         entities = mock_add_entities.call_args[0][0]
         assert len(entities) == 3
         # Verify we have one of each sensor type
-        energy_sensors = [e for e in entities if isinstance(
-            e, DaliCenterEnergySensor)]
-        motion_sensors = [e for e in entities if isinstance(
-            e, DaliCenterMotionSensor)]
-        illuminance_sensors = [e for e in entities if isinstance(
-            e, DaliCenterIlluminanceSensor)]
+        energy_sensors = [e for e in entities if isinstance(e, DaliCenterEnergySensor)]
+        motion_sensors = [e for e in entities if isinstance(e, DaliCenterMotionSensor)]
+        illuminance_sensors = [
+            e for e in entities if isinstance(e, DaliCenterIlluminanceSensor)
+        ]
         assert len(energy_sensors) == 1
         assert len(motion_sensors) == 1
         assert len(illuminance_sensors) == 1
@@ -208,30 +205,25 @@ class TestSensorPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with no sensor devices."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "panel001", "name": "Panel 1",
-                    "dev_type": "0401", "type": 2}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {"sn": "panel001", "name": "Panel 1", "dev_type": "0401", "type": 2}
+                ]
+            }
+        )
 
         with patch(f"{SM}.is_light_device", return_value=False):
             with patch(f"{SM}.is_motion_sensor", return_value=False):
                 with patch(f"{SM}.is_illuminance_sensor", return_value=False):
-                    await async_setup_entry(
-                        mock_hass, config_entry, mock_add_entities
-                    )
+                    await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_async_setup_entry_empty_devices(
-        self, mock_hass, mock_add_entities
-    ):
+    async def test_async_setup_entry_empty_devices(self, mock_hass, mock_add_entities):
         """Test setup with empty devices list."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": []
-        })
+        config_entry = self.create_config_entry_with_data({"devices": []})
 
         await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
@@ -483,8 +475,7 @@ class TestDaliCenterIlluminanceSensor:
         """Test illuminance sensor name property."""
         assert illuminance_sensor.name == "State"
 
-    def test_illuminance_sensor_unique_id(
-            self, illuminance_sensor, mock_device):
+    def test_illuminance_sensor_unique_id(self, illuminance_sensor, mock_device):
         """Test illuminance sensor unique_id property."""
         assert illuminance_sensor.unique_id == mock_device.unique_id
 
@@ -496,13 +487,11 @@ class TestDaliCenterIlluminanceSensor:
         """Test illuminance sensor state_class property."""
         assert illuminance_sensor.state_class == SensorStateClass.MEASUREMENT
 
-    def test_illuminance_sensor_native_unit_of_measurement(
-            self, illuminance_sensor):
+    def test_illuminance_sensor_native_unit_of_measurement(self, illuminance_sensor):
         """Test illuminance sensor native_unit_of_measurement property."""
         assert illuminance_sensor.native_unit_of_measurement == "lx"
 
-    def test_illuminance_sensor_device_info(
-            self, illuminance_sensor, mock_device):
+    def test_illuminance_sensor_device_info(self, illuminance_sensor, mock_device):
         """Test illuminance sensor device_info property."""
         device_info = illuminance_sensor.device_info
         assert device_info is not None
@@ -518,16 +507,12 @@ class TestDaliCenterIlluminanceSensor:
         assert illuminance_sensor.native_value == 750
 
     @pytest.mark.asyncio
-    async def test_illuminance_sensor_async_added_to_hass(
-            self, illuminance_sensor):
+    async def test_illuminance_sensor_async_added_to_hass(self, illuminance_sensor):
         """Test illuminance sensor added to hass."""
         mock_hass = Mock()
         mock_dispatcher_connect = Mock()
 
-        with patch(
-            f"{SM}.async_dispatcher_connect",
-            mock_dispatcher_connect
-        ):
+        with patch(f"{SM}.async_dispatcher_connect", mock_dispatcher_connect):
             illuminance_sensor.hass = mock_hass
             await illuminance_sensor.async_added_to_hass()
 
@@ -572,7 +557,8 @@ class TestDaliCenterIlluminanceSensor:
         illuminance_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
     def test_illuminance_sensor_available_when_sensor_disabled(
-            self, illuminance_sensor):
+        self, illuminance_sensor
+    ):
         """Test illuminance sensor availability when sensor is disabled."""
         illuminance_sensor._attr_available = True
         illuminance_sensor._sensor_enabled = False
@@ -581,16 +567,14 @@ class TestDaliCenterIlluminanceSensor:
         # _sensor_enabled
         assert illuminance_sensor.available is True
 
-    def test_illuminance_sensor_available_when_device_offline(
-            self, illuminance_sensor):
+    def test_illuminance_sensor_available_when_device_offline(self, illuminance_sensor):
         """Test illuminance sensor availability when device is offline."""
         illuminance_sensor._attr_available = False
         illuminance_sensor._sensor_enabled = True
 
         assert illuminance_sensor.available is False
 
-    def test_illuminance_sensor_available_when_both_enabled(
-            self, illuminance_sensor):
+    def test_illuminance_sensor_available_when_both_enabled(self, illuminance_sensor):
         illuminance_sensor._attr_available = True
         illuminance_sensor._sensor_enabled = True
 

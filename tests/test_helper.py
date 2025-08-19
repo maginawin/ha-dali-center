@@ -41,12 +41,12 @@ def test_find_set_differences_partial_overlap():
     list1 = [
         {"id": "1", "name": "Device 1"},
         {"id": "2", "name": "Device 2"},
-        {"id": "3", "name": "Device 3"}
+        {"id": "3", "name": "Device 3"},
     ]
     list2 = [
         {"id": "2", "name": "Device 2"},
         {"id": "3", "name": "Device 3"},
-        {"id": "4", "name": "Device 4"}
+        {"id": "4", "name": "Device 4"},
     ]
     unique1, unique2 = find_set_differences(list1, list2, "id")
 
@@ -92,11 +92,11 @@ def test_find_set_differences_complex_objects():
     """Test find_set_differences with complex objects."""
     list1 = [
         {"unique_id": "light_1", "name": "Living Room Light", "type": "light"},
-        {"unique_id": "sensor_1", "name": "Motion Sensor", "type": "sensor"}
+        {"unique_id": "sensor_1", "name": "Motion Sensor", "type": "sensor"},
     ]
     list2 = [
         {"unique_id": "light_1", "name": "Living Room Light", "type": "light"},
-        {"unique_id": "button_1", "name": "Scene Button", "type": "button"}
+        {"unique_id": "button_1", "name": "Scene Button", "type": "button"},
     ]
     unique1, unique2 = find_set_differences(list1, list2, "unique_id")
 

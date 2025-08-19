@@ -6,12 +6,11 @@ from typing import Any
 def find_set_differences(
     list1: list[dict[str, Any]], list2: list[dict[str, Any]], attr_name: str
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """
-    Calculate the difference between two object lists.
+    """Calculate the difference between two object lists.
 
     Args:
         - list1: First list of objects
-        - list2: Second list of objects  
+        - list2: Second list of objects
         - attr_name: Name of attribute to compare (e.g. "unique_id")
 
     Returns:

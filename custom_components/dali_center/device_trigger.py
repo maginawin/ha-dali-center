@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, cast
+
 import voluptuous as vol
 
 from homeassistant.components.device_automation import DEVICE_TRIGGER_BASE_SCHEMA
@@ -15,13 +17,11 @@ from homeassistant.const import (
     CONF_PLATFORM,
     CONF_TYPE,
 )
-
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.entity import get_capability
 from homeassistant.helpers.trigger import TriggerActionType, TriggerInfo
 from homeassistant.helpers.typing import ConfigType
-import logging
 
 from .const import DOMAIN
 
@@ -53,13 +53,13 @@ async def async_get_triggers(
         event_types = get_capability(hass, entry.entity_id, "event_types")
         _LOGGER.debug(
             "Processing entry %s, entity_id=%s, event_types=%s",
-            entry.id, entry.entity_id, event_types
+            entry.id,
+            entry.entity_id,
+            event_types,
         )
 
         if not event_types:
-            _LOGGER.debug(
-                "No event_types found for %s, skipping", entry.entity_id
-            )
+            _LOGGER.debug("No event_types found for %s, skipping", entry.entity_id)
             continue
 
         for event_type in event_types:
@@ -96,11 +96,11 @@ async def async_attach_trigger(
 
     _LOGGER.debug(
         "Setting up device trigger: entity=%s, event_type=%s",
-        config[CONF_ENTITY_ID], config[CONF_TYPE]
+        config[CONF_ENTITY_ID],
+        config[CONF_TYPE],
     )
 
-    validated_config = cast(
-        ConfigType, event_trigger.TRIGGER_SCHEMA(event_config))
+    validated_config = cast("ConfigType", event_trigger.TRIGGER_SCHEMA(event_config))
     return await event_trigger.async_attach_trigger(
         hass, validated_config, action, trigger_info, platform_type="device"
     )
@@ -110,4 +110,4 @@ async def async_validate_trigger_config(
     _: HomeAssistant, config: ConfigType
 ) -> ConfigType:
     """Validate config."""
-    return cast(ConfigType, TRIGGER_SCHEMA(config))
+    return cast("ConfigType", TRIGGER_SCHEMA(config))

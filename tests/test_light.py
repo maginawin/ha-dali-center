@@ -1,20 +1,15 @@
 """Test light platform for Dali Center integration."""
 # pylint: disable=protected-access
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
+from custom_components.dali_center.light import DaliCenterLight, async_setup_entry
+from custom_components.dali_center.types import DaliCenterData
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
-from custom_components.dali_center.light import (
-    async_setup_entry,
-    DaliCenterLight
-)
-from custom_components.dali_center.types import DaliCenterData
-from tests.conftest import (
-    MockDaliGateway,
-    MockDevice
-)
+from tests.conftest import MockDaliGateway, MockDevice
 
 
 class TestLightPlatformSetup:
@@ -91,13 +86,16 @@ class TestDaliCenterLight:
     def mock_device(self):
         """Create mock light device."""
         gateway = MockDaliGateway()
-        return MockDevice(gateway, {
-            "sn": "light001",
-            "name": "Living Room Light",
-            "type": 1,  # Light device
-            "brightness": 80,
-            "power": True
-        })
+        return MockDevice(
+            gateway,
+            {
+                "sn": "light001",
+                "name": "Living Room Light",
+                "type": 1,  # Light device
+                "brightness": 80,
+                "power": True,
+            },
+        )
 
     @pytest.fixture
     def light_entity(self, mock_device):
@@ -134,13 +132,16 @@ class TestDaliCenterLight:
     def test_light_entity_state_off(self):
         """Test light entity with power off."""
         gateway = MockDaliGateway()
-        mock_device = MockDevice(gateway, {
-            "sn": "light002",
-            "name": "Bedroom Light",
-            "type": 1,
-            "brightness": 0,
-            "power": False
-        })
+        mock_device = MockDevice(
+            gateway,
+            {
+                "sn": "light002",
+                "name": "Bedroom Light",
+                "type": 1,
+                "brightness": 0,
+                "power": False,
+            },
+        )
 
         entity = DaliCenterLight(mock_device)
         # Mock hass to prevent AttributeError
@@ -159,10 +160,7 @@ class TestDaliCenterLight:
 
             # Should call device's turn_on method
             mock_turn_on.assert_called_once_with(
-                brightness=None,
-                color_temp_kelvin=None,
-                hs_color=None,
-                rgbw_color=None
+                brightness=None, color_temp_kelvin=None, hs_color=None, rgbw_color=None
             )
 
     @pytest.mark.asyncio
@@ -173,10 +171,7 @@ class TestDaliCenterLight:
             await light_entity.async_turn_on(brightness=128)
 
             mock_turn_on.assert_called_once_with(
-                brightness=128,
-                color_temp_kelvin=None,
-                hs_color=None,
-                rgbw_color=None
+                brightness=128, color_temp_kelvin=None, hs_color=None, rgbw_color=None
             )
 
     @pytest.mark.asyncio

@@ -1,27 +1,32 @@
 """Platform for Dali Center illuminance sensor enable/disable switches."""
+
 from __future__ import annotations
 
+from functools import cached_property
 import logging
 from typing import Any
-from functools import cached_property
+
+from PySrDaliGateway import DaliGateway, Device
+from PySrDaliGateway.helper import is_illuminance_sensor
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
 
 from .const import DOMAIN, MANUFACTURER
 from .types import DaliCenterConfigEntry
-from PySrDaliGateway import DaliGateway, Device
-from PySrDaliGateway.helper import is_illuminance_sensor
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # pylint: disable=unused-argument  # noqa: ARG001
+    hass: HomeAssistant,  # pylint: disable=unused-argument
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
@@ -29,14 +34,10 @@ async def async_setup_entry(
 
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
-        Device(gateway, device)
-        for device in entry.data.get("devices", [])
+        Device(gateway, device) for device in entry.data.get("devices", [])
     ]
 
-    _LOGGER.debug(
-        "Processing initially for illuminance sensor switches: %s",
-        devices
-    )
+    _LOGGER.debug("Processing initially for illuminance sensor switches: %s", devices)
 
     added_devices: set[str] = set()
     new_switches: list[SwitchEntity] = []
@@ -46,8 +47,7 @@ async def async_setup_entry(
 
         # Only create switches for illuminance sensor devices
         if is_illuminance_sensor(device.dev_type):
-            new_switches.append(
-                DaliCenterIlluminanceSensorEnableSwitch(device))
+            new_switches.append(DaliCenterIlluminanceSensorEnableSwitch(device))
             added_devices.add(device.dev_id)
 
     if new_switches:
@@ -75,8 +75,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             self._device.get_sensor_enabled()
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.debug(
-                "Could not sync sensor state for device %s: %s",
-                self._device.dev_id, e
+                "Could not sync sensor state for device %s: %s", self._device.dev_id, e
             )
 
     @cached_property
@@ -93,42 +92,42 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
     def icon(self) -> str:
         return "mdi:brightness-6"
 
-    async def async_turn_on(self, **_kwargs: Any) -> None:  # noqa: ARG002
+    async def async_turn_on(self, **_kwargs: Any) -> None:
         try:
             self._device.set_sensor_enabled(True)
             _LOGGER.debug(
                 "Enabled illuminance sensor for device %s (%s)",
-                self._device.name, self._device.dev_id
+                self._device.name,
+                self._device.dev_id,
             )
 
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
-            self.hass.add_job(
-                async_dispatcher_send, self.hass, signal, True
-            )
+            self.hass.add_job(async_dispatcher_send, self.hass, signal, True)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error(
                 "Failed to enable illuminance sensor for device %s: %s",
-                self._device.dev_id, e
+                self._device.dev_id,
+                e,
             )
 
-    async def async_turn_off(self, **_kwargs: Any) -> None:  # noqa: ARG002
+    async def async_turn_off(self, **_kwargs: Any) -> None:
         try:
             self._device.set_sensor_enabled(False)
             _LOGGER.debug(
                 "Disabled illuminance sensor for device %s (%s)",
-                self._device.name, self._device.dev_id
+                self._device.name,
+                self._device.dev_id,
             )
 
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
-            self.hass.add_job(
-                async_dispatcher_send, self.hass, signal, False
-            )
+            self.hass.add_job(async_dispatcher_send, self.hass, signal, False)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error(
                 "Failed to disable illuminance sensor for device %s: %s",
-                self._device.dev_id, e
+                self._device.dev_id,
+                e,
             )
 
     async def async_added_to_hass(self) -> None:
@@ -152,16 +151,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
 
     def _handle_device_update_available(self, available: bool) -> None:
         self._attr_available = available
-        self.hass.loop.call_soon_threadsafe(
-            self.schedule_update_ha_state
-        )
+        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
     def _handle_sensor_on_off_update(self, on_off: bool) -> None:
         self._attr_is_on = on_off
         _LOGGER.warning(
             "Illuminance sensor enable state for device %s updated to: %s",
-            self._device.dev_id, on_off
+            self._device.dev_id,
+            on_off,
         )
-        self.hass.loop.call_soon_threadsafe(
-            self.schedule_update_ha_state
-        )
+        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)

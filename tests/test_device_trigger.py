@@ -1,10 +1,17 @@
 """Test device trigger for Dali Center event entities."""
 # pylint: disable=protected-access
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
-from homeassistant.core import HomeAssistant
+import pytest
+
+from custom_components.dali_center.const import DOMAIN
+from custom_components.dali_center.device_trigger import (
+    TRIGGER_SCHEMA,
+    async_attach_trigger,
+    async_get_triggers,
+    async_validate_trigger_config,
+)
 from homeassistant.const import (
     CONF_DEVICE_ID,
     CONF_DOMAIN,
@@ -12,16 +19,9 @@ from homeassistant.const import (
     CONF_PLATFORM,
     CONF_TYPE,
 )
+from homeassistant.core import HomeAssistant
 
-from custom_components.dali_center.device_trigger import (
-    async_get_triggers,
-    async_attach_trigger,
-    async_validate_trigger_config,
-    TRIGGER_SCHEMA,
-)
-from custom_components.dali_center.const import DOMAIN
-
-CFM="custom_components.dali_center.device_trigger"
+CFM = "custom_components.dali_center.device_trigger"
 
 
 @pytest.mark.usefixtures("mock_pysrdaligateway")
@@ -52,16 +52,11 @@ class TestDeviceTrigger:
         return entry
 
     @pytest.mark.asyncio
-    async def test_async_get_triggers_no_entries(
-        self, mock_hass, mock_registry
-    ):
+    async def test_async_get_triggers_no_entries(self, mock_hass, mock_registry):
         """Test getting triggers when no entries exist."""
-        with patch(
-            f"{CFM}.er.async_get",
-            return_value=mock_registry
-        ), patch(
-            f"{CFM}.er.async_entries_for_device",
-            return_value=[]
+        with (
+            patch(f"{CFM}.er.async_get", return_value=mock_registry),
+            patch(f"{CFM}.er.async_entries_for_device", return_value=[]),
         ):
             triggers = await async_get_triggers(mock_hass, "test_device_id")
 
@@ -72,20 +67,12 @@ class TestDeviceTrigger:
         self, mock_hass, mock_registry, mock_entry
     ):
         """Test getting triggers when entity has no event_types."""
-        with patch(
-            f"{CFM}.er.async_get",
-            return_value=mock_registry
-        ), patch(
-            f"{CFM}.er.async_entries_for_device",
-            return_value=[mock_entry]
+        with (
+            patch(f"{CFM}.er.async_get", return_value=mock_registry),
+            patch(f"{CFM}.er.async_entries_for_device", return_value=[mock_entry]),
         ):
-            with patch(
-                f"{CFM}.get_capability",
-                return_value=None
-            ):
-                triggers = await async_get_triggers(
-                    mock_hass, "test_device_id"
-                )
+            with patch(f"{CFM}.get_capability", return_value=None):
+                triggers = await async_get_triggers(mock_hass, "test_device_id")
 
         assert triggers == []
 
@@ -96,20 +83,12 @@ class TestDeviceTrigger:
         """Test getting triggers when entity has event_types."""
         event_types = ["button_1_single_click", "button_1_double_click"]
 
-        with patch(
-            f"{CFM}.er.async_get",
-            return_value=mock_registry
-        ), patch(
-            f"{CFM}.er.async_entries_for_device",
-            return_value=[mock_entry]
+        with (
+            patch(f"{CFM}.er.async_get", return_value=mock_registry),
+            patch(f"{CFM}.er.async_entries_for_device", return_value=[mock_entry]),
         ):
-            with patch(
-                f"{CFM}.get_capability",
-                return_value=event_types
-            ):
-                triggers = await async_get_triggers(
-                    mock_hass, "test_device_id"
-                )
+            with patch(f"{CFM}.get_capability", return_value=event_types):
+                triggers = await async_get_triggers(mock_hass, "test_device_id")
 
         assert len(triggers) == 2
 
@@ -147,20 +126,15 @@ class TestDeviceTrigger:
         event_entry.platform = DOMAIN
         event_entry.id = "test_entry_id"
 
-        with patch(
-            f"{CFM}.er.async_get",
-            return_value=mock_registry
-        ), patch(
-            f"{CFM}.er.async_entries_for_device",
-            return_value=[light_entry, event_entry]
+        with (
+            patch(f"{CFM}.er.async_get", return_value=mock_registry),
+            patch(
+                f"{CFM}.er.async_entries_for_device",
+                return_value=[light_entry, event_entry],
+            ),
         ):
-            with patch(
-                f"{CFM}.get_capability",
-                return_value=["button_1_single_click"]
-            ):
-                triggers = await async_get_triggers(
-                    mock_hass, "test_device_id"
-                )
+            with patch(f"{CFM}.get_capability", return_value=["button_1_single_click"]):
+                triggers = await async_get_triggers(mock_hass, "test_device_id")
 
         # Should only process the event entity
         assert len(triggers) == 1
@@ -177,12 +151,10 @@ class TestDeviceTrigger:
         trigger_info = Mock()
 
         with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA",
-            return_value={"platform": "event"}
+            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
         ):
             with patch(
-                f"{CFM}.event_trigger.async_attach_trigger",
-                return_value=AsyncMock()
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
             ) as mock_attach:
                 result = await async_attach_trigger(
                     mock_hass, config, action, trigger_info
@@ -204,12 +176,10 @@ class TestDeviceTrigger:
         trigger_info = Mock()
 
         with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA",
-            return_value={"platform": "event"}
+            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
         ):
             with patch(
-                f"{CFM}.event_trigger.async_attach_trigger",
-                return_value=AsyncMock()
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
             ) as mock_attach:
                 result = await async_attach_trigger(
                     mock_hass, config, action, trigger_info
@@ -231,12 +201,10 @@ class TestDeviceTrigger:
         trigger_info = Mock()
 
         with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA",
-            return_value={"platform": "event"}
+            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
         ):
             with patch(
-                f"{CFM}.event_trigger.async_attach_trigger",
-                return_value=AsyncMock()
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
             ) as mock_attach:
                 result = await async_attach_trigger(
                     mock_hass, config, action, trigger_info
@@ -298,12 +266,10 @@ class TestDeviceTrigger:
         trigger_info = Mock()
 
         with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA",
-            return_value={"platform": "event"}
+            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
         ):
             with patch(
-                f"{CFM}.event_trigger.async_attach_trigger",
-                return_value=AsyncMock()
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
             ) as mock_attach:
                 result = await async_attach_trigger(
                     mock_hass, config, action, trigger_info

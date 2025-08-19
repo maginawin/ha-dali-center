@@ -2,7 +2,7 @@
 # pylint: disable=protected-access
 
 from custom_components.dali_center.types import ConfigData, DaliCenterData
-from tests.conftest import MockDaliGateway, MOCK_GATEWAY_SN
+from tests.conftest import MOCK_GATEWAY_SN, MockDaliGateway
 
 
 def test_config_data_structure():
