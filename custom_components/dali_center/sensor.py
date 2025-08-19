@@ -265,7 +265,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
         for prop in property_list:
             dpid = prop.get("dpid")
-            value = prop.get("value")
+            value: float | None = prop.get("value")
 
             # Handle illuminance sensor status (dpid 4 for illuminance value)
             if dpid == 4 and value is not None:
@@ -277,7 +277,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
                     )
                     continue
 
-                self._attr_native_value = float(value)
+                self._attr_native_value = value
                 _LOGGER.debug(
                     "%s %s value updated to: %s lux (dpid: %s) %s",
                     self._attr_name, self._attr_unique_id,

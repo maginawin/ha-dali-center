@@ -94,10 +94,9 @@ class EntityDiscoveryHelper:
             device_options: dict[str, str] = {}
             existing_device_ids: set[str] = set()
             if existing_selections:
-                existing_devices = cast(
-                    list[dict[str, Any]],
-                    existing_selections.get("devices", [])
-                )
+                existing_devices: list[
+                    dict[str, Any]
+                ] = existing_selections.get("devices", [])
                 existing_device_ids = {
                     str(d.get("unique_id", "")) for d in existing_devices
                     if "unique_id" in d
