@@ -110,45 +110,35 @@ class DaliCenterPanelEvent(EventEntity):
     _attr_device_class = EventDeviceClass.BUTTON
 
     def __init__(self, device: Device) -> None:
-        """Initialize the panel event entity."""
         self._device = device
         self._attr_name = "Panel Buttons"
-        self._attr_unique_id = f"{device.unique_id}_panel_events"
-        self._device_id = device.unique_id
-        self._available = device.status == "online"
+        self._attr_unique_id = f"{device.dev_id}_panel_events"
+        self._attr_icon = "mdi:gesture-tap-button"
+        self._attr_available = device.status == "online"
 
         self._attr_event_types = _generate_event_types_for_panel(
             device.dev_type
         )
 
     @cached_property
-    def icon(self) -> str:
-        return "mdi:gesture-tap-button"
-
-    @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
             "model": f"Panel Type {self._device.dev_type}",
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
-    @cached_property
-    def available(self) -> bool:
-        return self._available
-
     async def async_added_to_hass(self) -> None:
-        """Call when entity is added to hass."""
-        signal = f"dali_center_update_{self._device_id}"
+        signal = f"dali_center_update_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update
             )
         )
 
-        signal = f"dali_center_update_available_{self._device_id}"
+        signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update_available
@@ -159,7 +149,6 @@ class DaliCenterPanelEvent(EventEntity):
 
     @callback
     def _handle_device_update_available(self, available: bool) -> None:
-        """Handle device availability updates."""
         self._available = available
         self.async_write_ha_state()
 
@@ -167,7 +156,6 @@ class DaliCenterPanelEvent(EventEntity):
     def _handle_device_update(
         self, property_list: list[dict[str, Any]]
     ) -> None:
-        """Handle device property updates and trigger events."""
         for prop in property_list:
             dpid = prop.get("dpid")
             key_no = prop.get("keyNo")

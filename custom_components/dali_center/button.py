@@ -2,6 +2,7 @@
 
 import logging
 
+from functools import cached_property
 from homeassistant.components.button import ButtonEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -50,10 +51,12 @@ class DaliCenterSceneButton(ButtonEntity):
     def __init__(self, scene: Scene) -> None:
         super().__init__()
         self._scene = scene
-        _LOGGER.debug("Scene button: %s", scene)
         self._attr_name = f"{scene.name}"
         self._attr_unique_id = scene.unique_id
-        self._attr_device_info = DeviceInfo(
+
+    @cached_property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
             identifiers={(DOMAIN, self._scene.gw_sn)},
         )
 

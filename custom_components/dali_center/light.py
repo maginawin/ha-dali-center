@@ -5,6 +5,7 @@ import logging
 from typing import Any, Optional
 import colorsys
 
+from functools import cached_property
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -84,13 +85,6 @@ class DaliCenterLight(LightEntity):
         self._attr_name = "Light"
         self._attr_unique_id = light.unique_id
         self._attr_available = light.status == "online"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self._attr_unique_id)},
-            name=self._light.name,
-            manufacturer=MANUFACTURER,
-            model=f"Dali Light Type {self._light.dev_type}",
-            via_device=(DOMAIN, self._light.gw_sn),
-        )
         self._attr_is_on: Optional[bool] = None
         self._attr_brightness: Optional[int] = None
         self._white_level: Optional[int] = None
@@ -113,6 +107,16 @@ class DaliCenterLight(LightEntity):
             self._attr_color_mode = ColorMode.BRIGHTNESS
         supported_modes.add(self._attr_color_mode)
         self._attr_supported_color_modes = supported_modes
+
+    @cached_property
+    def device_info(self) -> DeviceInfo | None:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._light.dev_id)},
+            name=self._light.name,
+            manufacturer=MANUFACTURER,
+            model=f"Dali Light Type {self._light.dev_type}",
+            via_device=(DOMAIN, self._light.gw_sn),
+        )
 
     @property
     def min_color_temp_kelvin(self) -> int:
@@ -196,11 +200,11 @@ class DaliCenterLight(LightEntity):
                 self._attr_brightness = int(brightness_value / 1000 * 255)
 
         if 23 in props and self._attr_supported_color_modes \
-            and ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+                and ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
             self._attr_color_temp_kelvin = int(props[23])
 
         if 24 in props and self._attr_supported_color_modes \
-            and ColorMode.HS in self._attr_supported_color_modes:
+                and ColorMode.HS in self._attr_supported_color_modes:
             hsv = str(props[24])
             h = int(hsv[0:4], 16)
             s = int(hsv[4:8], 16) / 10
@@ -208,7 +212,7 @@ class DaliCenterLight(LightEntity):
             _LOGGER.warning("HS color: %s", self._attr_hs_color)
 
         if 24 in props and self._attr_supported_color_modes \
-            and ColorMode.RGBW in self._attr_supported_color_modes:
+                and ColorMode.RGBW in self._attr_supported_color_modes:
             hsv_rgbw = str(props[24])
             h = int(hsv_rgbw[0:4], 16)
             s = int(hsv_rgbw[4:8], 16)
@@ -238,9 +242,6 @@ class DaliCenterLightGroup(LightEntity):
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.group_id}"
         self._attr_available = True
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self._group.gw_sn)},
-        )
         self._attr_icon = "mdi:lightbulb-group"
         self._attr_is_on: Optional[bool] = False
         self._attr_brightness: Optional[int] = 0
@@ -252,6 +253,12 @@ class DaliCenterLightGroup(LightEntity):
             ColorMode.COLOR_TEMP,
             ColorMode.RGBW
         }
+
+    @cached_property
+    def device_info(self) -> DeviceInfo | None:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._group.gw_sn)},
+        )
 
     @property
     def min_color_temp_kelvin(self) -> int:

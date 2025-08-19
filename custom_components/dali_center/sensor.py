@@ -25,11 +25,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, # pylint: disable=unused-argument
+    hass: HomeAssistant,  # pylint: disable=unused-argument
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    #
 
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
@@ -78,7 +77,6 @@ class DaliCenterEnergySensor(SensorEntity):
 
         self._attr_name = "Energy"
         self._attr_unique_id = f"{device.unique_id}_energy"
-        self._device_id = device.unique_id
 
         self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
@@ -86,18 +84,18 @@ class DaliCenterEnergySensor(SensorEntity):
     @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
         }
 
     async def async_added_to_hass(self) -> None:
-        signal = f"dali_center_energy_update_{self._device_id}"
+        signal = f"dali_center_energy_update_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_energy_update
             )
         )
 
-        signal = f"dali_center_update_available_{self._device_id}"
+        signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update_available
@@ -130,14 +128,13 @@ class DaliCenterMotionSensor(SensorEntity):
         self._device = device
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
-        self._device_id = device.unique_id
         self._attr_available = device.status == "online"
         self._attr_native_value = "no_motion"
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
             "model": f"Motion Sensor Type {self._device.dev_type}",
@@ -216,7 +213,6 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._device = device
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
-        self._device_id = device.unique_id
         self._attr_available = device.status == "online"
         self._attr_native_value = None
         self._sensor_enabled: bool = True  # Track sensor enable state
@@ -224,7 +220,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
     @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
             "model": f"Illuminance Sensor Type {self._device.dev_type}",
@@ -297,7 +293,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._sensor_enabled = on_off
         _LOGGER.debug(
             "Illuminance sensor enable state for device %s updated to: %s",
-            self._device_id, on_off
+            self._device.dev_id, on_off
         )
 
         # If sensor is disabled, clear the current state

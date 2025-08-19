@@ -42,15 +42,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._refresh_scenes = False
         self._refresh_gateway_ip = False
         self._refresh_results: dict[str, Any] = {}
-        self._discovered_entities: dict[str, list[DeviceType] |
-                                         list[GroupType] | list[SceneType]] = {}
+        self._discovered_entities: dict[
+            str, list[DeviceType] |
+            list[GroupType] | list[SceneType]
+        ] = {}
 
     async def _reload_with_delay(self) -> bool:
-        """Reload config entry with a delay to ensure clean state.
-
-        Returns:
-            bool: True if reload was successful, False otherwise
-        """
         try:
             _LOGGER.debug(
                 "Unloading config entry %s",
@@ -222,8 +219,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         # Prepare schema with existing selections and diff display using helper
         current_data = dict(self._config_entry.data)
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
-            devices=cast(list[DeviceType],
-                         self._discovered_entities.get("devices", [])),
+            devices=cast(
+                list[DeviceType],
+                self._discovered_entities.get("devices", [])),
             groups=cast(list[GroupType],
                         self._discovered_entities.get("groups", [])),
             scenes=cast(list[SceneType],
@@ -566,8 +564,10 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
-            devices=cast(list[DeviceType],
-                         self._discovered_entities.get("devices", [])),
+            devices=cast(
+                list[DeviceType],
+                self._discovered_entities.get("devices", [])
+            ),
             groups=cast(list[GroupType],
                         self._discovered_entities.get("groups", [])),
             scenes=cast(list[SceneType],

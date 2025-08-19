@@ -64,8 +64,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         super().__init__()
         self._device = device
         self._attr_name = "Sensor Enable"
-        self._attr_unique_id = f"{device.unique_id}_sensor_enable"
-        self._device_id = device.unique_id
+        self._attr_unique_id = f"{device.dev_id}_sensor_enable"
         self._attr_available = device.status == "online"
         self._attr_is_on: bool | None = True  # Default to enabled
 
@@ -77,13 +76,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.debug(
                 "Could not sync sensor state for device %s: %s",
-                self._device_id, e
+                self._device.dev_id, e
             )
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
             "model": f"Illuminance Sensor Type {self._device.dev_type}",
@@ -99,10 +98,10 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             self._device.set_sensor_enabled(True)
             _LOGGER.debug(
                 "Enabled illuminance sensor for device %s (%s)",
-                self._device.name, self._device_id
+                self._device.name, self._device.dev_id
             )
 
-            signal = f"dali_center_sensor_on_off_{self._device_id}"
+            signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(
                 async_dispatcher_send, self.hass, signal, True
             )
@@ -110,7 +109,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error(
                 "Failed to enable illuminance sensor for device %s: %s",
-                self._device_id, e
+                self._device.dev_id, e
             )
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
@@ -118,10 +117,10 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             self._device.set_sensor_enabled(False)
             _LOGGER.debug(
                 "Disabled illuminance sensor for device %s (%s)",
-                self._device.name, self._device_id
+                self._device.name, self._device.dev_id
             )
 
-            signal = f"dali_center_sensor_on_off_{self._device_id}"
+            signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(
                 async_dispatcher_send, self.hass, signal, False
             )
@@ -129,11 +128,11 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error(
                 "Failed to disable illuminance sensor for device %s: %s",
-                self._device_id, e
+                self._device.dev_id, e
             )
 
     async def async_added_to_hass(self) -> None:
-        signal = f"dali_center_update_available_{self._device_id}"
+        signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_device_update_available
@@ -141,7 +140,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         )
 
         # Listen for sensor on/off state updates
-        signal = f"dali_center_sensor_on_off_{self._device_id}"
+        signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal, self._handle_sensor_on_off_update
@@ -161,7 +160,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         self._attr_is_on = on_off
         _LOGGER.warning(
             "Illuminance sensor enable state for device %s updated to: %s",
-            self._device_id, on_off
+            self._device.dev_id, on_off
         )
         self.hass.loop.call_soon_threadsafe(
             self.schedule_update_ha_state
