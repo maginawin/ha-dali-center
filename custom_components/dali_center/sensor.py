@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # pylint: disable=unused-argument
+    hass: HomeAssistant,  # pylint: disable=unused-argument  # noqa: ARG001
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:

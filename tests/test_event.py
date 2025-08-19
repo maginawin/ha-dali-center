@@ -192,8 +192,8 @@ class TestDaliCenterPanelEvent:
         """Test panel event device_info property."""
         device_info = panel_event.device_info
         assert device_info is not None
-        # The actual implementation uses device unique_id, not dev_id
-        assert device_info["identifiers"] == {(DOMAIN, mock_device.unique_id)}
+        # The actual implementation uses device dev_id, not unique_id
+        assert device_info["identifiers"] == {(DOMAIN, mock_device.dev_id)}
 
     def test_panel_event_available_default(self, panel_event):
         """Test panel event available property default value."""
@@ -229,7 +229,7 @@ class TestDaliCenterPanelEvent:
         ) as mock_write_state:
             panel_event._handle_device_update_available(False)
 
-            assert panel_event._available is False
+            assert panel_event._attr_available is False
             mock_write_state.assert_called_once()
 
     def test_handle_device_update_press(self, panel_event):

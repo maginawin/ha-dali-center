@@ -149,7 +149,7 @@ class DaliCenterPanelEvent(EventEntity):
 
     @callback
     def _handle_device_update_available(self, available: bool) -> None:
-        self._available = available
+        self._attr_available = available
         self.async_write_ha_state()
 
     @callback

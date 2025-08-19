@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # pylint: disable=unused-argument
+    hass: HomeAssistant,  # pylint: disable=unused-argument  # noqa: ARG001
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
@@ -93,7 +93,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
     def icon(self) -> str:
         return "mdi:brightness-6"
 
-    async def async_turn_on(self, **_kwargs: Any) -> None:
+    async def async_turn_on(self, **_kwargs: Any) -> None:  # noqa: ARG002
         try:
             self._device.set_sensor_enabled(True)
             _LOGGER.debug(
@@ -112,7 +112,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
                 self._device.dev_id, e
             )
 
-    async def async_turn_off(self, **_kwargs: Any) -> None:
+    async def async_turn_off(self, **_kwargs: Any) -> None:  # noqa: ARG002
         try:
             self._device.set_sensor_enabled(False)
             _LOGGER.debug(
