@@ -110,6 +110,7 @@ class DaliCenterLight(LightEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._light.dev_id)},
             name=self._light.name,
@@ -120,13 +121,16 @@ class DaliCenterLight(LightEntity):
 
     @property
     def min_color_temp_kelvin(self) -> int:
+        """Return minimum color temperature in Kelvin."""
         return 1000
 
     @property
     def max_color_temp_kelvin(self) -> int:
+        """Return maximum color temperature in Kelvin."""
         return 8000
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on the light."""
         _LOGGER.debug(
             "Turning on light %s with kwargs: %s", self._attr_unique_id, kwargs
         )
@@ -142,10 +146,12 @@ class DaliCenterLight(LightEntity):
         )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off the light."""
         del kwargs  # Unused parameter
         self._light.turn_off()
 
     async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
@@ -245,6 +251,7 @@ class DaliCenterLightGroup(LightEntity):
     """Representation of a Dali Center Light Group."""
 
     def __init__(self, group: Group) -> None:
+        """Initialize the light group."""
         self._group = group
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.group_id}"
@@ -260,19 +267,23 @@ class DaliCenterLightGroup(LightEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._group.gw_sn)},
         )
 
     @property
     def min_color_temp_kelvin(self) -> int:
+        """Return minimum color temperature in Kelvin."""
         return 1000
 
     @property
     def max_color_temp_kelvin(self) -> int:
+        """Return maximum color temperature in Kelvin."""
         return 8000
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on the light group."""
         brightness = kwargs.get(ATTR_BRIGHTNESS)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
@@ -296,6 +307,7 @@ class DaliCenterLightGroup(LightEntity):
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off the light group."""
         del kwargs  # Unused parameter
         self._group.turn_off()
         self._attr_is_on = False

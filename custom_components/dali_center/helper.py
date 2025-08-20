@@ -9,11 +9,12 @@ def find_set_differences(
     """Calculate the difference between two object lists.
 
     Args:
-        - list1: First list of objects
-        - list2: Second list of objects
-        - attr_name: Name of attribute to compare (e.g. "unique_id")
+        list1: First list of objects
+        list2: Second list of objects
+        attr_name: Name of attribute to compare (e.g. "unique_id")
 
     Returns:
+        Tuple containing:
         - unique1: List of objects that exist in list1 but not in list2
         - unique2: List of objects that exist in list2 but not in list1
     """

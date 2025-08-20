@@ -341,7 +341,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
 
 class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
-    # type: ignore[call-arg]
     """Handle a config flow for Dali Center."""
 
     VERSION = 1
@@ -375,6 +374,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_discovery(
         self, discovery_info: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Handle the discovery step."""
         errors: dict[str, str] = {}
 
         if discovery_info is not None:
@@ -403,11 +403,10 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                 try:
                     await self._selected_gateway.connect()
                     return await self.async_step_configure_entities()
-                except DaliGatewayError as e:
+                except DaliGatewayError:
                     _LOGGER.exception(
-                        "Error connecting to gateway %s: %s",
+                        "Error connecting to gateway %s",
                         self._selected_gateway.gw_sn,
-                        e,
                     )
                     errors["base"] = "cannot_connect"
             else:
@@ -423,8 +422,8 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 # type: ignore[no-untyped-call]
                 discovered_gateways = await DaliGatewayDiscovery().discover_gateways()
-            except DaliGatewayError as e:
-                _LOGGER.exception("Error discovering gateways: %s", e)
+            except DaliGatewayError:
+                _LOGGER.exception("Error discovering gateways")
                 errors["base"] = "discovery_failed"
                 return self.async_show_form(
                     step_id="discovery",
@@ -523,22 +522,20 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             # Disconnect from the gateway
             try:
                 await self._selected_gateway.disconnect()
-            except DaliGatewayError as e:
+            except DaliGatewayError:
                 _LOGGER.exception(
-                    "Error disconnecting from gateway %s: %s",
+                    "Error disconnecting from gateway %s",
                     self._selected_gateway.gw_sn,
-                    e,
                 )
                 errors["base"] = "cannot_disconnect"
                 return self.async_show_form(
                     step_id="configure_entities",
                     errors=errors,
                 )
-            except Exception as e:
+            except Exception:
                 _LOGGER.exception(
-                    "Error disconnecting from gateway %s: %s",
+                    "Error disconnecting from gateway %s",
                     self._selected_gateway.gw_sn,
-                    e,
                 )
                 errors["base"] = "cannot_disconnect"
                 return self.async_show_form(
@@ -577,6 +574,10 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=schema,
             errors=errors,
         )
+
+    def is_matching(self, other_flow: "ConfigFlow") -> bool:
+        """Check if another flow is matching this one."""
+        return False
 
     @staticmethod
     @callback

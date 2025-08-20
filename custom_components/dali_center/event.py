@@ -61,9 +61,11 @@ def _generate_event_types_for_panel(dev_type: str) -> list[str]:
         return ["button_1_press", "button_1_double_press", "button_1_hold"]
 
     event_types: list[str] = []
-    for button_num in range(1, config["button_count"] + 1):
-        for event in config["events"]:
-            event_types.append(f"button_{button_num}_{event}")
+    event_types.extend(
+        f"button_{button_num}_{event}"
+        for button_num in range(1, config["button_count"] + 1)
+        for event in config["events"]
+    )
 
     return event_types
 

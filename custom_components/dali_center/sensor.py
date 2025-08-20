@@ -35,6 +35,7 @@ async def async_setup_entry(
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up Dali Center sensor entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
         Device(gateway, device) for device in entry.data.get("devices", [])
@@ -77,6 +78,7 @@ class DaliCenterEnergySensor(SensorEntity):
     _attr_has_entity_name = True
 
     def __init__(self, device: Device) -> None:
+        """Initialize the energy sensor."""
         self._device = device
 
         self._attr_name = "Energy"
@@ -87,11 +89,13 @@ class DaliCenterEnergySensor(SensorEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
         }
 
     async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
         signal = f"dali_center_energy_update_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_energy_update)
@@ -123,6 +127,7 @@ class DaliCenterMotionSensor(SensorEntity):
     _attr_icon = "mdi:motion-sensor"
 
     def __init__(self, device: Device) -> None:
+        """Initialize the motion sensor."""
         self._device = device
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
@@ -131,6 +136,7 @@ class DaliCenterMotionSensor(SensorEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,

@@ -420,16 +420,18 @@ class TestAsyncUnloadEntry:
         """
         mock_config_entry.runtime_data = None
 
-        with patch.object(
-            mock_hass.config_entries,
-            "async_unload_platforms",
-            new_callable=AsyncMock,
-            return_value=True,
+        with (
+            patch.object(
+                mock_hass.config_entries,
+                "async_unload_platforms",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            pytest.raises(AttributeError),
         ):
             # Original code doesn't check if runtime_data is None, causes
             # AttributeError
-            with pytest.raises(AttributeError):
-                await async_unload_entry(mock_hass, mock_config_entry)
+            await async_unload_entry(mock_hass, mock_config_entry)
 
 
 class TestCallbackFunctions:

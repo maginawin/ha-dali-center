@@ -69,9 +69,9 @@ class TestDeviceTriggerStandalone:
         with (
             patch(f"{CFM}.er.async_get", return_value=mock_registry),
             patch(f"{CFM}.er.async_entries_for_device", return_value=[mock_entry]),
+            patch(f"{CFM}.get_capability", return_value=event_types),
         ):
-            with patch(f"{CFM}.get_capability", return_value=event_types):
-                triggers = await async_get_triggers(mock_hass, "test_device_id")
+            triggers = await async_get_triggers(mock_hass, "test_device_id")
 
         assert len(triggers) == 2
 

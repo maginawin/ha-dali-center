@@ -112,9 +112,11 @@ class TestSensorPlatformSetup:
             }
         )
 
-        with patch(f"{SM}.is_light_device", return_value=False):
-            with patch(f"{SM}.is_motion_sensor", return_value=True):
-                await async_setup_entry(mock_hass, config_entry, mock_add_entities)
+        with (
+            patch(f"{SM}.is_light_device", return_value=False),
+            patch(f"{SM}.is_motion_sensor", return_value=True),
+        ):
+            await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_called_once()
         entities = mock_add_entities.call_args[0][0]
@@ -134,10 +136,12 @@ class TestSensorPlatformSetup:
             }
         )
 
-        with patch(f"{SM}.is_light_device", return_value=False):
-            with patch(f"{SM}.is_motion_sensor", return_value=False):
-                with patch(f"{SM}.is_illuminance_sensor", return_value=True):
-                    await async_setup_entry(mock_hass, config_entry, mock_add_entities)
+        with (
+            patch(f"{SM}.is_light_device", return_value=False),
+            patch(f"{SM}.is_motion_sensor", return_value=False),
+            patch(f"{SM}.is_illuminance_sensor", return_value=True),
+        ):
+            await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_called_once()
         entities = mock_add_entities.call_args[0][0]
@@ -179,13 +183,15 @@ class TestSensorPlatformSetup:
             # dev_type is a string like "0301"
             return dev_type.startswith("03")
 
-        with patch(f"{SM}.is_light_device", side_effect=mock_is_light_device):
-            with patch(f"{SM}.is_motion_sensor", side_effect=mock_is_motion_sensor):
-                with patch(
-                    f"{SM}.is_illuminance_sensor",
-                    side_effect=mock_is_illuminance_sensor,
-                ):
-                    await async_setup_entry(mock_hass, config_entry, mock_add_entities)
+        with (
+            patch(f"{SM}.is_light_device", side_effect=mock_is_light_device),
+            patch(f"{SM}.is_motion_sensor", side_effect=mock_is_motion_sensor),
+            patch(
+                f"{SM}.is_illuminance_sensor",
+                side_effect=mock_is_illuminance_sensor,
+            ),
+        ):
+            await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_called_once()
         entities = mock_add_entities.call_args[0][0]
@@ -213,10 +219,12 @@ class TestSensorPlatformSetup:
             }
         )
 
-        with patch(f"{SM}.is_light_device", return_value=False):
-            with patch(f"{SM}.is_motion_sensor", return_value=False):
-                with patch(f"{SM}.is_illuminance_sensor", return_value=False):
-                    await async_setup_entry(mock_hass, config_entry, mock_add_entities)
+        with (
+            patch(f"{SM}.is_light_device", return_value=False),
+            patch(f"{SM}.is_motion_sensor", return_value=False),
+            patch(f"{SM}.is_illuminance_sensor", return_value=False),
+        ):
+            await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
         mock_add_entities.assert_not_called()
 

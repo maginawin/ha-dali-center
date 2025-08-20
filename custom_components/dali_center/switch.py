@@ -104,11 +104,10 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(async_dispatcher_send, self.hass, signal, True)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception:  # pylint: disable=broad-exception-caught
             _LOGGER.exception(
-                "Failed to enable illuminance sensor for device %s: %s",
+                "Failed to enable illuminance sensor for device %s",
                 self._device.dev_id,
-                e,
             )
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
@@ -123,11 +122,10 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(async_dispatcher_send, self.hass, signal, False)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception:  # pylint: disable=broad-exception-caught
             _LOGGER.exception(
-                "Failed to disable illuminance sensor for device %s: %s",
+                "Failed to disable illuminance sensor for device %s",
                 self._device.dev_id,
-                e,
             )
 
     async def async_added_to_hass(self) -> None:
