@@ -247,22 +247,21 @@ class TestAsyncSetupEntry:
 
         with patch(
             "custom_components.dali_center.DaliGateway", return_value=mock_gateway
-        ):
-            with patch.object(
-                mock_hass.config_entries,
-                "async_forward_entry_setups",
-                new_callable=AsyncMock,
-            ) as mock_forward:
-                # Call the setup function
-                result = await async_setup_entry(mock_hass, mock_config_entry_with_data)
+        ), patch.object(
+            mock_hass.config_entries,
+            "async_forward_entry_setups",
+            new_callable=AsyncMock,
+        ) as mock_forward:
+            # Call the setup function
+            result = await async_setup_entry(mock_hass, mock_config_entry_with_data)
 
-                # Assertions
-                assert result is True
-                mock_setup_logging.assert_called_once()
-                mock_gateway.connect.assert_called_once()
-                mock_gateway.get_version.assert_called_once()
-                mock_forward.assert_called_once()
-                mock_dev_reg.async_get_or_create.assert_called_once()
+            # Assertions
+            assert result is True
+            mock_setup_logging.assert_called_once()
+            mock_gateway.connect.assert_called_once()
+            mock_gateway.get_version.assert_called_once()
+            mock_forward.assert_called_once()
+            mock_dev_reg.async_get_or_create.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("custom_components.dali_center._setup_dependency_logging")
@@ -289,14 +288,13 @@ class TestAsyncSetupEntry:
 
         with patch(
             "custom_components.dali_center.DaliGateway", return_value=mock_gateway
+        ), patch(
+            "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
         ):
-            with patch(
-                "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
-            ):
-                with pytest.raises(ConfigEntryNotReady):
-                    await async_setup_entry(mock_hass, mock_config_entry_with_data)
+            with pytest.raises(ConfigEntryNotReady):
+                await async_setup_entry(mock_hass, mock_config_entry_with_data)
 
-                mock_notify_error.assert_called_once()
+            mock_notify_error.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("custom_components.dali_center.async_timeout.timeout")
@@ -335,19 +333,18 @@ class TestAsyncSetupEntry:
 
         with patch(
             "custom_components.dali_center.DaliGateway", return_value=mock_gateway
-        ):
-            with patch.object(
-                mock_hass.config_entries,
-                "async_forward_entry_setups",
-                new_callable=AsyncMock,
-            ) as mock_forward:
-                # Original code continues after timeout - this is a bug, but
-                # test existing behavior
-                result = await async_setup_entry(mock_hass, mock_config_entry_with_data)
+        ), patch.object(
+            mock_hass.config_entries,
+            "async_forward_entry_setups",
+            new_callable=AsyncMock,
+        ) as mock_forward:
+            # Original code continues after timeout - this is a bug, but
+            # test existing behavior
+            result = await async_setup_entry(mock_hass, mock_config_entry_with_data)
 
-                assert result is True  # Should complete setup successfully
-                mock_notify_error.assert_called_once()
-                mock_forward.assert_called_once()
+            assert result is True  # Should complete setup successfully
+            mock_notify_error.assert_called_once()
+            mock_forward.assert_called_once()
 
 
 class TestAsyncUnloadEntry:
@@ -400,20 +397,18 @@ class TestAsyncUnloadEntry:
             "async_unload_platforms",
             new_callable=AsyncMock,
             return_value=True,
-        ) as mock_unload:
-            with patch(
-                "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
-            ):
-                with patch(
-                    "custom_components.dali_center._notify_user_error",
-                    new_callable=AsyncMock,
-                ) as mock_notify:
-                    result = await async_unload_entry(mock_hass, mock_config_entry)
+        ) as mock_unload, patch(
+            "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
+        ), patch(
+            "custom_components.dali_center._notify_user_error",
+            new_callable=AsyncMock,
+        ) as mock_notify:
+            result = await async_unload_entry(mock_hass, mock_config_entry)
 
-                    assert result is True
-                    mock_unload.assert_called_once()
-                    mock_gateway.disconnect.assert_called_once()
-                    mock_notify.assert_called_once()
+            assert result is True
+            mock_unload.assert_called_once()
+            mock_gateway.disconnect.assert_called_once()
+            mock_notify.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_async_unload_entry_no_runtime_data(

@@ -40,7 +40,7 @@ class EntityDiscoveryHelper:
                     "Error discovering devices on gateway %s: %s", gateway.gw_sn, e
                 )
                 discovered["devices"] = []
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 _LOGGER.warning(
                     "Unexpected error discovering devices on gateway %s: %s",
                     gateway.gw_sn,
@@ -56,7 +56,7 @@ class EntityDiscoveryHelper:
                     len(discovered["groups"]),
                     gateway.gw_sn,
                 )
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 _LOGGER.warning(
                     "Unexpected error discovering groups on gateway %s: %s",
                     gateway.gw_sn,
@@ -72,7 +72,7 @@ class EntityDiscoveryHelper:
                     len(discovered["scenes"]),
                     gateway.gw_sn,
                 )
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 _LOGGER.warning(
                     "Unexpected error discovering scenes on gateway %s: %s",
                     gateway.gw_sn,

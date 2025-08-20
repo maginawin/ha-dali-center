@@ -38,8 +38,7 @@ class TestDeviceTrigger:
     @pytest.fixture
     def mock_registry(self):
         """Create mock entity registry."""
-        registry = Mock()
-        return registry
+        return Mock()
 
     @pytest.fixture
     def mock_entry(self):
@@ -131,10 +130,9 @@ class TestDeviceTrigger:
             patch(
                 f"{CFM}.er.async_entries_for_device",
                 return_value=[light_entry, event_entry],
-            ),
+            ),patch(f"{CFM}.get_capability", return_value=["button_1_single_click"])
         ):
-            with patch(f"{CFM}.get_capability", return_value=["button_1_single_click"]):
-                triggers = await async_get_triggers(mock_hass, "test_device_id")
+            triggers = await async_get_triggers(mock_hass, "test_device_id")
 
         # Should only process the event entity
         assert len(triggers) == 1
@@ -152,17 +150,16 @@ class TestDeviceTrigger:
 
         with patch(
             f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ):
-            with patch(
-                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-            ) as mock_attach:
-                result = await async_attach_trigger(
-                    mock_hass, config, action, trigger_info
-                )
+        ), patch(
+            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+        ) as mock_attach:
+            result = await async_attach_trigger(
+                mock_hass, config, action, trigger_info
+            )
 
-                # Verify event trigger was called
-                mock_attach.assert_called_once()
-                assert isinstance(result, AsyncMock)
+            # Verify event trigger was called
+            mock_attach.assert_called_once()
+            assert isinstance(result, AsyncMock)
 
     @pytest.mark.asyncio
     async def test_async_attach_trigger_non_matching_event(self, mock_hass):
@@ -177,17 +174,16 @@ class TestDeviceTrigger:
 
         with patch(
             f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ):
-            with patch(
-                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-            ) as mock_attach:
-                result = await async_attach_trigger(
-                    mock_hass, config, action, trigger_info
-                )
+        ), patch(
+            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+        ) as mock_attach:
+            result = await async_attach_trigger(
+                mock_hass, config, action, trigger_info
+            )
 
-                # Verify event trigger was called with correct config
-                mock_attach.assert_called_once()
-                assert isinstance(result, AsyncMock)
+            # Verify event trigger was called with correct config
+            mock_attach.assert_called_once()
+            assert isinstance(result, AsyncMock)
 
     @pytest.mark.asyncio
     async def test_async_attach_trigger_no_entity_state(self, mock_hass):
@@ -202,17 +198,16 @@ class TestDeviceTrigger:
 
         with patch(
             f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ):
-            with patch(
-                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-            ) as mock_attach:
-                result = await async_attach_trigger(
-                    mock_hass, config, action, trigger_info
-                )
+        ), patch(
+            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+        ) as mock_attach:
+            result = await async_attach_trigger(
+                mock_hass, config, action, trigger_info
+            )
 
-                # Verify event trigger was called
-                mock_attach.assert_called_once()
-                assert isinstance(result, AsyncMock)
+            # Verify event trigger was called
+            mock_attach.assert_called_once()
+            assert isinstance(result, AsyncMock)
 
     @pytest.mark.asyncio
     async def test_async_validate_trigger_config_valid(self, mock_hass):
@@ -267,14 +262,13 @@ class TestDeviceTrigger:
 
         with patch(
             f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ):
-            with patch(
-                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-            ) as mock_attach:
-                result = await async_attach_trigger(
-                    mock_hass, config, action, trigger_info
-                )
+        ), patch(
+            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+        ) as mock_attach:
+            result = await async_attach_trigger(
+                mock_hass, config, action, trigger_info
+            )
 
-                # Verify event trigger was called
-                mock_attach.assert_called_once()
-                assert isinstance(result, AsyncMock)
+            # Verify event trigger was called
+            mock_attach.assert_called_once()
+            assert isinstance(result, AsyncMock)

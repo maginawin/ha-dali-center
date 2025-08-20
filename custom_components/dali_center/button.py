@@ -47,6 +47,7 @@ class DaliCenterSceneButton(ButtonEntity):
     """Representation of a Dali Center Scene Button."""
 
     def __init__(self, scene: Scene) -> None:
+        """Initialize the scene button."""
         super().__init__()
         self._scene = scene
         self._attr_name = f"{scene.name}"
@@ -54,10 +55,12 @@ class DaliCenterSceneButton(ButtonEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo:
+        """Return device info for the scene button."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._scene.gw_sn)},
         )
 
     async def async_press(self) -> None:
+        """Handle button press to activate scene."""
         _LOGGER.debug("Activating scene %s", self._scene.scene_id)
         self._scene.activate()

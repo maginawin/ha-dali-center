@@ -81,10 +81,11 @@ async def async_setup_entry(
 
     _LOGGER.debug("Setting up event platform: %d devices", len(devices))
 
-    new_events: list[EventEntity] = []
-    for device in devices:
-        if is_panel_device(device.dev_type):
-            new_events.append(DaliCenterPanelEvent(device))
+    new_events: list[EventEntity] = [
+        DaliCenterPanelEvent(device)
+        for device in devices
+        if is_panel_device(device.dev_type)
+    ]
 
     if new_events:
         async_add_entities(new_events)
@@ -97,6 +98,7 @@ class DaliCenterPanelEvent(EventEntity):
     _attr_device_class = EventDeviceClass.BUTTON
 
     def __init__(self, device: Device) -> None:
+        """Initialize the panel event entity."""
         self._device = device
         self._attr_name = "Panel Buttons"
         self._attr_unique_id = f"{device.dev_id}_panel_events"
@@ -107,6 +109,7 @@ class DaliCenterPanelEvent(EventEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device info for the panel."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
@@ -116,6 +119,7 @@ class DaliCenterPanelEvent(EventEntity):
         }
 
     async def async_added_to_hass(self) -> None:
+        """Handle when entity is added to hass."""
         signal = f"dali_center_update_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)

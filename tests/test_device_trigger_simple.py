@@ -36,8 +36,7 @@ class TestDeviceTriggerStandalone:
     @pytest.fixture
     def mock_registry(self):
         """Create mock entity registry."""
-        registry = Mock()
-        return registry
+        return Mock()
 
     @pytest.fixture
     def mock_entry(self):

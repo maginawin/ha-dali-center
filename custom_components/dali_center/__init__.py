@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -73,7 +72,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
             await gateway.connect()
             _LOGGER.info("Successfully connected to gateway %s", gw_sn)
     except DaliGatewayError as exc:
-        _LOGGER.error("Error connecting to gateway %s: %s", gw_sn, exc)
+        _LOGGER.exception("Error connecting to gateway %s", gw_sn)
         await _notify_user_error(hass, "Connection Failed", str(exc), gw_sn)
         raise ConfigEntryNotReady(
             "You can try to delete the gateway and add it again"
@@ -145,13 +144,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -> bool:
+    """Unload a config entry."""
     gateway = entry.runtime_data.gateway
     _LOGGER.info("Disconnecting from gateway %s", gateway.gw_sn)
 
     try:
         await gateway.disconnect()
     except DaliGatewayError as exc:
-        _LOGGER.error("Error disconnecting from gateway %s: %s", gateway.gw_sn, exc)
+        _LOGGER.exception("Error disconnecting from gateway %s", gateway.gw_sn)
         await _notify_user_error(hass, "Disconnection Failed", str(exc), gateway.gw_sn)
 
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)

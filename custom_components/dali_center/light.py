@@ -34,6 +34,7 @@ async def async_setup_entry(
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up Dali Center light entities from config entry."""
     del hass  # Unused parameter
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
@@ -78,6 +79,7 @@ class DaliCenterLight(LightEntity):
     _attr_has_entity_name = True
 
     def __init__(self, light: Device) -> None:
+        """Initialize the light entity."""
         super().__init__()
         self._light = light
         self._attr_name = "Light"

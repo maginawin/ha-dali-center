@@ -41,6 +41,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle a options flow for Dali Center."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize the options flow."""
         super().__init__()
         self._config_entry = config_entry
         self._refresh_devices = False
@@ -77,13 +78,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             _LOGGER.error("Config entry setup failed")
             return False
 
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.error("Error during config entry reload: %s", e)
+        except Exception:
+            _LOGGER.exception("Error during config entry reload")
             return False
 
     async def async_step_init(
         self, user_input: dict[str, bool] | None = None
     ) -> ConfigFlowResult:
+        """Handle the initial step of the options flow."""
         _LOGGER.warning("OptionsFlowHandler: async_step_init %s", user_input)
 
         if not user_input:
@@ -139,7 +141,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             # Go to entity selection step
             return await self.async_step_select_entities()
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             _LOGGER.warning(
                 "Error searching for devices on gateway %s: %s",
                 self._config_entry.data["sn"],
@@ -316,8 +318,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 },
             )
 
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.error("Error refreshing gateway IP: %s", e)
+        except Exception:
+            _LOGGER.exception("Error refreshing gateway IP")
             errors["base"] = "cannot_connect"
             return self.async_show_form(
                 step_id="refresh_gateway_ip",
@@ -328,6 +330,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_refresh_gateway_ip_result(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Handle the gateway IP refresh result step."""
         if user_input is None:
             return self.async_show_form(
                 step_id="refresh_gateway_ip_result",
@@ -344,6 +347,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     def __init__(self) -> None:
+        """Initialize the config flow."""
         super().__init__()
         self._gateways: list[DaliGatewayType] = []
         self._discovered_entities: dict[
@@ -355,6 +359,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Handle the initial step."""
         if user_input is not None:
             # User confirmed, proceed to discovery
             return await self.async_step_discovery()
@@ -399,7 +404,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                     await self._selected_gateway.connect()
                     return await self.async_step_configure_entities()
                 except DaliGatewayError as e:
-                    _LOGGER.error(
+                    _LOGGER.exception(
                         "Error connecting to gateway %s: %s",
                         self._selected_gateway.gw_sn,
                         e,
@@ -419,7 +424,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                 # type: ignore[no-untyped-call]
                 discovered_gateways = await DaliGatewayDiscovery().discover_gateways()
             except DaliGatewayError as e:
-                _LOGGER.error("Error discovering gateways: %s", e)
+                _LOGGER.exception("Error discovering gateways: %s", e)
                 errors["base"] = "discovery_failed"
                 return self.async_show_form(
                     step_id="discovery",
@@ -480,7 +485,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_configure_entities(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Search for devices, groups, and scenes"""
+        """Search for devices, groups, and scenes."""
         errors: dict[str, str] = {}
 
         if not self._selected_gateway:
@@ -519,7 +524,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 await self._selected_gateway.disconnect()
             except DaliGatewayError as e:
-                _LOGGER.error(
+                _LOGGER.exception(
                     "Error disconnecting from gateway %s: %s",
                     self._selected_gateway.gw_sn,
                     e,
@@ -529,8 +534,8 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                     step_id="configure_entities",
                     errors=errors,
                 )
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.error(
+            except Exception as e:
+                _LOGGER.exception(
                     "Error disconnecting from gateway %s: %s",
                     self._selected_gateway.gw_sn,
                     e,
@@ -541,7 +546,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                     errors=errors,
                 )
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             _LOGGER.warning(
                 "Error searching entities on gateway %s: %s",
                 self._config_data.get("sn", "unknown"),
