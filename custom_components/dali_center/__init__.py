@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
 import async_timeout
+from PySrDaliGateway import DaliGateway
+from PySrDaliGateway.exceptions import DaliGatewayError
+
 from homeassistant.components.persistent_notification import async_create
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -15,13 +17,14 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import DOMAIN, MANUFACTURER
-from PySrDaliGateway import DaliGateway
-from PySrDaliGateway.exceptions import DaliGatewayError
 from .types import DaliCenterConfigEntry, DaliCenterData
 
 _PLATFORMS: list[Platform] = [
-    Platform.LIGHT, Platform.SENSOR, Platform.BUTTON,
-    Platform.EVENT, Platform.SWITCH
+    Platform.LIGHT,
+    Platform.SENSOR,
+    Platform.BUTTON,
+    Platform.EVENT,
+    Platform.SWITCH,
 ]
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,9 +37,7 @@ def _setup_dependency_logging() -> None:
     gateway_logger = logging.getLogger("PySrDaliGateway")
     gateway_logger.setLevel(current_level)
 
-    _LOGGER.debug(
-        "Configured PySrDaliGateway logging level to %s", current_level
-    )
+    _LOGGER.debug("Configured PySrDaliGateway logging level to %s", current_level)
 
 
 async def _notify_user_error(
@@ -55,9 +56,7 @@ async def _notify_user_error(
     )
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: DaliCenterConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -> bool:
     """Set up dali_center from a config entry using paho-mqtt."""
     # Setup dependency logging first
     _setup_dependency_logging()
@@ -73,44 +72,35 @@ async def async_setup_entry(
             await gateway.connect()
             _LOGGER.info("Successfully connected to gateway %s", gw_sn)
     except DaliGatewayError as exc:
-        _LOGGER.error("Error connecting to gateway %s: %s", gw_sn, exc)
+        _LOGGER.exception("Error connecting to gateway %s", gw_sn)
         await _notify_user_error(hass, "Connection Failed", str(exc), gw_sn)
         raise ConfigEntryNotReady(
             "You can try to delete the gateway and add it again"
         ) from exc
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         _LOGGER.warning("Overall timeout connecting to gateway %s", gw_sn)
         await _notify_user_error(
-            hass, "Connection Timeout",
+            hass,
+            "Connection Timeout",
             f"Timeout while connecting to DALI Center gateway. {exc}",
-            gw_sn
+            gw_sn,
         )
 
     def on_online_status(unique_id: str, available: bool) -> None:
         signal = f"dali_center_update_available_{unique_id}"
-        hass.add_job(
-            async_dispatcher_send, hass, signal, available
-        )
+        hass.add_job(async_dispatcher_send, hass, signal, available)
 
-    def on_device_status(
-        unique_id: str, property_list: list[dict[str, Any]]
-    ) -> None:
+    def on_device_status(unique_id: str, property_list: list[dict[str, Any]]) -> None:
         signal = f"dali_center_update_{unique_id}"
-        hass.add_job(
-            async_dispatcher_send, hass, signal, property_list
-        )
+        hass.add_job(async_dispatcher_send, hass, signal, property_list)
 
     def on_energy_report(unique_id: str, energy: float) -> None:
         signal = f"dali_center_energy_update_{unique_id}"
-        hass.add_job(
-            async_dispatcher_send, hass, signal, energy
-        )
+        hass.add_job(async_dispatcher_send, hass, signal, energy)
 
     def on_sensor_on_off(unique_id: str, on_off: bool) -> None:
         signal = f"dali_center_sensor_on_off_{unique_id}"
-        hass.add_job(
-            async_dispatcher_send, hass, signal, on_off
-        )
+        hass.add_job(async_dispatcher_send, hass, signal, on_off)
 
     gateway.on_online_status = on_online_status
     gateway.on_device_status = on_device_status
@@ -120,19 +110,16 @@ async def async_setup_entry(
     try:
         version = await gateway.get_version()
     except DaliGatewayError as exc:
-        _LOGGER.warning(
-            "Failed to get gateway %s version: %s", gw_sn, exc
-        )
-        await _notify_user_error(
-            hass, "Version Query Failed",
-            str(exc), gw_sn
-        )
+        _LOGGER.warning("Failed to get gateway %s version: %s", gw_sn, exc)
+        await _notify_user_error(hass, "Version Query Failed", str(exc), gw_sn)
         version = None
 
     if version:
         _LOGGER.info(
             "Gateway %s version - Software: %s, Firmware: %s",
-            gw_sn, version.get("software"), version.get("firmware")
+            gw_sn,
+            version.get("software"),
+            version.get("firmware"),
         )
 
     dev_reg = dr.async_get(hass)
@@ -156,22 +143,15 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: DaliCenterConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -> bool:
+    """Unload a config entry."""
     gateway = entry.runtime_data.gateway
     _LOGGER.info("Disconnecting from gateway %s", gateway.gw_sn)
 
     try:
         await gateway.disconnect()
     except DaliGatewayError as exc:
-        _LOGGER.error(
-            "Error disconnecting from gateway %s: %s",
-            gateway.gw_sn, exc
-        )
-        await _notify_user_error(
-            hass, "Disconnection Failed",
-            str(exc), gateway.gw_sn
-        )
+        _LOGGER.exception("Error disconnecting from gateway %s", gateway.gw_sn)
+        await _notify_user_error(hass, "Disconnection Failed", str(exc), gateway.gw_sn)
 
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)

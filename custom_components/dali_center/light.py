@@ -1,28 +1,29 @@
 """Platform for light integration."""
+
 from __future__ import annotations
 
-import logging
-from typing import Any, Optional
 import colorsys
-
 from functools import cached_property
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
+import logging
+from typing import Any
+
+from PySrDaliGateway import DaliGateway, Device, Group
+from PySrDaliGateway.helper import is_light_device
+
 from homeassistant.components.light import (
-    ATTR_RGBW_COLOR,
-    LightEntity,
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
+    ATTR_RGBW_COLOR,
+    LightEntity,
 )
-
 from homeassistant.components.light.const import ColorMode
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
-from PySrDaliGateway import DaliGateway, Device, Group
-from PySrDaliGateway.helper import is_light_device
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,20 +34,18 @@ async def async_setup_entry(
     entry: DaliCenterConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up Dali Center light entities from config entry."""
     del hass  # Unused parameter
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
-        Device(gateway, device)
-        for device in entry.data.get("devices", [])
+        Device(gateway, device) for device in entry.data.get("devices", [])
     ]
     groups: list[Group] = [
-        Group(gateway, group)
-        for group in entry.data.get("groups", [])
+        Group(gateway, group) for group in entry.data.get("groups", [])
     ]
 
     _LOGGER.info(
-        "Setting up light platform: %d devices, %d groups",
-        len(devices), len(groups)
+        "Setting up light platform: %d devices, %d groups", len(devices), len(groups)
     )
 
     added_entities: set[str] = set()
@@ -80,18 +79,19 @@ class DaliCenterLight(LightEntity):
     _attr_has_entity_name = True
 
     def __init__(self, light: Device) -> None:
+        """Initialize the light entity."""
         super().__init__()
         self._light = light
         self._attr_name = "Light"
         self._attr_unique_id = light.unique_id
         self._attr_available = light.status == "online"
-        self._attr_is_on: Optional[bool] = None
-        self._attr_brightness: Optional[int] = None
-        self._white_level: Optional[int] = None
+        self._attr_is_on: bool | None = None
+        self._attr_brightness: int | None = None
+        self._white_level: int | None = None
         self._attr_color_mode: ColorMode | str | None = None
-        self._attr_color_temp_kelvin: Optional[int] = None
-        self._attr_hs_color: Optional[tuple[float, float]] = None
-        self._attr_rgbw_color: Optional[tuple[int, int, int, int]] = None
+        self._attr_color_temp_kelvin: int | None = None
+        self._attr_hs_color: tuple[float, float] | None = None
+        self._attr_rgbw_color: tuple[int, int, int, int] | None = None
         self._determine_features()
 
     def _determine_features(self) -> None:
@@ -110,6 +110,7 @@ class DaliCenterLight(LightEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._light.dev_id)},
             name=self._light.name,
@@ -120,16 +121,18 @@ class DaliCenterLight(LightEntity):
 
     @property
     def min_color_temp_kelvin(self) -> int:
+        """Return minimum color temperature in Kelvin."""
         return 1000
 
     @property
     def max_color_temp_kelvin(self) -> int:
+        """Return maximum color temperature in Kelvin."""
         return 8000
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on the light."""
         _LOGGER.debug(
-            "Turning on light %s with kwargs: %s",
-            self._attr_unique_id, kwargs
+            "Turning on light %s with kwargs: %s", self._attr_unique_id, kwargs
         )
         brightness = kwargs.get(ATTR_BRIGHTNESS)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
@@ -143,15 +146,15 @@ class DaliCenterLight(LightEntity):
         )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off the light."""
         del kwargs  # Unused parameter
         self._light.turn_off()
 
     async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_update
-            )
+            async_dispatcher_connect(self.hass, signal, self._handle_device_update)
         )
         signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
@@ -169,9 +172,7 @@ class DaliCenterLight(LightEntity):
             self._attr_color_temp_kelvin = None
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
-    def _handle_device_update(
-        self, property_list: list[dict[str, Any]]
-    ) -> None:
+    def _handle_device_update(self, property_list: list[dict[str, Any]]) -> None:
         props: dict[int, Any] = {}
         for prop in property_list:
             prop_id = prop.get("id") or prop.get("dpid")
@@ -189,7 +190,7 @@ class DaliCenterLight(LightEntity):
                     self._attr_rgbw_color[0],
                     self._attr_rgbw_color[1],
                     self._attr_rgbw_color[2],
-                    self._white_level
+                    self._white_level,
                 )
 
         if 22 in props:
@@ -199,20 +200,29 @@ class DaliCenterLight(LightEntity):
             else:
                 self._attr_brightness = int(brightness_value / 1000 * 255)
 
-        if 23 in props and self._attr_supported_color_modes \
-                and ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+        if (
+            23 in props
+            and self._attr_supported_color_modes
+            and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
+        ):
             self._attr_color_temp_kelvin = int(props[23])
 
-        if 24 in props and self._attr_supported_color_modes \
-                and ColorMode.HS in self._attr_supported_color_modes:
+        if (
+            24 in props
+            and self._attr_supported_color_modes
+            and ColorMode.HS in self._attr_supported_color_modes
+        ):
             hsv = str(props[24])
             h = int(hsv[0:4], 16)
             s = int(hsv[4:8], 16) / 10
             self._attr_hs_color = (h, s)
             _LOGGER.warning("HS color: %s", self._attr_hs_color)
 
-        if 24 in props and self._attr_supported_color_modes \
-                and ColorMode.RGBW in self._attr_supported_color_modes:
+        if (
+            24 in props
+            and self._attr_supported_color_modes
+            and ColorMode.RGBW in self._attr_supported_color_modes
+        ):
             hsv_rgbw = str(props[24])
             h = int(hsv_rgbw[0:4], 16)
             s = int(hsv_rgbw[4:8], 16)
@@ -227,7 +237,10 @@ class DaliCenterLight(LightEntity):
             rgb = colorsys.hsv_to_rgb(h_norm, s_norm, v_norm)
             w = self._white_level if self._white_level is not None else 0
             self._attr_rgbw_color = (
-                int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255), w
+                int(rgb[0] * 255),
+                int(rgb[1] * 255),
+                int(rgb[2] * 255),
+                w,
             )
             # _LOGGER.warning("RGBW color: %s", self._attr_rgbw_color)
 
@@ -238,37 +251,39 @@ class DaliCenterLightGroup(LightEntity):
     """Representation of a Dali Center Light Group."""
 
     def __init__(self, group: Group) -> None:
+        """Initialize the light group."""
         self._group = group
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.group_id}"
         self._attr_available = True
         self._attr_icon = "mdi:lightbulb-group"
-        self._attr_is_on: Optional[bool] = False
-        self._attr_brightness: Optional[int] = 0
+        self._attr_is_on: bool | None = False
+        self._attr_brightness: int | None = 0
         self._attr_color_mode = ColorMode.RGBW
-        self._attr_color_temp_kelvin: Optional[int] = 1000
-        self._attr_hs_color: Optional[tuple[float, float]] = None
-        self._attr_rgbw_color: Optional[tuple[int, int, int, int]] = None
-        self._attr_supported_color_modes = {
-            ColorMode.COLOR_TEMP,
-            ColorMode.RGBW
-        }
+        self._attr_color_temp_kelvin: int | None = 1000
+        self._attr_hs_color: tuple[float, float] | None = None
+        self._attr_rgbw_color: tuple[int, int, int, int] | None = None
+        self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._group.gw_sn)},
         )
 
     @property
     def min_color_temp_kelvin(self) -> int:
+        """Return minimum color temperature in Kelvin."""
         return 1000
 
     @property
     def max_color_temp_kelvin(self) -> int:
+        """Return maximum color temperature in Kelvin."""
         return 8000
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on the light group."""
         brightness = kwargs.get(ATTR_BRIGHTNESS)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
@@ -276,7 +291,7 @@ class DaliCenterLightGroup(LightEntity):
         self._group.turn_on(
             brightness=brightness,
             color_temp_kelvin=color_temp_kelvin,
-            rgbw_color=rgbw_color
+            rgbw_color=rgbw_color,
         )
 
         self._attr_is_on = True
@@ -289,14 +304,11 @@ class DaliCenterLightGroup(LightEntity):
             self._attr_color_mode = ColorMode.COLOR_TEMP
             self._attr_color_temp_kelvin = color_temp_kelvin
 
-        self.hass.loop.call_soon_threadsafe(
-            self.schedule_update_ha_state
-        )
+        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off the light group."""
         del kwargs  # Unused parameter
         self._group.turn_off()
         self._attr_is_on = False
-        self.hass.loop.call_soon_threadsafe(
-            self.schedule_update_ha_state
-        )
+        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)

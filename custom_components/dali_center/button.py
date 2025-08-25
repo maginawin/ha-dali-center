@@ -1,15 +1,16 @@
 """Support for Dali Center Scene Buttons."""
 
+from functools import cached_property
 import logging
 
-from functools import cached_property
+from PySrDaliGateway import DaliGateway, Scene
+
 from homeassistant.components.button import ButtonEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from PySrDaliGateway import DaliGateway, Scene
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,12 +26,9 @@ async def async_setup_entry(
     gateway: DaliGateway = entry.runtime_data.gateway
 
     scenes: list[Scene] = [
-        Scene(gateway, scene)
-        for scene in entry.data.get("scenes", [])
+        Scene(gateway, scene) for scene in entry.data.get("scenes", [])
     ]
-    _LOGGER.debug(
-        "Setting up button platform: %d scenes", len(scenes)
-    )
+    _LOGGER.debug("Setting up button platform: %d scenes", len(scenes))
 
     new_entities: list[ButtonEntity] = []
 
@@ -49,6 +47,7 @@ class DaliCenterSceneButton(ButtonEntity):
     """Representation of a Dali Center Scene Button."""
 
     def __init__(self, scene: Scene) -> None:
+        """Initialize the scene button."""
         super().__init__()
         self._scene = scene
         self._attr_name = f"{scene.name}"
@@ -56,10 +55,12 @@ class DaliCenterSceneButton(ButtonEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo:
+        """Return device info for the scene button."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._scene.gw_sn)},
         )
 
     async def async_press(self) -> None:
+        """Handle button press to activate scene."""
         _LOGGER.debug("Activating scene %s", self._scene.scene_id)
         self._scene.activate()

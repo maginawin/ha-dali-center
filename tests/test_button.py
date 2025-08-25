@@ -1,25 +1,20 @@
 """Test button platform for Dali Center integration."""
 # pylint: disable=protected-access
 
-import pytest
 from unittest.mock import Mock
 
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
+import pytest
 
 from custom_components.dali_center.button import (
+    DaliCenterSceneButton,
     async_setup_entry,
-    DaliCenterSceneButton
 )
 from custom_components.dali_center.const import DOMAIN
 from custom_components.dali_center.types import DaliCenterData
-from tests.conftest import (
-    MockDaliGateway,
-    MockScene,
-    MOCK_GATEWAY_SN
-)
-
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from tests.conftest import MOCK_GATEWAY_SN, MockDaliGateway, MockScene
 
 
 class TestButtonPlatformSetup:
@@ -55,16 +50,14 @@ class TestButtonPlatformSetup:
         return Mock(spec=AddEntitiesCallback)
 
     @pytest.mark.asyncio
-    async def test_async_setup_entry_with_scenes(
-        self, mock_hass, mock_add_entities
-    ):
+    async def test_async_setup_entry_with_scenes(self, mock_hass, mock_add_entities):
         """Test setup with scene buttons."""
-        config_entry = self.create_config_entry_with_data({
-            "scenes": [
-                {"sn": "scene001", "name": "Living Room", "type": 1}
-            ],
-            "devices": []
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "scenes": [{"sn": "scene001", "name": "Living Room", "type": 1}],
+                "devices": [],
+            }
+        )
 
         await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
@@ -78,15 +71,14 @@ class TestButtonPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with non-scene devices (ignored)."""
-        config_entry = self.create_config_entry_with_data({
-            "scenes": [],
-            "devices": [
-                {
-                    "sn": "light001", "name": "Light 1",
-                    "dev_type": "0101", "type": 1
-                }
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "scenes": [],
+                "devices": [
+                    {"sn": "light001", "name": "Light 1", "dev_type": "0101", "type": 1}
+                ],
+            }
+        )
 
         await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
@@ -97,13 +89,15 @@ class TestButtonPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with multiple scenes."""
-        config_entry = self.create_config_entry_with_data({
-            "scenes": [
-                {"sn": "scene001", "name": "Scene 1", "type": 1},
-                {"sn": "scene002", "name": "Scene 2", "type": 1}
-            ],
-            "devices": []
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "scenes": [
+                    {"sn": "scene001", "name": "Scene 1", "type": 1},
+                    {"sn": "scene002", "name": "Scene 2", "type": 1},
+                ],
+                "devices": [],
+            }
+        )
 
         await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
@@ -114,14 +108,9 @@ class TestButtonPlatformSetup:
             assert isinstance(entity, DaliCenterSceneButton)
 
     @pytest.mark.asyncio
-    async def test_async_setup_entry_no_entities(
-        self, mock_hass, mock_add_entities
-    ):
+    async def test_async_setup_entry_no_entities(self, mock_hass, mock_add_entities):
         """Test setup with no scenes or panel devices."""
-        config_entry = self.create_config_entry_with_data({
-            "scenes": [],
-            "devices": []
-        })
+        config_entry = self.create_config_entry_with_data({"scenes": [], "devices": []})
 
         await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
@@ -132,14 +121,16 @@ class TestButtonPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup handles duplicate scenes correctly."""
-        config_entry = self.create_config_entry_with_data({
-            "scenes": [
-                {"sn": "scene001", "name": "Scene 1", "type": 1},
-                # Same ID as previous scene
-                {"sn": "scene001", "name": "Scene 1 Duplicate", "type": 1}
-            ],
-            "devices": []
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "scenes": [
+                    {"sn": "scene001", "name": "Scene 1", "type": 1},
+                    # Same ID as previous scene
+                    {"sn": "scene001", "name": "Scene 1 Duplicate", "type": 1},
+                ],
+                "devices": [],
+            }
+        )
 
         await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
@@ -147,7 +138,6 @@ class TestButtonPlatformSetup:
         entities = mock_add_entities.call_args[0][0]
         # Should only create one entity for duplicate scene IDs
         assert len(entities) == 1
-
 
 
 class TestDaliCenterSceneButton:
@@ -181,12 +171,10 @@ class TestDaliCenterSceneButton:
         """Test scene button device_info property."""
         device_info = scene_button.device_info
         assert device_info is not None
-        assert device_info["identifiers"] == {
-            ("dali_center", mock_scene.gw_sn)}
+        assert device_info["identifiers"] == {("dali_center", mock_scene.gw_sn)}
 
     @pytest.mark.asyncio
     async def test_scene_button_async_press(self, scene_button, mock_scene):
         """Test scene button press action."""
         await scene_button.async_press()
         mock_scene.activate.assert_called_once()
-

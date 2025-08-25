@@ -134,11 +134,8 @@ python3 -m venv venv
 # Activate virtual environment
 source venv/bin/activate
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Install development dependencies
-pip install -r requirements-dev.txt
+# Install project with development dependencies
+pip install -e ".[dev]"
 
 # Deactivate when done
 deactivate
@@ -148,16 +145,23 @@ deactivate
 
 Always run these commands with the virtual environment activated:
 
+#### Code Formatting and Linting
+
+```bash
+# Format code with ruff
+ruff format
+
+# Run linting checks with ruff
+ruff check
+
+# Fix auto-fixable linting issues
+ruff check --fix
+```
+
 #### Type Checking
 
 ```bash
 mypy --show-error-codes --pretty custom_components/dali_center
-```
-
-#### Code Linting
-
-```bash
-pylint $(fd .py "custom_components/" "tests")
 ```
 
 #### Running Tests

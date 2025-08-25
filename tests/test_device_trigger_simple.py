@@ -1,10 +1,16 @@
 """Test device trigger for Dali Center event entities (standalone)."""
 # pylint: disable=protected-access
 
-import pytest
 from unittest.mock import Mock, patch
 
-from homeassistant.core import HomeAssistant
+import pytest
+
+from custom_components.dali_center.const import DOMAIN
+from custom_components.dali_center.device_trigger import (
+    TRIGGER_SCHEMA,
+    async_get_triggers,
+    async_validate_trigger_config,
+)
 from homeassistant.const import (
     CONF_DEVICE_ID,
     CONF_DOMAIN,
@@ -12,13 +18,7 @@ from homeassistant.const import (
     CONF_PLATFORM,
     CONF_TYPE,
 )
-
-from custom_components.dali_center.device_trigger import (
-    async_get_triggers,
-    async_validate_trigger_config,
-    TRIGGER_SCHEMA,
-)
-from custom_components.dali_center.const import DOMAIN
+from homeassistant.core import HomeAssistant
 
 CFM = "custom_components.dali_center.device_trigger"
 
@@ -36,8 +36,7 @@ class TestDeviceTriggerStandalone:
     @pytest.fixture
     def mock_registry(self):
         """Create mock entity registry."""
-        registry = Mock()
-        return registry
+        return Mock()
 
     @pytest.fixture
     def mock_entry(self):
@@ -50,16 +49,11 @@ class TestDeviceTriggerStandalone:
         return entry
 
     @pytest.mark.asyncio
-    async def test_async_get_triggers_no_entries(
-        self, mock_hass, mock_registry
-    ):
+    async def test_async_get_triggers_no_entries(self, mock_hass, mock_registry):
         """Test getting triggers when no entries exist."""
-        with patch(
-            f"{CFM}.er.async_get",
-            return_value=mock_registry
-        ), patch(
-            f"{CFM}.er.async_entries_for_device",
-            return_value=[]
+        with (
+            patch(f"{CFM}.er.async_get", return_value=mock_registry),
+            patch(f"{CFM}.er.async_entries_for_device", return_value=[]),
         ):
             triggers = await async_get_triggers(mock_hass, "test_device_id")
 
@@ -72,20 +66,12 @@ class TestDeviceTriggerStandalone:
         """Test getting triggers when entity has event_types."""
         event_types = ["button_1_single_click", "button_1_double_click"]
 
-        with patch(
-            f"{CFM}.er.async_get",
-            return_value=mock_registry
-        ), patch(
-            f"{CFM}.er.async_entries_for_device",
-            return_value=[mock_entry]
+        with (
+            patch(f"{CFM}.er.async_get", return_value=mock_registry),
+            patch(f"{CFM}.er.async_entries_for_device", return_value=[mock_entry]),
+            patch(f"{CFM}.get_capability", return_value=event_types),
         ):
-            with patch(
-                f"{CFM}.get_capability",
-                return_value=event_types
-            ):
-                triggers = await async_get_triggers(
-                    mock_hass, "test_device_id"
-                )
+            triggers = await async_get_triggers(mock_hass, "test_device_id")
 
         assert len(triggers) == 2
 

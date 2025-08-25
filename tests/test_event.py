@@ -1,25 +1,21 @@
 """Test event platform for Dali Center integration."""
 # pylint: disable=protected-access
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
+from custom_components.dali_center.const import DOMAIN
+from custom_components.dali_center.event import (
+    DaliCenterPanelEvent,
+    _generate_event_types_for_panel,
+    async_setup_entry,
+)
+from custom_components.dali_center.types import DaliCenterData
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
-
-from custom_components.dali_center.event import (
-    async_setup_entry,
-    DaliCenterPanelEvent,
-    _generate_event_types_for_panel
-)
-from custom_components.dali_center.const import DOMAIN
-from custom_components.dali_center.types import DaliCenterData
-from tests.conftest import (
-    MockDaliGateway,
-    MockDevice,
-    MOCK_GATEWAY_SN
-)
+from tests.conftest import MOCK_GATEWAY_SN, MockDaliGateway, MockDevice
 
 # Module path constant to avoid repetition
 EM = "custom_components.dali_center.event"
@@ -90,12 +86,13 @@ class TestEventPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with panel devices."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "panel001", "name": "Panel 1",
-                    "dev_type": "0304", "type": 2}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {"sn": "panel001", "name": "Panel 1", "dev_type": "0304", "type": 2}
+                ]
+            }
+        )
 
         with patch(f"{EM}.is_panel_device", return_value=True):
             await async_setup_entry(mock_hass, config_entry, mock_add_entities)
@@ -110,12 +107,13 @@ class TestEventPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with no panel devices."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "light001", "name": "Light 1",
-                    "dev_type": "0101", "type": 1}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {"sn": "light001", "name": "Light 1", "dev_type": "0101", "type": 1}
+                ]
+            }
+        )
 
         with patch(f"{EM}.is_panel_device", return_value=False):
             await async_setup_entry(mock_hass, config_entry, mock_add_entities)
@@ -123,13 +121,9 @@ class TestEventPlatformSetup:
         mock_add_entities.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_async_setup_entry_empty_devices(
-        self, mock_hass, mock_add_entities
-    ):
+    async def test_async_setup_entry_empty_devices(self, mock_hass, mock_add_entities):
         """Test setup with empty devices list."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": []
-        })
+        config_entry = self.create_config_entry_with_data({"devices": []})
 
         await async_setup_entry(mock_hass, config_entry, mock_add_entities)
 
@@ -140,14 +134,24 @@ class TestEventPlatformSetup:
         self, mock_hass, mock_add_entities
     ):
         """Test setup with multiple panel devices."""
-        config_entry = self.create_config_entry_with_data({
-            "devices": [
-                {"sn": "panel001", "name": "Panel 1",
-                    "dev_type": "0304", "type": 2},
-                {"sn": "panel002", "name": "Panel 2",
-                    "dev_type": "0306", "type": 2}
-            ]
-        })
+        config_entry = self.create_config_entry_with_data(
+            {
+                "devices": [
+                    {
+                        "sn": "panel001",
+                        "name": "Panel 1",
+                        "dev_type": "0304",
+                        "type": 2,
+                    },
+                    {
+                        "sn": "panel002",
+                        "name": "Panel 2",
+                        "dev_type": "0306",
+                        "type": 2,
+                    },
+                ]
+            }
+        )
 
         with patch(f"{EM}.is_panel_device", return_value=True):
             await async_setup_entry(mock_hass, config_entry, mock_add_entities)
@@ -224,9 +228,7 @@ class TestDaliCenterPanelEvent:
 
     def test_handle_device_update_available(self, panel_event):
         """Test _handle_device_update_available method."""
-        with patch.object(
-            panel_event, "async_write_ha_state"
-        ) as mock_write_state:
+        with patch.object(panel_event, "async_write_ha_state") as mock_write_state:
             panel_event._handle_device_update_available(False)
 
             assert panel_event._attr_available is False
@@ -238,13 +240,13 @@ class TestDaliCenterPanelEvent:
             {"dpid": 1, "keyNo": 1, "value": 1}  # Press on button 1
         ]
 
-        with patch.object(panel_event, "_trigger_event") as mock_trigger:
-            with patch.object(panel_event, "async_write_ha_state"):
-                with patch(f"{EM}.BUTTON_EVENTS", {1: "press"}):
-                    panel_event._handle_device_update(property_list)
-                    mock_trigger.assert_called_once_with(
-                        "button_1_press"
-                    )
+        with (
+            patch.object(panel_event, "_trigger_event") as mock_trigger,
+            patch.object(panel_event, "async_write_ha_state"),
+            patch(f"{EM}.BUTTON_EVENTS", {1: "press"}),
+        ):
+            panel_event._handle_device_update(property_list)
+            mock_trigger.assert_called_once_with("button_1_press")
 
     def test_handle_device_update_double_press(self, panel_event):
         """Test _handle_device_update with double press event."""
@@ -252,12 +254,13 @@ class TestDaliCenterPanelEvent:
             {"dpid": 2, "keyNo": 2, "value": 1}  # Double press on button 2
         ]
 
-        with patch.object(panel_event, "_trigger_event") as mock_trigger:
-            with patch.object(panel_event, "async_write_ha_state"):
-                with patch(f"{EM}.BUTTON_EVENTS", {2: "double_press"}):
-                    panel_event._handle_device_update(property_list)
-                    mock_trigger.assert_called_once_with(
-                        "button_2_double_press")
+        with (
+            patch.object(panel_event, "_trigger_event") as mock_trigger,
+            patch.object(panel_event, "async_write_ha_state"),
+            patch(f"{EM}.BUTTON_EVENTS", {2: "double_press"}),
+        ):
+            panel_event._handle_device_update(property_list)
+            mock_trigger.assert_called_once_with("button_2_double_press")
 
     def test_handle_device_update_hold(self, panel_event):
         """Test _handle_device_update with hold event."""
@@ -265,12 +268,13 @@ class TestDaliCenterPanelEvent:
             {"dpid": 3, "keyNo": 3, "value": 1}  # Hold on button 3
         ]
 
-        with patch.object(panel_event, "_trigger_event") as mock_trigger:
-            with patch.object(panel_event, "async_write_ha_state"):
-                with patch(f"{EM}.BUTTON_EVENTS", {3: "hold"}):
-                    panel_event._handle_device_update(property_list)
-
-                    mock_trigger.assert_called_once_with("button_3_hold")
+        with (
+            patch.object(panel_event, "_trigger_event") as mock_trigger,
+            patch.object(panel_event, "async_write_ha_state"),
+            patch(f"{EM}.BUTTON_EVENTS", {3: "hold"}),
+        ):
+            panel_event._handle_device_update(property_list)
+            mock_trigger.assert_called_once_with("button_3_hold")
 
     def test_handle_device_update_rotate(self, panel_event):
         """Test _handle_device_update with rotate event."""
@@ -279,13 +283,14 @@ class TestDaliCenterPanelEvent:
             {"dpid": 4, "keyNo": 1, "value": 5}
         ]
 
-        with patch.object(panel_event, "_trigger_event") as mock_trigger:
-            with patch.object(panel_event, "async_write_ha_state"):
-                with patch(f"{EM}.BUTTON_EVENTS", {4: "rotate"}):
-                    panel_event._handle_device_update(property_list)
+        with (
+            patch.object(panel_event, "_trigger_event") as mock_trigger,
+            patch.object(panel_event, "async_write_ha_state"),
+            patch(f"{EM}.BUTTON_EVENTS", {4: "rotate"}),
+        ):
+            panel_event._handle_device_update(property_list)
 
-                    mock_trigger.assert_called_once_with(
-                        "button_1_rotate", {"rotate_value": 5})
+            mock_trigger.assert_called_once_with("button_1_rotate", {"rotate_value": 5})
 
     def test_handle_device_update_unknown_event(self, panel_event):
         """Test _handle_device_update with unknown event."""
@@ -293,33 +298,34 @@ class TestDaliCenterPanelEvent:
             {"dpid": 99, "keyNo": 1, "value": 1}  # Unknown dpid
         ]
 
-        with patch.object(panel_event, "_trigger_event") as mock_trigger:
-            with patch.object(panel_event, "async_write_ha_state"):
-                with patch(f"{EM}.BUTTON_EVENTS", {}):
-                    with patch(f"{EM}._LOGGER") as mock_logger:
-                        panel_event._handle_device_update(property_list)
+        with (
+            patch.object(panel_event, "_trigger_event") as mock_trigger,
+            patch.object(panel_event, "async_write_ha_state"),
+            patch(f"{EM}.BUTTON_EVENTS", {}),
+            patch(f"{EM}._LOGGER") as mock_logger,
+        ):
+            panel_event._handle_device_update(property_list)
 
-                        mock_trigger.assert_not_called()
-                        mock_logger.debug.assert_called_once()
+            mock_trigger.assert_not_called()
+            mock_logger.debug.assert_called_once()
 
     def test_handle_device_update_multiple_events(self, panel_event):
         """Test _handle_device_update with multiple events."""
         property_list = [
             {"dpid": 1, "keyNo": 1, "value": 1},  # Press on button 1
-            {"dpid": 2, "keyNo": 2, "value": 1}   # Double press on button 2
+            {"dpid": 2, "keyNo": 2, "value": 1},  # Double press on button 2
         ]
 
-        with patch.object(panel_event, "_trigger_event") as mock_trigger:
-            with patch.object(panel_event, "async_write_ha_state"):
-                with patch(
-                    f"{EM}.BUTTON_EVENTS",
-                    {1: "press", 2: "double_press"}
-                ):
-                    panel_event._handle_device_update(property_list)
+        with (
+            patch.object(panel_event, "_trigger_event") as mock_trigger,
+            patch.object(panel_event, "async_write_ha_state"),
+            patch(f"{EM}.BUTTON_EVENTS", {1: "press", 2: "double_press"}),
+        ):
+            panel_event._handle_device_update(property_list)
 
-                    assert mock_trigger.call_count == 2
-                    mock_trigger.assert_any_call("button_1_press")
-                    mock_trigger.assert_any_call("button_2_double_press")
+            assert mock_trigger.call_count == 2
+            mock_trigger.assert_any_call("button_1_press")
+            mock_trigger.assert_any_call("button_2_double_press")
 
     def test_handle_device_update_empty_property_list(self, panel_event):
         """Test _handle_device_update with empty property list."""
@@ -332,14 +338,16 @@ class TestDaliCenterPanelEvent:
         """Test _handle_device_update with missing properties."""
         property_list = [
             {"dpid": 1},  # Missing keyNo and value
-            {"keyNo": 1}  # Missing dpid and value
+            {"keyNo": 1},  # Missing dpid and value
         ]
 
-        with patch.object(panel_event, "_trigger_event") as mock_trigger:
-            with patch.object(panel_event, "async_write_ha_state"):
-                with patch(f"{EM}.BUTTON_EVENTS", {1: "press"}):
-                    with patch(f"{EM}._LOGGER"):
-                        panel_event._handle_device_update(property_list)
+        with (
+            patch.object(panel_event, "_trigger_event") as mock_trigger,
+            patch.object(panel_event, "async_write_ha_state"),
+            patch(f"{EM}.BUTTON_EVENTS", {1: "press"}),
+            patch(f"{EM}._LOGGER"),
+        ):
+            panel_event._handle_device_update(property_list)
 
-                        assert mock_trigger.call_count == 1
-                    mock_trigger.assert_called_with("button_None_press")
+            assert mock_trigger.call_count == 1
+            mock_trigger.assert_called_with("button_None_press")

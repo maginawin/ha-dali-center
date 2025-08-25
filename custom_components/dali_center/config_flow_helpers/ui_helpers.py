@@ -1,9 +1,9 @@
 """UI formatting and display helpers for config flow."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..helper import find_set_differences
-
 
 
 class UIFormattingHelper:
@@ -14,13 +14,13 @@ class UIFormattingHelper:
         discovered_entities: dict[str, Any],
         refresh_devices: bool,
         refresh_groups: bool,
-        refresh_scenes: bool
+        refresh_scenes: bool,
     ) -> str:
         """Format a summary of discovered entities."""
         entity_types = [
             ("devices", refresh_devices),
             ("groups", refresh_groups),
-            ("scenes", refresh_scenes)
+            ("scenes", refresh_scenes),
         ]
 
         summary: list[str] = []
@@ -50,9 +50,7 @@ class UIFormattingHelper:
             scene_id = s.get("id", "N/A")
             return f"Channel: {channel}, Scene: {scene_id}"
 
-        entity_configs: list[tuple[
-            str, str, str | Callable[[dict[str, Any]], str]
-        ]] = [
+        entity_configs: list[tuple[str, str, str | Callable[[dict[str, Any]], str]]] = [
             ("devices", "name", "unique_id"),
             ("groups", "name", format_group),
             ("scenes", "name", format_scene),
@@ -62,9 +60,7 @@ class UIFormattingHelper:
             count_key = f"{entity_type}_count"
             if count_key in refresh_results:
                 result_parts.append(
-                    f"Total {entity_type.title()}: {
-                        refresh_results[count_key]
-                    }"
+                    f"Total {entity_type.title()}: {refresh_results[count_key]}"
                 )
                 details = UIFormattingHelper._format_added_removed(
                     refresh_results, entity_type, name_key, id_formatter
@@ -77,10 +73,13 @@ class UIFormattingHelper:
 
     @staticmethod
     def _format_added_removed(
-        results: dict[str, Any], prefix: str, name_key: str,
-        id_formatter: str | Callable[[dict[str, Any]], str]
+        results: dict[str, Any],
+        prefix: str,
+        name_key: str,
+        id_formatter: str | Callable[[dict[str, Any]], str],
     ) -> str:
         """Format added and removed items."""
+
         def format_items(items: list[Any], action: str) -> list[str]:
             if not items:
                 return [f"No {prefix} {action}"]
@@ -88,18 +87,19 @@ class UIFormattingHelper:
             lines = [f"{action.title()} {prefix.title()} ({len(items)}):"]
             for item in items:
                 id_str = (
-                    id_formatter(item) if callable(id_formatter)
-                    else f"ID: {item.get(id_formatter, "N/A")}"
+                    id_formatter(item)
+                    if callable(id_formatter)
+                    else f"ID: {item.get(id_formatter, 'N/A')}"
                 )
-                lines.append(f"  - {item.get(name_key, "Unnamed")} ({id_str})")
+                lines.append(f"  - {item.get(name_key, 'Unnamed')} ({id_str})")
             lines.append("")
             return lines
 
         message_parts: list[str] = []
-        message_parts.extend(format_items(
-            results.get(f"{prefix}_added", []), "added"))
-        message_parts.extend(format_items(
-            results.get(f"{prefix}_removed", []), "removed"))
+        message_parts.extend(format_items(results.get(f"{prefix}_added", []), "added"))
+        message_parts.extend(
+            format_items(results.get(f"{prefix}_removed", []), "removed")
+        )
 
         return "\n".join(message_parts)
 
@@ -109,7 +109,7 @@ class UIFormattingHelper:
         current_data: dict[str, Any],
         refresh_devices: bool,
         refresh_groups: bool,
-        refresh_scenes: bool
+        refresh_scenes: bool,
     ) -> dict[str, Any]:
         """Calculate differences between selected and current entities."""
         refresh_results: dict[str, Any] = {}
@@ -117,9 +117,7 @@ class UIFormattingHelper:
         # Process devices
         if refresh_devices and "devices" in selected:
             added, removed = find_set_differences(
-                selected["devices"],
-                current_data.get("devices", []),
-                "unique_id"
+                selected["devices"], current_data.get("devices", []), "unique_id"
             )
             refresh_results["devices_added"] = added
             refresh_results["devices_removed"] = removed
@@ -128,9 +126,7 @@ class UIFormattingHelper:
         # Process groups
         if refresh_groups and "groups" in selected:
             added, removed = find_set_differences(
-                selected["groups"],
-                current_data.get("groups", []),
-                "unique_id"
+                selected["groups"], current_data.get("groups", []), "unique_id"
             )
             refresh_results["groups_added"] = added
             refresh_results["groups_removed"] = removed
@@ -139,9 +135,7 @@ class UIFormattingHelper:
         # Process scenes
         if refresh_scenes and "scenes" in selected:
             added, removed = find_set_differences(
-                selected["scenes"],
-                current_data.get("scenes", []),
-                "unique_id"
+                selected["scenes"], current_data.get("scenes", []), "unique_id"
             )
             refresh_results["scenes_added"] = added
             refresh_results["scenes_removed"] = removed
@@ -193,14 +187,15 @@ class UIFormattingHelper:
     @staticmethod
     def get_success_message(gateway_count: int) -> str:
         """Get gateway selection success message."""
-        return f"## Success!\n\nFound **{gateway_count} " \
+        return (
+            f"## Success!\n\nFound **{gateway_count} "
             "gateway(s)**. Select one to configure:"
+        )
 
     @staticmethod
     def format_gateway_options(gateways: list[Any]) -> dict[str, str]:
         """Format gateway selection options."""
         return {
-            gateway["gw_sn"]: f"{gateway["name"]} "
-            f"({gateway["gw_sn"]})"
+            gateway["gw_sn"]: f"{gateway['name']} ({gateway['gw_sn']})"
             for gateway in gateways
         }

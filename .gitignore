@@ -9,6 +9,11 @@ old/
 
 .DS_Store
 
+# Python package build artifacts
+*.egg-info/
+build/
+dist/
+
 # Coverage reports
 coverage.xml
 htmlcov/
