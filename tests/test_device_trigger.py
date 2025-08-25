@@ -130,7 +130,8 @@ class TestDeviceTrigger:
             patch(
                 f"{CFM}.er.async_entries_for_device",
                 return_value=[light_entry, event_entry],
-            ),patch(f"{CFM}.get_capability", return_value=["button_1_single_click"])
+            ),
+            patch(f"{CFM}.get_capability", return_value=["button_1_single_click"]),
         ):
             triggers = await async_get_triggers(mock_hass, "test_device_id")
 
@@ -148,14 +149,16 @@ class TestDeviceTrigger:
         action = AsyncMock()
         trigger_info = Mock()
 
-        with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ), patch(
-            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-        ) as mock_attach:
-            result = await async_attach_trigger(
-                mock_hass, config, action, trigger_info
-            )
+        with (
+            patch(
+                f"{CFM}.event_trigger.TRIGGER_SCHEMA",
+                return_value={"platform": "event"},
+            ),
+            patch(
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+            ) as mock_attach,
+        ):
+            result = await async_attach_trigger(mock_hass, config, action, trigger_info)
 
             # Verify event trigger was called
             mock_attach.assert_called_once()
@@ -172,14 +175,16 @@ class TestDeviceTrigger:
         action = AsyncMock()
         trigger_info = Mock()
 
-        with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ), patch(
-            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-        ) as mock_attach:
-            result = await async_attach_trigger(
-                mock_hass, config, action, trigger_info
-            )
+        with (
+            patch(
+                f"{CFM}.event_trigger.TRIGGER_SCHEMA",
+                return_value={"platform": "event"},
+            ),
+            patch(
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+            ) as mock_attach,
+        ):
+            result = await async_attach_trigger(mock_hass, config, action, trigger_info)
 
             # Verify event trigger was called with correct config
             mock_attach.assert_called_once()
@@ -196,14 +201,16 @@ class TestDeviceTrigger:
         action = AsyncMock()
         trigger_info = Mock()
 
-        with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ), patch(
-            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-        ) as mock_attach:
-            result = await async_attach_trigger(
-                mock_hass, config, action, trigger_info
-            )
+        with (
+            patch(
+                f"{CFM}.event_trigger.TRIGGER_SCHEMA",
+                return_value={"platform": "event"},
+            ),
+            patch(
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+            ) as mock_attach,
+        ):
+            result = await async_attach_trigger(mock_hass, config, action, trigger_info)
 
             # Verify event trigger was called
             mock_attach.assert_called_once()
@@ -260,14 +267,16 @@ class TestDeviceTrigger:
         action = AsyncMock()
         trigger_info = Mock()
 
-        with patch(
-            f"{CFM}.event_trigger.TRIGGER_SCHEMA", return_value={"platform": "event"}
-        ), patch(
-            f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
-        ) as mock_attach:
-            result = await async_attach_trigger(
-                mock_hass, config, action, trigger_info
-            )
+        with (
+            patch(
+                f"{CFM}.event_trigger.TRIGGER_SCHEMA",
+                return_value={"platform": "event"},
+            ),
+            patch(
+                f"{CFM}.event_trigger.async_attach_trigger", return_value=AsyncMock()
+            ) as mock_attach,
+        ):
+            result = await async_attach_trigger(mock_hass, config, action, trigger_info)
 
             # Verify event trigger was called
             mock_attach.assert_called_once()

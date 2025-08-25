@@ -55,10 +55,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def _reload_with_delay(self) -> bool:
         try:
-            _LOGGER.debug(
-                "Unloading config entry %s",
-                self._config_entry.entry_id
-            )
+            _LOGGER.debug("Unloading config entry %s", self._config_entry.entry_id)
             await self.hass.config_entries.async_unload(self._config_entry.entry_id)
 
             # Wait a moment to ensure everything is cleaned up
@@ -96,18 +93,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if not user_input:
             return self.async_show_form(
                 step_id="init",
-                data_schema=self.add_suggested_values_to_schema(
-                    OPTIONS_SCHEMA, {}),
+                data_schema=self.add_suggested_values_to_schema(OPTIONS_SCHEMA, {}),
             )
 
         _LOGGER.debug("User input: %s", user_input)
 
-        self._refresh_devices = user_input.get(
-            "refresh_devices", self._refresh_devices)
-        self._refresh_groups = user_input.get(
-            "refresh_groups", self._refresh_groups)
-        self._refresh_scenes = user_input.get(
-            "refresh_scenes", self._refresh_scenes)
+        self._refresh_devices = user_input.get("refresh_devices", self._refresh_devices)
+        self._refresh_groups = user_input.get("refresh_groups", self._refresh_groups)
+        self._refresh_scenes = user_input.get("refresh_scenes", self._refresh_scenes)
         self._refresh_gateway_ip = user_input.get(
             "refresh_gateway_ip", self._refresh_gateway_ip
         )
@@ -212,8 +205,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
 
             for entity in entities_to_remove:
-                _LOGGER.debug("Removing entity %s before reload",
-                              entity.entity_id)
+                _LOGGER.debug("Removing entity %s before reload", entity.entity_id)
                 entity_reg.async_remove(entity.entity_id)
 
             # Wait for reload to complete
@@ -225,13 +217,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         current_data = dict(self._config_entry.data)
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
             devices=cast(
-                "list[DeviceType]", self._discovered_entities.get(
-                    "devices", [])
+                "list[DeviceType]", self._discovered_entities.get("devices", [])
             ),
-            groups=cast("list[GroupType]",
-                        self._discovered_entities.get("groups", [])),
-            scenes=cast("list[SceneType]",
-                        self._discovered_entities.get("scenes", [])),
+            groups=cast("list[GroupType]", self._discovered_entities.get("groups", [])),
+            scenes=cast("list[SceneType]", self._discovered_entities.get("scenes", [])),
             existing_selections=current_data,
             show_diff=True,
         )
@@ -271,8 +260,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         try:
-            _LOGGER.debug("Refreshing IP for gateway %s",
-                          self._config_entry.data["sn"])
+            _LOGGER.debug("Refreshing IP for gateway %s", self._config_entry.data["sn"])
 
             current_sn = self._config_entry.data["sn"]
 
@@ -286,8 +274,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             discovered_gateways = await discovery.discover_gateways(current_sn)
 
             if not discovered_gateways:
-                _LOGGER.warning(
-                    "Gateway %s not found during IP refresh", current_sn)
+                _LOGGER.warning("Gateway %s not found during IP refresh", current_sn)
                 errors["base"] = "gateway_not_found"
                 return self.async_show_form(
                     step_id="refresh_gateway_ip",
@@ -485,8 +472,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required("selected_gateway"): vol.In(
-                        UIFormattingHelper.format_gateway_options(
-                            self._gateways)
+                        UIFormattingHelper.format_gateway_options(self._gateways)
                     ),
                 }
             ),
@@ -572,13 +558,10 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
 
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
             devices=cast(
-                "list[DeviceType]", self._discovered_entities.get(
-                    "devices", [])
+                "list[DeviceType]", self._discovered_entities.get("devices", [])
             ),
-            groups=cast("list[GroupType]",
-                        self._discovered_entities.get("groups", [])),
-            scenes=cast("list[SceneType]",
-                        self._discovered_entities.get("scenes", [])),
+            groups=cast("list[GroupType]", self._discovered_entities.get("groups", [])),
+            scenes=cast("list[SceneType]", self._discovered_entities.get("scenes", [])),
             existing_selections=None,
             show_diff=False,
         )

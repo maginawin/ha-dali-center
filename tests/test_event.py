@@ -290,9 +290,7 @@ class TestDaliCenterPanelEvent:
         ):
             panel_event._handle_device_update(property_list)
 
-            mock_trigger.assert_called_once_with(
-                "button_1_rotate", {"rotate_value": 5}
-            )
+            mock_trigger.assert_called_once_with("button_1_rotate", {"rotate_value": 5})
 
     def test_handle_device_update_unknown_event(self, panel_event):
         """Test _handle_device_update with unknown event."""

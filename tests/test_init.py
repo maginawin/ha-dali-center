@@ -245,13 +245,16 @@ class TestAsyncSetupEntry:
             return_value={"software": "1.0.0", "firmware": "2.0.0"}
         )
 
-        with patch(
-            "custom_components.dali_center.DaliGateway", return_value=mock_gateway
-        ), patch.object(
-            mock_hass.config_entries,
-            "async_forward_entry_setups",
-            new_callable=AsyncMock,
-        ) as mock_forward:
+        with (
+            patch(
+                "custom_components.dali_center.DaliGateway", return_value=mock_gateway
+            ),
+            patch.object(
+                mock_hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ) as mock_forward,
+        ):
             # Call the setup function
             result = await async_setup_entry(mock_hass, mock_config_entry_with_data)
 
@@ -286,10 +289,13 @@ class TestAsyncSetupEntry:
             side_effect=MockDaliGatewayError("Connection failed")
         )
 
-        with patch(
-            "custom_components.dali_center.DaliGateway", return_value=mock_gateway
-        ), patch(
-            "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
+        with (
+            patch(
+                "custom_components.dali_center.DaliGateway", return_value=mock_gateway
+            ),
+            patch(
+                "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
+            ),
         ):
             with pytest.raises(ConfigEntryNotReady):
                 await async_setup_entry(mock_hass, mock_config_entry_with_data)
@@ -331,13 +337,16 @@ class TestAsyncSetupEntry:
             return_value={"software": "1.0.0", "firmware": "2.0.0"}
         )
 
-        with patch(
-            "custom_components.dali_center.DaliGateway", return_value=mock_gateway
-        ), patch.object(
-            mock_hass.config_entries,
-            "async_forward_entry_setups",
-            new_callable=AsyncMock,
-        ) as mock_forward:
+        with (
+            patch(
+                "custom_components.dali_center.DaliGateway", return_value=mock_gateway
+            ),
+            patch.object(
+                mock_hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ) as mock_forward,
+        ):
             # Original code continues after timeout - this is a bug, but
             # test existing behavior
             result = await async_setup_entry(mock_hass, mock_config_entry_with_data)
@@ -392,17 +401,21 @@ class TestAsyncUnloadEntry:
         mock_config_entry.runtime_data = Mock()
         mock_config_entry.runtime_data.gateway = mock_gateway
 
-        with patch.object(
-            mock_hass.config_entries,
-            "async_unload_platforms",
-            new_callable=AsyncMock,
-            return_value=True,
-        ) as mock_unload, patch(
-            "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
-        ), patch(
-            "custom_components.dali_center._notify_user_error",
-            new_callable=AsyncMock,
-        ) as mock_notify:
+        with (
+            patch.object(
+                mock_hass.config_entries,
+                "async_unload_platforms",
+                new_callable=AsyncMock,
+                return_value=True,
+            ) as mock_unload,
+            patch(
+                "custom_components.dali_center.DaliGatewayError", MockDaliGatewayError
+            ),
+            patch(
+                "custom_components.dali_center._notify_user_error",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+        ):
             result = await async_unload_entry(mock_hass, mock_config_entry)
 
             assert result is True
