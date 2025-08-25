@@ -73,17 +73,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 self._config_entry.entry_id
             )
 
-            if result:
-                _LOGGER.debug("Config entry reload completed successfully")
-                # Wait a bit more for runtime_data to be fully initialized
-                await asyncio.sleep(1.0)
-                return True
-            _LOGGER.error("Config entry setup failed")
-            return False
+            if not result:
+                _LOGGER.error("Config entry setup failed")
+                return False
+
+            _LOGGER.debug("Config entry reload completed successfully")
+            # Wait a bit more for runtime_data to be fully initialized
+            await asyncio.sleep(1.0)
 
         except Exception:
             _LOGGER.exception("Error during config entry reload")
             return False
+
+        return True
 
     async def async_step_init(
         self, user_input: dict[str, bool] | None = None
@@ -433,8 +435,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
         if not self._gateways:
             _LOGGER.debug("Starting gateway discovery (3-minute timeout)")
             try:
-                # type: ignore[no-untyped-call]
-                discovered_gateways = await DaliGatewayDiscovery().discover_gateways()
+                discovered_gateways = await DaliGatewayDiscovery().discover_gateways()  # type: ignore[no-untyped-call]
             except DaliGatewayError:
                 _LOGGER.exception("Error discovering gateways")
                 errors["base"] = "discovery_failed"

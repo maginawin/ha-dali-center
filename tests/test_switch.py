@@ -303,7 +303,7 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
             await illuminance_switch.async_turn_on()
 
             mock_device.set_sensor_enabled.assert_called_once_with(True)
-            mock_logger.error.assert_called_once()
+            mock_logger.exception.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_illuminance_switch_async_turn_off_error(
@@ -317,7 +317,7 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
             await illuminance_switch.async_turn_off()
 
             mock_device.set_sensor_enabled.assert_called_once_with(False)
-            mock_logger.error.assert_called_once()
+            mock_logger.exception.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_illuminance_switch_async_added_to_hass(self, illuminance_switch):
