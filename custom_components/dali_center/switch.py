@@ -61,12 +61,14 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
     _attr_has_entity_name = True
 
     def __init__(self, device: Device) -> None:
+        """Initialize the illuminance sensor enable/disable switch."""
         super().__init__()
         self._device = device
         self._attr_name = "Sensor Enable"
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
         self._attr_available = device.status == "online"
         self._attr_is_on: bool | None = True  # Default to enabled
+        self._attr_icon = "mdi:brightness-6"
 
         self._sync_sensor_state()
 
@@ -80,6 +82,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
@@ -88,11 +91,8 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
-    @cached_property
-    def icon(self) -> str:
-        return "mdi:brightness-6"
-
     async def async_turn_on(self, **_kwargs: Any) -> None:
+        """Enable the illuminance sensor."""
         try:
             self._device.set_sensor_enabled(True)
             _LOGGER.debug(
@@ -111,6 +111,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             )
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
+        """Disable the illuminance sensor."""
         try:
             self._device.set_sensor_enabled(False)
             _LOGGER.debug(
@@ -129,6 +130,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             )
 
     async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added."""
         signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(

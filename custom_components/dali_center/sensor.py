@@ -146,6 +146,7 @@ class DaliCenterMotionSensor(SensorEntity):
         }
 
     async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
@@ -210,6 +211,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
     _attr_has_entity_name = True
 
     def __init__(self, device: Device) -> None:
+        """Initialize the illuminance sensor."""
         self._device = device
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
@@ -219,6 +221,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
@@ -228,6 +231,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         }
 
     async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
