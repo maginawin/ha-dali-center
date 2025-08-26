@@ -16,6 +16,6 @@
     "PySrDaliGateway==0.6.3"
   ],
   "ssdp": [],
-  "version": "0.5.1",
+  "version": "0.5.2",
   "zeroconf": []
 }
