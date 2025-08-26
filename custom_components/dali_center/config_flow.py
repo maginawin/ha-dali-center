@@ -419,12 +419,31 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Perform gateway discovery if not already done
         if not self._gateways:
-            _LOGGER.debug("Starting gateway discovery (3-minute timeout)")
+            _LOGGER.info(
+                "Starting gateway discovery process (3-minute timeout)")
+            discovery = None
             try:
-                discovered_gateways = await DaliGatewayDiscovery()\
-                    .discover_gateways()
+                _LOGGER.debug("Creating DaliGatewayDiscovery instance")
+                discovery = DaliGatewayDiscovery()
+
+                _LOGGER.debug("Initiating network discovery for DALI gateways")
+                discovered_gateways = await discovery.discover_gateways()
+
+                _LOGGER.info(
+                    "Gateway discovery completed - found %d gateways: %s",
+                    len(discovered_gateways) if discovered_gateways else 0,
+                    [gw.get("gw_sn", "unknown")
+                     for gw in (discovered_gateways or [])]
+                )
+
             except DaliGatewayError as e:
-                _LOGGER.error("Error discovering gateways: %s", e)
+                _LOGGER.error("DaliGatewayError during discovery: %s", e)
+                errors["base"] = "discovery_failed"
+            except Exception as e:
+                _LOGGER.error(
+                    "Unexpected error during gateway discovery: %s (type: %s)",
+                    e, type(e).__name__
+                )
                 errors["base"] = "discovery_failed"
                 return self.async_show_form(
                     step_id="discovery",
@@ -442,20 +461,37 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                 for entry in self.hass.config_entries.async_entries(DOMAIN)
             }
 
+            _LOGGER.debug(
+                "Already configured gateways: %s",
+                list(configured_gateways) if configured_gateways else "None"
+            )
+
             self._gateways = [
                 gateway for gateway in discovered_gateways
                 if gateway["gw_sn"] not in configured_gateways
             ]
 
             _LOGGER.info(
-                "Found %d gateways, %d available after filtering configured",
+                "Discovery results: %d total gateways found, %d available after filtering configured ones",
                 len(discovered_gateways),
                 len(self._gateways)
             )
 
+            if self._gateways:
+                _LOGGER.debug(
+                    "Available gateways for configuration: %s",
+                    [f"{gw['gw_sn']} ({gw.get('gw_ip', 'unknown IP')})" for gw in self._gateways]
+                )
+
         # Handle case where no gateways were found
         if not self._gateways:
-            _LOGGER.warning("No valid gateways found after discovery")
+            if not discovered_gateways:
+                _LOGGER.warning("No DALI gateways discovered on the network")
+            else:
+                _LOGGER.warning(
+                    "All discovered gateways (%d) are already configured in Home Assistant",
+                    len(discovered_gateways)
+                )
             return self.async_show_form(
                 step_id="discovery",
                 errors={"base": "no_devices_found"},
