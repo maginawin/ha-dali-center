@@ -72,6 +72,11 @@ async def async_setup_entry(
     if new_groups:
         async_add_entities(new_groups)
 
+    # Add All Lights control entity
+    all_lights_entity = DaliCenterAllLights(gateway)
+    async_add_entities([all_lights_entity])
+    _LOGGER.info("Added All Lights control entity")
+
 
 class DaliCenterLight(LightEntity):
     """Representation of a Dali Center Light."""
@@ -312,3 +317,144 @@ class DaliCenterLightGroup(LightEntity):
         self._group.turn_off()
         self._attr_is_on = False
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+
+
+class DaliCenterAllLights(LightEntity):
+    """Gateway-level all lights control via broadcast commands."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, gateway: DaliGateway) -> None:
+        """Initialize the all lights control."""
+        super().__init__()
+        self._gateway = gateway
+        self._attr_name = "All Lights"
+        self._attr_unique_id = f"{gateway.gw_sn}_all_lights"
+        self._attr_available = True
+        self._attr_icon = "mdi:lightbulb-group-outline"
+
+        # State management (local simulation since broadcast has no feedback)
+        self._attr_is_on: bool | None = False
+        self._attr_brightness: int | None = None
+        self._white_level: int | None = None
+        self._attr_color_temp_kelvin: int | None = None
+        self._attr_hs_color: tuple[float, float] | None = None
+        self._attr_rgbw_color: tuple[int, int, int, int] | None = None
+
+        # Color mode support (matching Group capabilities)
+        self._attr_color_mode = ColorMode.RGBW
+        self._attr_supported_color_modes = {
+            ColorMode.BRIGHTNESS,
+            ColorMode.COLOR_TEMP,
+            ColorMode.RGBW,
+        }
+
+    @cached_property
+    def device_info(self) -> DeviceInfo | None:
+        """Return device information - associate with gateway."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._gateway.gw_sn)},
+        )
+
+    @property
+    def min_color_temp_kelvin(self) -> int:
+        """Return minimum color temperature in Kelvin."""
+        return 1000
+
+    @property
+    def max_color_temp_kelvin(self) -> int:
+        """Return maximum color temperature in Kelvin."""
+        return 8000
+
+    def _rgbw_to_hsv_string(self, rgb: tuple[int, int, int]) -> str:
+        """Convert RGB to HSV string format for DALI commands."""
+        # Convert RGB (0-255) to HSV
+        r, g, b = rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0
+        h, s, v = colorsys.rgb_to_hsv(r, g, b)
+
+        # Convert to DALI format ranges
+        h_dali = int(h * 360 * 16)  # 0-360 degrees * 16
+        s_dali = int(s * 1000)  # 0-1000
+        v_dali = int(v * 1000)  # 0-1000
+
+        # Format as 12-character hex string
+        return f"{h_dali:04x}{s_dali:04x}{v_dali:04x}"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on all lights with comprehensive parameter support."""
+        _LOGGER.debug("All lights turn_on with kwargs: %s", kwargs)
+
+        brightness = kwargs.get(ATTR_BRIGHTNESS)
+        color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
+        rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
+        hs_color = kwargs.get(ATTR_HS_COLOR)
+
+        # Build command data array
+        command_data: list[dict[str, Any]] = []
+
+        # Main power on (DPID 20)
+        command_data.append({"dpid": 20, "dataType": "bool", "value": True})
+
+        # Brightness control (DPID 22)
+        if brightness is not None:
+            command_data.append({"dpid": 22, "dataType": "uint16", "value": brightness})
+            self._attr_brightness = brightness
+
+        # Color temperature control (DPID 23)
+        if color_temp_kelvin is not None:
+            command_data.append(
+                {"dpid": 23, "dataType": "uint16", "value": color_temp_kelvin}
+            )
+            self._attr_color_temp_kelvin = color_temp_kelvin
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+
+        # RGBW color control (DPID 24 + 21)
+        if rgbw_color is not None:
+            # Convert RGBW to HSV string format
+            hsv_string = self._rgbw_to_hsv_string(rgbw_color[:3])  # RGB part
+            command_data.append({"dpid": 24, "dataType": "string", "value": hsv_string})
+
+            # White channel (DPID 21)
+            white_level = int(rgbw_color[3]) if len(rgbw_color) > 3 else 0
+            if white_level > 0:
+                command_data.append(
+                    {"dpid": 21, "dataType": "uint8", "value": white_level}
+                )
+
+            self._attr_rgbw_color = rgbw_color
+            self._attr_color_mode = ColorMode.RGBW
+
+        # HS color control converted to RGBW
+        if hs_color is not None and rgbw_color is None:
+            # Convert HS to RGB
+            rgb = colorsys.hsv_to_rgb(hs_color[0] / 360, hs_color[1] / 100, 1.0)
+            rgbw = (int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 0)
+
+            hsv_string = self._rgbw_to_hsv_string(rgbw[:3])
+            command_data.append({"dpid": 24, "dataType": "string", "value": hsv_string})
+
+            self._attr_hs_color = hs_color
+            self._attr_color_mode = ColorMode.HS
+
+        # Send broadcast command
+        try:
+            self._gateway.command_write_dev("FFFF", 0, 1, command_data)
+            self._attr_is_on = True
+            self.schedule_update_ha_state()
+            _LOGGER.debug("All lights broadcast turn_on command sent successfully")
+        except Exception:
+            _LOGGER.exception("Failed to send all lights turn_on command")
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off all lights via broadcast."""
+        del kwargs  # Unused parameter
+
+        try:
+            self._gateway.command_write_dev(
+                "FFFF", 0, 1, [{"dpid": 20, "dataType": "bool", "value": False}]
+            )
+            self._attr_is_on = False
+            self.schedule_update_ha_state()
+            _LOGGER.debug("All lights broadcast turn_off command sent successfully")
+        except Exception:
+            _LOGGER.exception("Failed to send all lights turn_off command")

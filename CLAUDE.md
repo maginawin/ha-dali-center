@@ -328,6 +328,8 @@ Detailed explanation of changes (if necessary)
 - `docs(readme): update installation instructions`
 - `chore(release): bump version to 0.2.0`
 
+**IMPORTANT**: Do not include Claude Code signatures, co-author attributions, or AI-generated markers in commit messages. Keep commits clean and focused on the technical changes.
+
 ### Pull Request Process
 
 1. **Create feature branch** from main branch
