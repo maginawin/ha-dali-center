@@ -178,7 +178,9 @@ class MockDaliGateway:
                     setattr(device, key, value)
                 break
 
-    def command_write_dev(self, dev_type: str, channel: int, address: int, properties: list) -> None:
+    def command_write_dev(
+        self, dev_type: str, channel: int, address: int, properties: list
+    ) -> None:
         """Mock command_write_dev method for broadcast commands."""
         # Mock implementation - doesn't actually send commands
         # In tests, we just verify this method is called correctly
