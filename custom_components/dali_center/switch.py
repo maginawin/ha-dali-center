@@ -65,7 +65,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
         """Initialize the illuminance sensor enable/disable switch."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn)
         SwitchEntity.__init__(self)
-        
+
         self._device = device
         self._attr_name = "Sensor Enable"
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
@@ -135,7 +135,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
-        
+
         signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
@@ -153,7 +153,6 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
 
         # Sync initial state
         self._sync_sensor_state()
-
 
     def _handle_sensor_on_off_update(self, on_off: bool) -> None:
         self._attr_is_on = on_off

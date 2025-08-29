@@ -51,7 +51,7 @@ class DaliCenterSceneButton(GatewayAvailabilityMixin, ButtonEntity):
         """Initialize the scene button."""
         GatewayAvailabilityMixin.__init__(self, scene.gw_sn)
         ButtonEntity.__init__(self)
-        
+
         self._scene = scene
         self._attr_name = f"{scene.name}"
         self._attr_unique_id = scene.unique_id

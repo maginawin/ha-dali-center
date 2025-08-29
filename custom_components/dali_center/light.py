@@ -88,7 +88,7 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         """Initialize the light entity."""
         GatewayAvailabilityMixin.__init__(self, light.gw_sn)
         LightEntity.__init__(self)
-        
+
         self._light = light
         self._attr_name = "Light"
         self._attr_unique_id = light.unique_id
@@ -161,13 +161,13 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
         await super().async_added_to_hass()
-        
+
         # Handle device-specific updates
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
         )
-        
+
         # Handle device-specific availability
         signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
@@ -175,7 +175,7 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
                 self.hass, signal, self._handle_device_availability
             )
         )
-        
+
         self._light.read_status()
 
     def _handle_device_update(self, property_list: list[dict[str, Any]]) -> None:
@@ -260,7 +260,7 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         """Initialize the light group."""
         GatewayAvailabilityMixin.__init__(self, group.gw_sn)
         LightEntity.__init__(self)
-        
+
         self._group = group
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.unique_id}"
@@ -332,7 +332,7 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         """Initialize the all lights control."""
         GatewayAvailabilityMixin.__init__(self, gateway.gw_sn)
         LightEntity.__init__(self)
-        
+
         self._gateway = gateway
         self._attr_name = "All Lights"
         self._attr_unique_id = f"{gateway.gw_sn}_all_lights"

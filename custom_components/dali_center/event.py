@@ -104,7 +104,7 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
         """Initialize the panel event entity."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn)
         EventEntity.__init__(self)
-        
+
         self._device = device
         self._attr_name = "Panel Buttons"
         self._attr_unique_id = f"{device.dev_id}_panel_events"
@@ -127,7 +127,7 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
     async def async_added_to_hass(self) -> None:
         """Handle when entity is added to hass."""
         await super().async_added_to_hass()
-        
+
         signal = f"dali_center_update_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
@@ -141,7 +141,6 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
         )
 
         self._device.read_status()
-
 
     @callback
     def _handle_device_update(self, property_list: list[dict[str, Any]]) -> None:
