@@ -25,6 +25,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
+from .entity import GatewayAvailabilityMixin
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ async def async_setup_entry(
         async_add_entities(new_sensors)
 
 
-class DaliCenterEnergySensor(SensorEntity):
+class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
     """Representation of a Dali Center Energy Sensor."""
 
     _attr_device_class = SensorDeviceClass.ENERGY
@@ -79,11 +80,12 @@ class DaliCenterEnergySensor(SensorEntity):
 
     def __init__(self, device: Device) -> None:
         """Initialize the energy sensor."""
+        GatewayAvailabilityMixin.__init__(self, device.gw_sn)
+        SensorEntity.__init__(self)
+        
         self._device = device
-
         self._attr_name = "Energy"
         self._attr_unique_id = f"{device.unique_id}_energy"
-
         self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
 
@@ -96,6 +98,8 @@ class DaliCenterEnergySensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
+        
         signal = f"dali_center_energy_update_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_energy_update)
@@ -104,13 +108,9 @@ class DaliCenterEnergySensor(SensorEntity):
         signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
-                self.hass, signal, self._handle_device_update_available
+                self.hass, signal, self._handle_device_availability
             )
         )
-
-    def _handle_device_update_available(self, available: bool) -> None:
-        self._attr_available = available
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
     def _handle_energy_update(self, energy_value: float) -> None:
         self._attr_native_value = energy_value
@@ -118,7 +118,7 @@ class DaliCenterEnergySensor(SensorEntity):
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
 
-class DaliCenterMotionSensor(SensorEntity):
+class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
     """Representation of a Dali Center Motion Sensor."""
 
     _attr_device_class = SensorDeviceClass.ENUM
@@ -128,6 +128,9 @@ class DaliCenterMotionSensor(SensorEntity):
 
     def __init__(self, device: Device) -> None:
         """Initialize the motion sensor."""
+        GatewayAvailabilityMixin.__init__(self, device.gw_sn)
+        SensorEntity.__init__(self)
+        
         self._device = device
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
@@ -147,6 +150,8 @@ class DaliCenterMotionSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
+        
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
@@ -155,16 +160,12 @@ class DaliCenterMotionSensor(SensorEntity):
         signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
-                self.hass, signal, self._handle_device_update_available
+                self.hass, signal, self._handle_device_availability
             )
         )
 
         # Read initial status
         self._device.read_status()
-
-    def _handle_device_update_available(self, available: bool) -> None:
-        self._attr_available = available
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
     def _handle_device_update(self, property_list: list[dict[str, Any]]) -> None:
         for prop in property_list:
@@ -202,7 +203,7 @@ class DaliCenterMotionSensor(SensorEntity):
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
 
-class DaliCenterIlluminanceSensor(SensorEntity):
+class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
     """Representation of a Dali Center Illuminance Sensor."""
 
     _attr_device_class = SensorDeviceClass.ILLUMINANCE
@@ -212,6 +213,9 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
     def __init__(self, device: Device) -> None:
         """Initialize the illuminance sensor."""
+        GatewayAvailabilityMixin.__init__(self, device.gw_sn)
+        SensorEntity.__init__(self)
+        
         self._device = device
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
@@ -232,6 +236,8 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
+        
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
@@ -240,7 +246,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
-                self.hass, signal, self._handle_device_update_available
+                self.hass, signal, self._handle_device_availability
             )
         )
 
@@ -254,10 +260,6 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
         # Read initial status
         self._device.read_status()
-
-    def _handle_device_update_available(self, available: bool) -> None:
-        self._attr_available = available
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
     def _handle_device_update(self, property_list: list[dict[str, Any]]) -> None:
         for prop in property_list:

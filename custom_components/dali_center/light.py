@@ -24,6 +24,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
+from .entity import GatewayAvailabilityMixin
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -78,14 +79,16 @@ async def async_setup_entry(
     _LOGGER.info("Added All Lights control entity")
 
 
-class DaliCenterLight(LightEntity):
+class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
     """Representation of a Dali Center Light."""
 
     _attr_has_entity_name = True
 
     def __init__(self, light: Device) -> None:
         """Initialize the light entity."""
-        super().__init__()
+        GatewayAvailabilityMixin.__init__(self, light.gw_sn)
+        LightEntity.__init__(self)
+        
         self._light = light
         self._attr_name = "Light"
         self._attr_unique_id = light.unique_id
@@ -157,25 +160,23 @@ class DaliCenterLight(LightEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
+        
+        # Handle device-specific updates
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(self.hass, signal, self._handle_device_update)
         )
+        
+        # Handle device-specific availability
         signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
-                self.hass, signal, self._handle_device_update_available
+                self.hass, signal, self._handle_device_availability
             )
         )
+        
         self._light.read_status()
-
-    def _handle_device_update_available(self, available: bool) -> None:
-        self._attr_available = available
-        if not available:
-            self._attr_is_on = False
-            self._attr_brightness = None
-            self._attr_color_temp_kelvin = None
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
     def _handle_device_update(self, property_list: list[dict[str, Any]]) -> None:
         props: dict[int, Any] = {}
@@ -252,11 +253,14 @@ class DaliCenterLight(LightEntity):
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
 
-class DaliCenterLightGroup(LightEntity):
+class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
     """Representation of a Dali Center Light Group."""
 
     def __init__(self, group: Group) -> None:
         """Initialize the light group."""
+        GatewayAvailabilityMixin.__init__(self, group.gw_sn)
+        LightEntity.__init__(self)
+        
         self._group = group
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.unique_id}"
@@ -319,14 +323,16 @@ class DaliCenterLightGroup(LightEntity):
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
 
-class DaliCenterAllLights(LightEntity):
+class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
     """Gateway-level all lights control via broadcast commands."""
 
     _attr_has_entity_name = True
 
     def __init__(self, gateway: DaliGateway) -> None:
         """Initialize the all lights control."""
-        super().__init__()
+        GatewayAvailabilityMixin.__init__(self, gateway.gw_sn)
+        LightEntity.__init__(self)
+        
         self._gateway = gateway
         self._attr_name = "All Lights"
         self._attr_unique_id = f"{gateway.gw_sn}_all_lights"
