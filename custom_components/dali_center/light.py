@@ -259,7 +259,7 @@ class DaliCenterLightGroup(LightEntity):
         """Initialize the light group."""
         self._group = group
         self._attr_name = f"{group.name}"
-        self._attr_unique_id = f"{group.group_id}"
+        self._attr_unique_id = f"{group.unique_id}"
         self._attr_available = True
         self._attr_icon = "mdi:lightbulb-group"
         self._attr_is_on: bool | None = False
