@@ -325,23 +325,28 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
         mock_hass = Mock()
         mock_dispatcher_connect = Mock()
 
-        with patch(
-            "custom_components.dali_center.switch.async_dispatcher_connect",
-            mock_dispatcher_connect,
+        with (
+            patch(
+                "custom_components.dali_center.switch.async_dispatcher_connect",
+                mock_dispatcher_connect,
+            ),
+            patch(
+                "custom_components.dali_center.entity.async_dispatcher_connect",
+                mock_dispatcher_connect,
+            ),
         ):
             illuminance_switch.hass = mock_hass
             await illuminance_switch.async_added_to_hass()
 
-        # Should connect to two dispatcher signals
-        assert mock_dispatcher_connect.call_count == 2
+        # Should connect to three dispatcher signals (1 from mixin + 2 from switch)
+        assert mock_dispatcher_connect.call_count == 3
 
-    def test_handle_device_update_available(self, illuminance_switch):
-        """Test _handle_device_update_available method."""
-        illuminance_switch._handle_device_update_available(False)
+    def test_handle_device_availability(self, illuminance_switch):
+        """Test _handle_device_availability method."""
+        illuminance_switch._handle_device_availability(False)
 
-        assert illuminance_switch._attr_available is False
-        # Verify hass.loop.call_soon_threadsafe was called
-        illuminance_switch.hass.loop.call_soon_threadsafe.assert_called_once()
+        assert illuminance_switch.available is False
+        assert illuminance_switch._device_available is False
 
     def test_handle_sensor_on_off_enabled(self, illuminance_switch):
         """Test _handle_sensor_on_off_update when sensor is enabled."""
@@ -361,12 +366,13 @@ class TestDaliCenterIlluminanceSensorEnableSwitch:
 
     def test_illuminance_switch_available_when_device_offline(self, illuminance_switch):
         """Test switch availability when device is offline."""
-        illuminance_switch._attr_available = False
+        illuminance_switch._device_available = False
         assert illuminance_switch.available is False
 
     def test_illuminance_switch_available_when_device_online(self, illuminance_switch):
         """Test switch availability when device is online."""
-        illuminance_switch._attr_available = True
+        illuminance_switch._device_available = True
+        illuminance_switch._gateway_available = True
         assert illuminance_switch.available is True
 
     def test_illuminance_switch_state_persistence(self, illuminance_switch):

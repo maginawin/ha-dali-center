@@ -11,6 +11,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
+from .entity import GatewayAvailabilityMixin
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,12 +44,14 @@ async def async_setup_entry(
         async_add_entities(new_entities)
 
 
-class DaliCenterSceneButton(ButtonEntity):
+class DaliCenterSceneButton(GatewayAvailabilityMixin, ButtonEntity):
     """Representation of a Dali Center Scene Button."""
 
     def __init__(self, scene: Scene) -> None:
         """Initialize the scene button."""
-        super().__init__()
+        GatewayAvailabilityMixin.__init__(self, scene.gw_sn)
+        ButtonEntity.__init__(self)
+
         self._scene = scene
         self._attr_name = f"{scene.name}"
         self._attr_unique_id = scene.unique_id

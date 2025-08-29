@@ -86,20 +86,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
             gw_sn,
         )
 
-    def on_online_status(unique_id: str, available: bool) -> None:
-        signal = f"dali_center_update_available_{unique_id}"
+    def on_online_status(dev_id: str, available: bool) -> None:
+        signal = f"dali_center_update_available_{dev_id}"
         hass.add_job(async_dispatcher_send, hass, signal, available)
 
-    def on_device_status(unique_id: str, property_list: list[dict[str, Any]]) -> None:
-        signal = f"dali_center_update_{unique_id}"
+    def on_device_status(dev_id: str, property_list: list[dict[str, Any]]) -> None:
+        signal = f"dali_center_update_{dev_id}"
         hass.add_job(async_dispatcher_send, hass, signal, property_list)
 
-    def on_energy_report(unique_id: str, energy: float) -> None:
-        signal = f"dali_center_energy_update_{unique_id}"
+    def on_energy_report(dev_id: str, energy: float) -> None:
+        signal = f"dali_center_energy_update_{dev_id}"
         hass.add_job(async_dispatcher_send, hass, signal, energy)
 
-    def on_sensor_on_off(unique_id: str, on_off: bool) -> None:
-        signal = f"dali_center_sensor_on_off_{unique_id}"
+    def on_sensor_on_off(dev_id: str, on_off: bool) -> None:
+        signal = f"dali_center_sensor_on_off_{dev_id}"
         hass.add_job(async_dispatcher_send, hass, signal, on_off)
 
     gateway.on_online_status = on_online_status
