@@ -207,11 +207,11 @@ class TestDaliCenterPanelEvent:
         """Test panel event available property after update."""
         # Mock hass to avoid RuntimeError
         panel_event.hass = Mock()
-        panel_event.async_write_ha_state = Mock()
+        panel_event.schedule_update_ha_state = Mock()
 
-        panel_event._handle_device_update_available(False)
+        panel_event._handle_device_availability(False)
         assert panel_event.available is False
-        panel_event.async_write_ha_state.assert_called_once()
+        panel_event.schedule_update_ha_state.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_panel_event_async_added_to_hass(self, panel_event):
@@ -219,19 +219,26 @@ class TestDaliCenterPanelEvent:
         mock_hass = Mock()
         mock_dispatcher_connect = Mock()
 
-        with patch(f"{EM}.async_dispatcher_connect", mock_dispatcher_connect):
+        with (
+            patch(f"{EM}.async_dispatcher_connect", mock_dispatcher_connect),
+            patch(
+                "custom_components.dali_center.entity.async_dispatcher_connect",
+                mock_dispatcher_connect,
+            ),
+        ):
             panel_event.hass = mock_hass
             await panel_event.async_added_to_hass()
 
-        # Should connect to two dispatcher signals
-        assert mock_dispatcher_connect.call_count == 2
+        # Should connect to three dispatcher signals (1 from mixin + 2 from event)
+        assert mock_dispatcher_connect.call_count == 3
 
-    def test_handle_device_update_available(self, panel_event):
-        """Test _handle_device_update_available method."""
-        with patch.object(panel_event, "async_write_ha_state") as mock_write_state:
-            panel_event._handle_device_update_available(False)
+    def test_handle_device_availability(self, panel_event):
+        """Test _handle_device_availability method."""
+        with patch.object(panel_event, "schedule_update_ha_state") as mock_write_state:
+            panel_event._handle_device_availability(False)
 
-            assert panel_event._attr_available is False
+            assert panel_event.available is False
+            assert panel_event._device_available is False
             mock_write_state.assert_called_once()
 
     def test_handle_device_update_press(self, panel_event):

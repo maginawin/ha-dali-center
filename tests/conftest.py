@@ -94,6 +94,8 @@ class MockGroup:
         self.power = data.get("power", True)
         self.group_id = self.sn
         self.status = "online"
+        self.gw_sn = MOCK_GATEWAY_SN
+        self.unique_id = f"{MOCK_GATEWAY_SN}_{self.sn}"
 
 
 class MockScene:

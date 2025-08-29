@@ -304,21 +304,28 @@ class TestDaliCenterEnergySensor:
         mock_hass = Mock()
         mock_dispatcher_connect = Mock()
 
-        with patch(f"{SM}.async_dispatcher_connect", mock_dispatcher_connect):
+        with (
+            patch(f"{SM}.async_dispatcher_connect", mock_dispatcher_connect),
+            patch(
+                "custom_components.dali_center.entity.async_dispatcher_connect",
+                mock_dispatcher_connect,
+            ),
+        ):
             energy_sensor.hass = mock_hass
             await energy_sensor.async_added_to_hass()
 
-        # Should connect to two dispatcher signals
-        assert mock_dispatcher_connect.call_count == 2
+        # Should connect to three dispatcher signals (1 from mixin + 2 from sensor)
+        assert mock_dispatcher_connect.call_count == 3
 
-    def test_handle_device_update_available(self, energy_sensor):
-        """Test _handle_device_update_available method."""
-        with patch.object(energy_sensor, "schedule_update_ha_state"):
-            energy_sensor._handle_device_update_available(False)
+    def test_handle_device_availability(self, energy_sensor):
+        """Test _handle_device_availability method."""
+        with patch.object(energy_sensor, "schedule_update_ha_state") as mock_schedule:
+            energy_sensor._handle_device_availability(False)
 
-            assert energy_sensor._attr_available is False
-            # Verify hass.loop.call_soon_threadsafe was called
-            energy_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
+            assert energy_sensor.available is False
+            assert energy_sensor._device_available is False
+            # Verify schedule_update_ha_state was called
+            mock_schedule.assert_called_once()
 
     def test_handle_energy_update(self, energy_sensor):
         """Test _handle_energy_update method."""
@@ -391,18 +398,25 @@ class TestDaliCenterMotionSensor:
         mock_hass = Mock()
         mock_dispatcher_connect = Mock()
 
-        with patch(f"{SM}.async_dispatcher_connect", mock_dispatcher_connect):
+        with (
+            patch(f"{SM}.async_dispatcher_connect", mock_dispatcher_connect),
+            patch(
+                "custom_components.dali_center.entity.async_dispatcher_connect",
+                mock_dispatcher_connect,
+            ),
+        ):
             motion_sensor.hass = mock_hass
             await motion_sensor.async_added_to_hass()
 
-        # Should connect to two dispatcher signals
-        assert mock_dispatcher_connect.call_count == 2
+        # Should connect to three dispatcher signals (1 from mixin + 2 from sensor)
+        assert mock_dispatcher_connect.call_count == 3
 
-    def test_handle_device_update_available(self, motion_sensor):
-        """Test _handle_device_update_available method."""
-        motion_sensor._handle_device_update_available(False)
+    def test_handle_device_availability(self, motion_sensor):
+        """Test _handle_device_availability method."""
+        motion_sensor._handle_device_availability(False)
 
-        assert motion_sensor._attr_available is False
+        assert motion_sensor.available is False
+        assert motion_sensor._device_available is False
         # Verify hass.loop.call_soon_threadsafe was called
         motion_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -520,18 +534,25 @@ class TestDaliCenterIlluminanceSensor:
         mock_hass = Mock()
         mock_dispatcher_connect = Mock()
 
-        with patch(f"{SM}.async_dispatcher_connect", mock_dispatcher_connect):
+        with (
+            patch(f"{SM}.async_dispatcher_connect", mock_dispatcher_connect),
+            patch(
+                "custom_components.dali_center.entity.async_dispatcher_connect",
+                mock_dispatcher_connect,
+            ),
+        ):
             illuminance_sensor.hass = mock_hass
             await illuminance_sensor.async_added_to_hass()
 
-        # Should connect to three dispatcher signals (including sensor on/off)
-        assert mock_dispatcher_connect.call_count == 3
+        # Should connect to four dispatcher signals (1 from mixin + 3 from illuminance sensor)
+        assert mock_dispatcher_connect.call_count == 4
 
-    def test_handle_device_update_available(self, illuminance_sensor):
-        """Test _handle_device_update_available method."""
-        illuminance_sensor._handle_device_update_available(False)
+    def test_handle_device_availability(self, illuminance_sensor):
+        """Test _handle_device_availability method."""
+        illuminance_sensor._handle_device_availability(False)
 
-        assert illuminance_sensor._attr_available is False
+        assert illuminance_sensor.available is False
+        assert illuminance_sensor._device_available is False
         # Verify hass.loop.call_soon_threadsafe was called
         illuminance_sensor.hass.loop.call_soon_threadsafe.assert_called_once()
 
@@ -577,7 +598,7 @@ class TestDaliCenterIlluminanceSensor:
 
     def test_illuminance_sensor_available_when_device_offline(self, illuminance_sensor):
         """Test illuminance sensor availability when device is offline."""
-        illuminance_sensor._attr_available = False
+        illuminance_sensor._device_available = False
         illuminance_sensor._sensor_enabled = True
 
         assert illuminance_sensor.available is False
