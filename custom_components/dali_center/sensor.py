@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+from decimal import Decimal
 from functools import cached_property
 import logging
 from typing import Any
@@ -23,6 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.typing import StateType
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
@@ -220,7 +223,7 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
         self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
-        self._attr_native_value: float | None = None
+        self._attr_native_value: StateType | date | datetime | Decimal = None
         self._sensor_enabled: bool = True  # Track sensor enable state
 
     @cached_property

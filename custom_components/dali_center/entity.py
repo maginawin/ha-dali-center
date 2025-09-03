@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from homeassistant.core import callback
@@ -54,6 +55,11 @@ class GatewayAvailabilityMixin(Entity):
 
         if old_available != new_available:
             self._attr_available = new_available
+            # Clear the cached_property to force recalculation
+            if hasattr(self, "available"):
+                with contextlib.suppress(AttributeError):
+                    delattr(self, "available")
+
             _LOGGER.debug(
                 "Entity %s availability changed: %s (gateway: %s, device: %s)",
                 getattr(self, "entity_id", "unknown"),
@@ -75,7 +81,3 @@ class GatewayAvailabilityMixin(Entity):
         self._device_available = available
         self._update_entity_availability()
 
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self._gateway_available and self._device_available
