@@ -14,7 +14,7 @@ from homeassistant.components.event import EventDeviceClass, EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
@@ -74,7 +74,7 @@ def _generate_event_types_for_panel(dev_type: str) -> list[str]:
 async def async_setup_entry(
     _: HomeAssistant,
     entry: DaliCenterConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center event entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway

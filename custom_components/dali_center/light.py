@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import colorsys
-from functools import cached_property
 import logging
 from typing import Any
 
+from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Device, Group
 from PySrDaliGateway.helper import is_light_device
 
@@ -21,7 +21,7 @@ from homeassistant.components.light.const import ColorMode
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
@@ -33,7 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: DaliCenterConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center light entities from config entry."""
     del hass  # Unused parameter
