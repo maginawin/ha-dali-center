@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from functools import cached_property
 import logging
 
+from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import (
     is_illuminance_sensor,

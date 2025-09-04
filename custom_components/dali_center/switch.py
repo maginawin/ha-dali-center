@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from functools import cached_property
 import logging
 from typing import Any
 
+from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
@@ -76,12 +76,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
         self._sync_sensor_state()
 
     def _sync_sensor_state(self) -> None:
-        try:
-            self._device.get_sensor_enabled()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            _LOGGER.debug(
-                "Could not sync sensor state for device %s: %s", self._device.dev_id, e
-            )
+        self._device.get_sensor_enabled()
 
     @cached_property
     def device_info(self) -> DeviceInfo | None:
@@ -107,7 +102,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(async_dispatcher_send, self.hass, signal, True)
 
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:
             _LOGGER.exception(
                 "Failed to enable illuminance sensor for device %s",
                 self._device.dev_id,
@@ -126,7 +121,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(async_dispatcher_send, self.hass, signal, False)
 
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:
             _LOGGER.exception(
                 "Failed to disable illuminance sensor for device %s",
                 self._device.dev_id,

@@ -20,13 +20,12 @@ class GatewayAvailabilityMixin(Entity):
         super().__init__()
         self._gw_sn = gw_sn
         self._gateway_available = True
-        self._device_available = True  # Track device-specific availability
+        self._device_available = True
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
         await super().async_added_to_hass()
 
-        # Listen for gateway availability changes
         gateway_signal = f"dali_center_update_available_{self._gw_sn}"
         self.async_on_remove(
             async_dispatcher_connect(
@@ -55,7 +54,6 @@ class GatewayAvailabilityMixin(Entity):
 
         if old_available != new_available:
             self._attr_available = new_available
-            # Clear the cached_property to force recalculation
             if hasattr(self, "available"):
                 with contextlib.suppress(AttributeError):
                     delattr(self, "available")

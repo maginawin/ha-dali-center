@@ -1,8 +1,8 @@
 """Support for Dali Center Scene Buttons."""
 
-from functools import cached_property
 import logging
 
+from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Scene
 
 from homeassistant.components.button import ButtonEntity

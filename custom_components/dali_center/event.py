@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from functools import cached_property
 import logging
 
+from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
@@ -72,7 +72,7 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
         self._attr_event_types = panel.get_available_event_types()
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device info for the panel."""
         return {
             "identifiers": {(DOMAIN, self._panel.dev_id)},
