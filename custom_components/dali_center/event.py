@@ -33,7 +33,9 @@ async def async_setup_entry(
     """Set up Dali Center event entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Panel] = [
-        Panel(gateway, device) for device in entry.data.get("devices", [])
+        Panel(gateway, device)
+        for device in entry.data.get("devices", [])
+        if is_panel_device(device.get("dev_type"))
     ]
 
     def _on_panel_status(dev_id: str, status: PanelStatus) -> None:
@@ -44,11 +46,7 @@ async def async_setup_entry(
 
     _LOGGER.debug("Setting up event platform: %d devices", len(devices))
 
-    new_events: list[EventEntity] = [
-        DaliCenterPanelEvent(device)
-        for device in devices
-        if is_panel_device(device.dev_type)
-    ]
+    new_events: list[EventEntity] = [DaliCenterPanelEvent(device) for device in devices]
 
     if new_events:
         async_add_entities(new_events)

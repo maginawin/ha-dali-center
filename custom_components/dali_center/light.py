@@ -325,7 +325,6 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         # Color mode support (matching Group capabilities)
         self._attr_color_mode = ColorMode.RGBW
         self._attr_supported_color_modes = {
-            ColorMode.BRIGHTNESS,
             ColorMode.COLOR_TEMP,
             ColorMode.RGBW,
         }
