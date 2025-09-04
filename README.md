@@ -3,7 +3,6 @@
 ![GitHub Release][releases-shield]
 ![GitHub Activity][commits-shield]
 ![hacs][hacsbadge]
-[![codecov](https://codecov.io/gh/maginawin/ha-dali-center/branch/main/graph/badge.svg)](https://codecov.io/gh/maginawin/ha-dali-center)
 
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [commits-shield]: https://img.shields.io/github/commit-activity/m/maginawin/ha-dali-center.svg?style=for-the-badge
@@ -19,9 +18,32 @@ The DALI Center integration brings comprehensive DALI lighting control to Home A
 
 ⚠️ **Important**: This integration requires a **Sunricher DALI Center Gateway** to function. It is NOT compatible with DALI gateways from different manufacturers.
 
-**Supported Hardware:**
+**Supported Gateway:**
 
 - [DIN Rail Ethernet (IP) DALI Gateway SR-GW-EDA](https://www.sunricher.com/din-rail-ethernet-dali-gateway-sr-gw-eda.html)
+
+**Supported DALI Devices:**
+
+### Lighting Drivers
+
+- DALI DT6 Dimmable Driver
+- DALI DT8 Tc Dimmable Driver  
+- DALI DT8 RGB Dimmable Driver
+- DALI DT8 XY Dimmable Driver
+- DALI DT8 RGBW Dimmable Driver
+- DALI DT8 RGBWA Dimmable Driver
+
+### Sensors
+
+- DALI-2 Motion Sensor
+- DALI-2 Illuminance Sensor
+
+### Control Panels
+
+- DALI-2 2-Key Push Button Panel
+- DALI-2 4-Key Push Button Panel
+- DALI-2 6-Key Push Button Panel
+- DALI-2 8-Key Push Button Panel
 
 ## Features
 
