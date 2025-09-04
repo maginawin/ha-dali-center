@@ -9,6 +9,7 @@ from typing import Any
 from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Device, Group
 from PySrDaliGateway.helper import is_light_device
+from PySrDaliGateway.types import LightStatus
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -20,7 +21,10 @@ from homeassistant.components.light import (
 from homeassistant.components.light.const import ColorMode
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
@@ -36,7 +40,6 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center light entities from config entry."""
-    del hass  # Unused parameter
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
         Device(gateway, device) for device in entry.data.get("devices", [])
@@ -44,6 +47,12 @@ async def async_setup_entry(
     groups: list[Group] = [
         Group(gateway, group) for group in entry.data.get("groups", [])
     ]
+
+    def _on_light_status(dev_id: str, status: LightStatus) -> None:
+        signal = f"dali_center_update_{dev_id}"
+        hass.add_job(async_dispatcher_send, hass, signal, status)
+
+    gateway.on_light_status = _on_light_status
 
     _LOGGER.info(
         "Setting up light platform: %d devices, %d groups", len(devices), len(groups)
@@ -178,20 +187,16 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
 
         self._light.read_status()
 
-    def _handle_device_update(self, property_list: list[dict[str, Any]]) -> None:
-        props: dict[int, Any] = {}
-        for prop in property_list:
-            prop_id = prop.get("id") or prop.get("dpid")
-            value = prop.get("value")
-            if prop_id is not None and value is not None:
-                props[prop_id] = value
+    def _handle_device_update(self, status: LightStatus) -> None:
+        if status.get("is_on") is not None:
+            self._attr_is_on = status["is_on"]
 
-        if 20 in props:
-            self._attr_is_on = props[20]
+        if status.get("brightness") is not None:
+            self._attr_brightness = status["brightness"]
 
-        if 21 in props:
-            self._white_level = int(props[21])
-            if self._attr_rgbw_color is not None:
+        if status.get("white_level") is not None:
+            self._white_level = status["white_level"]
+            if self._attr_rgbw_color is not None and self._white_level is not None:
                 self._attr_rgbw_color = (
                     self._attr_rgbw_color[0],
                     self._attr_rgbw_color[1],
@@ -199,56 +204,26 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
                     self._white_level,
                 )
 
-        if 22 in props:
-            brightness_value = float(props[22])
-            if brightness_value == 0 and self._attr_brightness is None:
-                self._attr_brightness = 255
-            else:
-                self._attr_brightness = int(brightness_value / 1000 * 255)
-
         if (
-            23 in props
+            status.get("color_temp_kelvin") is not None
             and self._attr_supported_color_modes
             and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
         ):
-            self._attr_color_temp_kelvin = int(props[23])
+            self._attr_color_temp_kelvin = status["color_temp_kelvin"]
 
         if (
-            24 in props
+            status.get("hs_color") is not None
             and self._attr_supported_color_modes
             and ColorMode.HS in self._attr_supported_color_modes
         ):
-            hsv = str(props[24])
-            h = int(hsv[0:4], 16)
-            s = int(hsv[4:8], 16) / 10
-            self._attr_hs_color = (h, s)
-            _LOGGER.warning("HS color: %s", self._attr_hs_color)
+            self._attr_hs_color = status["hs_color"]
 
         if (
-            24 in props
+            status.get("rgbw_color") is not None
             and self._attr_supported_color_modes
             and ColorMode.RGBW in self._attr_supported_color_modes
         ):
-            hsv_rgbw = str(props[24])
-            h = int(hsv_rgbw[0:4], 16)
-            s = int(hsv_rgbw[4:8], 16)
-            v = int(hsv_rgbw[8:12], 16)
-            h_norm = max(0, min(360, h)) / 360.0
-            s_norm = max(0, min(1000, s)) / 1000.0
-            v_norm = max(0, min(1000, v)) / 1000.0
-
-            if v_norm == 0 and self._attr_rgbw_color is None:
-                v_norm = 1
-
-            rgb = colorsys.hsv_to_rgb(h_norm, s_norm, v_norm)
-            w = self._white_level if self._white_level is not None else 0
-            self._attr_rgbw_color = (
-                int(rgb[0] * 255),
-                int(rgb[1] * 255),
-                int(rgb[2] * 255),
-                w,
-            )
-            # _LOGGER.warning("RGBW color: %s", self._attr_rgbw_color)
+            self._attr_rgbw_color = status["rgbw_color"]
 
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 

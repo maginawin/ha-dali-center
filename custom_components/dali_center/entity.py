@@ -80,4 +80,3 @@ class GatewayAvailabilityMixin(Entity):
 
         self._device_available = available
         self._update_entity_availability()
-
