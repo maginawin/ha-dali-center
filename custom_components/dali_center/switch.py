@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from functools import cached_property
 import logging
 from typing import Any
 
+from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
@@ -17,7 +17,7 @@ from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
 )
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
@@ -29,7 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant,  # pylint: disable=unused-argument
     entry: DaliCenterConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center illuminance sensor enable/disable switches."""
 
@@ -76,21 +76,16 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
         self._sync_sensor_state()
 
     def _sync_sensor_state(self) -> None:
-        try:
-            self._device.get_sensor_enabled()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            _LOGGER.debug(
-                "Could not sync sensor state for device %s: %s", self._device.dev_id, e
-            )
+        self._device.get_sensor_enabled()
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
-            "model": f"Illuminance Sensor Type {self._device.dev_type}",
+            "model": self._device.model,
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
@@ -107,7 +102,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(async_dispatcher_send, self.hass, signal, True)
 
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:
             _LOGGER.exception(
                 "Failed to enable illuminance sensor for device %s",
                 self._device.dev_id,
@@ -126,7 +121,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
             self.hass.add_job(async_dispatcher_send, self.hass, signal, False)
 
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:
             _LOGGER.exception(
                 "Failed to disable illuminance sensor for device %s",
                 self._device.dev_id,

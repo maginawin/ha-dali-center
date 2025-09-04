@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import async_timeout
 from PySrDaliGateway import DaliGateway
@@ -58,7 +57,6 @@ async def _notify_user_error(
 
 async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -> bool:
     """Set up dali_center from a config entry using paho-mqtt."""
-    # Setup dependency logging first
     _setup_dependency_logging()
 
     gateway: DaliGateway = DaliGateway(entry.data["gateway"])
@@ -90,10 +88,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         signal = f"dali_center_update_available_{dev_id}"
         hass.add_job(async_dispatcher_send, hass, signal, available)
 
-    def on_device_status(dev_id: str, property_list: list[dict[str, Any]]) -> None:
-        signal = f"dali_center_update_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, property_list)
-
     def on_energy_report(dev_id: str, energy: float) -> None:
         signal = f"dali_center_energy_update_{dev_id}"
         hass.add_job(async_dispatcher_send, hass, signal, energy)
@@ -103,7 +97,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         hass.add_job(async_dispatcher_send, hass, signal, on_off)
 
     gateway.on_online_status = on_online_status
-    gateway.on_device_status = on_device_status
     gateway.on_energy_report = on_energy_report
     gateway.on_sensor_on_off = on_sensor_on_off
 
