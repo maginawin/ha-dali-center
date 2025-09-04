@@ -126,13 +126,13 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         self._attr_supported_color_modes = supported_modes
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._light.dev_id)},
             name=self._light.name,
             manufacturer=MANUFACTURER,
-            model=f"Dali Light Type {self._light.dev_type}",
+            model=self._light.model,
             via_device=(DOMAIN, self._light.gw_sn),
         )
 
@@ -250,11 +250,11 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._group.gw_sn)},
-        )
+        return {
+            "identifiers": {(DOMAIN, self._group.gw_sn)},
+        }
 
     @property
     def min_color_temp_kelvin(self) -> int:
@@ -330,11 +330,11 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         }
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information - associate with gateway."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._gateway.gw_sn)},
-        )
+        return {
+            "identifiers": {(DOMAIN, self._gateway.gw_sn)},
+        }
 
     @property
     def min_color_temp_kelvin(self) -> int:

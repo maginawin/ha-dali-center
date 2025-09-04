@@ -78,7 +78,7 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
             "identifiers": {(DOMAIN, self._panel.dev_id)},
             "name": self._panel.name,
             "manufacturer": MANUFACTURER,
-            "model": f"Panel Type {self._panel.dev_type}",
+            "model": self._panel.model,
             "via_device": (DOMAIN, self._panel.gw_sn),
         }
 

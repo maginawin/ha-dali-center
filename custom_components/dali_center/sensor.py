@@ -107,7 +107,7 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
         self._attr_native_value = 0.0
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
@@ -155,13 +155,13 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
         self._attr_native_value = "no_motion"
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
-            "model": f"Motion Sensor Type {self._device.dev_type}",
+            "model": self._device.model,
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 
@@ -218,13 +218,13 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
         self._sensor_enabled: bool = True  # Track sensor enable state
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
-            "model": f"Illuminance Sensor Type {self._device.dev_type}",
+            "model": self._device.model,
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 

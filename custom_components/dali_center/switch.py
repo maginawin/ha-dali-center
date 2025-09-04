@@ -79,13 +79,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
         self._device.get_sensor_enabled()
 
     @cached_property
-    def device_info(self) -> DeviceInfo | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device.dev_id)},
             "name": self._device.name,
             "manufacturer": MANUFACTURER,
-            "model": f"Illuminance Sensor Type {self._device.dev_type}",
+            "model": self._device.model,
             "via_device": (DOMAIN, self._device.gw_sn),
         }
 

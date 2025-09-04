@@ -59,9 +59,9 @@ class DaliCenterSceneButton(GatewayAvailabilityMixin, ButtonEntity):
     @cached_property
     def device_info(self) -> DeviceInfo:
         """Return device info for the scene button."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._scene.gw_sn)},
-        )
+        return {
+            "identifiers": {(DOMAIN, self._scene.gw_sn)},
+        }
 
     async def async_press(self) -> None:
         """Handle button press to activate scene."""
