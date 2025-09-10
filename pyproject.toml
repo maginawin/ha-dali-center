@@ -12,7 +12,7 @@ dependencies = [
     "homeassistant>=2023.1.0",
     "async_timeout>=4.0.0",
     "voluptuous",
-    "PySrDaliGateway==0.9.0",
+    "PySrDaliGateway==0.10.0",
 ]
 
 [project.optional-dependencies]
@@ -153,4 +153,3 @@ disallow_untyped_decorators = false
 disallow_untyped_defs = false
 warn_return_any = false
 warn_unreachable = false
-
