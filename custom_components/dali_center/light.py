@@ -72,8 +72,7 @@ async def async_setup_entry(
     gateway.on_light_status = _on_light_status
 
     _LOGGER.info(
-        "Setting up light platform: %d devices, %d groups", len(
-            devices), len(groups)
+        "Setting up light platform: %d devices, %d groups", len(devices), len(groups)
     )
 
     added_entities: set[str] = set()
@@ -160,7 +159,7 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         return {
             "address": self._light.address,
             "channel": self._light.channel,
-            "gw_sn": self._light.gw_sn
+            "gw_sn": self._light.gw_sn,
         }
 
     @property
@@ -201,8 +200,7 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         # Handle device-specific updates
         signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_update)
+            async_dispatcher_connect(self.hass, signal, self._handle_device_update)
         )
 
         # Handle device-specific availability
@@ -276,8 +274,7 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._attr_color_temp_kelvin: int | None = 1000
         self._attr_hs_color: tuple[float, float] | None = None
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
-        self._attr_supported_color_modes = {
-            ColorMode.COLOR_TEMP, ColorMode.RGBW}
+        self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
 
         # Group device info for extra state attributes
         self._group_lights: list[str] = []
@@ -346,7 +343,9 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
     async def _async_update_group_devices(self) -> None:
         """Update the list of devices in this group."""
 
-        group_info = await self._gateway.read_group(self._group.group_id, self._group.channel)
+        group_info = await self._gateway.read_group(
+            self._group.group_id, self._group.channel
+        )
         ent_reg = er.async_get(self.hass)
 
         light_names: list[str] = []
@@ -418,8 +417,7 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         self._attr_color_temp_kelvin: int | None = 1000
         self._attr_hs_color: tuple[float, float] | None = None
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
-        self._attr_supported_color_modes = {
-            ColorMode.COLOR_TEMP, ColorMode.RGBW}
+        self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
 
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any] | None:
@@ -427,7 +425,7 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         return {
             "address": self._light.address,
             "channel": self._light.channel,
-            "gw_sn": self._light.gw_sn
+            "gw_sn": self._light.gw_sn,
         }
 
     @cached_property
