@@ -101,7 +101,7 @@ async def async_setup_entry(
         async_add_entities(new_groups)
 
     # Add All Lights control entity
-    all_lights_entity = DaliCenterAllLights(all_light)
+    all_lights_entity = DaliCenterAllLights(all_light, entry)
     async_add_entities([all_lights_entity])
     _LOGGER.info("Added All Lights control entity")
 
@@ -258,6 +258,8 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
 class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
     """Representation of a Dali Center Light Group."""
 
+    _attr_has_entity_name = True
+
     def __init__(self, group: Group, gateway: DaliGateway) -> None:
         """Initialize the light group."""
         GatewayAvailabilityMixin.__init__(self, group.gw_sn)
@@ -363,9 +365,7 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
             light_names.append(device_info["name"])
 
             if device_unique_id := device_info["unique_id"]:
-                if entity_id := ent_reg.async_get_entity_id(
-                    "light", DOMAIN, device_unique_id
-                ):
+                if entity_id := ent_reg.async_get_entity_id("light", DOMAIN, device_unique_id):
                     light_entities.append(entity_id)
 
         self._group_lights = sorted(light_names)
@@ -411,9 +411,7 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
             return
 
         light_count = len(on_lights)
-        self._attr_brightness = (
-            total_brightness // light_count if total_brightness > 0 else 0
-        )
+        self._attr_brightness = total_brightness // light_count if total_brightness > 0 else 0
 
         if total_color_temp > 0:
             self._attr_color_temp_kelvin = total_color_temp // light_count
@@ -462,12 +460,13 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, light: Device) -> None:
+    def __init__(self, light: Device, config_entry: DaliCenterConfigEntry) -> None:
         """Initialize the all lights control."""
         GatewayAvailabilityMixin.__init__(self, light.gw_sn)
         LightEntity.__init__(self)
 
         self._light = light
+        self._config_entry = config_entry
         self._attr_name = "All Lights"
         self._attr_unique_id = light.unique_id
         self._attr_available = True
@@ -480,6 +479,97 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
 
+        # All lights tracking
+        self._all_light_entities: list[str] = []
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
+        await self._discover_all_light_entities()
+        await self._calculate_all_lights_state()
+        self.async_write_ha_state()
+
+        # Subscribe to state changes of all light entities
+        if self._all_light_entities:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass, self._all_light_entities, self._handle_light_update
+                )
+            )
+
+    async def _discover_all_light_entities(self) -> None:
+        """Discover all light entities in this config entry (gateway)."""
+        ent_reg = er.async_get(self.hass)
+
+        # Find only individual DaliCenterLight entities for this specific config entry
+        # We'll match against the devices that were configured for this entry
+        device_unique_ids = {device["unique_id"] for device in self._config_entry.data.get("devices", [])}
+
+        self._all_light_entities = [
+            entity_entry.entity_id for entity_entry in ent_reg.entities.values()
+            if (entity_entry.config_entry_id == self._config_entry.entry_id and
+                entity_entry.domain == "light" and
+                entity_entry.unique_id in device_unique_ids)  # Only individual device lights
+        ]
+
+    async def _calculate_all_lights_state(self) -> None:
+        """Calculate all lights state based on individual light states."""
+        if not self._all_light_entities:
+            return
+
+        on_lights: list[Any] = []
+        total_brightness = 0
+        total_color_temp = 0
+        rgbw_colors: list[tuple[int, int, int, int]] = []
+
+        for entity_id in self._all_light_entities:
+            if not (state := self.hass.states.get(entity_id)) or state.state != "on":
+                continue
+
+            on_lights.append(state)
+            if brightness := state.attributes.get(ATTR_BRIGHTNESS):
+                total_brightness += brightness
+            if color_temp := state.attributes.get(ATTR_COLOR_TEMP_KELVIN):
+                total_color_temp += color_temp
+            if rgbw_color := state.attributes.get(ATTR_RGBW_COLOR):
+                rgbw_colors.append(rgbw_color)
+
+        self._attr_is_on = bool(on_lights)
+
+        if not on_lights:
+            self._attr_brightness = 0
+            return
+
+        light_count = len(on_lights)
+        self._attr_brightness = total_brightness // light_count if total_brightness > 0 else 0
+
+        if total_color_temp > 0:
+            self._attr_color_temp_kelvin = total_color_temp // light_count
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+        elif rgbw_colors:
+            color_count = len(rgbw_colors)
+            self._attr_rgbw_color = (
+                sum(c[0] for c in rgbw_colors) // color_count,
+                sum(c[1] for c in rgbw_colors) // color_count,
+                sum(c[2] for c in rgbw_colors) // color_count,
+                sum(c[3] for c in rgbw_colors) // color_count,
+            )
+            self._attr_color_mode = ColorMode.RGBW
+        else:
+            self._attr_color_mode = ColorMode.BRIGHTNESS
+
+    @callback
+    def _handle_light_update(self, event: Event[EventStateChangedData]) -> None:
+        """Handle individual light state change."""
+        entity_id = event.data["entity_id"]
+        if entity_id in self._all_light_entities:
+            self.hass.async_create_task(self._async_update_all_lights_state())
+
+    async def _async_update_all_lights_state(self) -> None:
+        """Update all lights state and notify Home Assistant."""
+        await self._calculate_all_lights_state()
+        self.async_write_ha_state()
+
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the optional state attributes."""
@@ -487,6 +577,9 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
             "address": self._light.address,
             "channel": self._light.channel,
             "gw_sn": self._light.gw_sn,
+            "is_all_lights": True,
+            "entity_id": self._all_light_entities,
+            "total_lights": len(self._all_light_entities),
         }
 
     @cached_property
