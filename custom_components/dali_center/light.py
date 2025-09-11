@@ -338,12 +338,9 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
         await super().async_added_to_hass()
-        # Update group device information when entity is added
         await self._async_update_group_devices()
-        # Calculate initial group state based on member lights
         await self._calculate_group_state()
         self.async_write_ha_state()
-        # Subscribe to state changes of member lights
         if self._group_entity_ids:
             self.async_on_remove(
                 async_track_state_change_event(
@@ -362,27 +359,19 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         light_names: list[str] = []
         light_entities: list[str] = []
 
-        # Process each device in the group
         for device_info in group_info["devices"]:
-            # Extract device name
-            device_name = device_info["name"]
-            light_names.append(device_name)
+            light_names.append(device_info["name"])
 
-            # Look up the corresponding entity ID
-            device_unique_id = device_info["unique_id"]
-            if device_unique_id:
-                entity_id = ent_reg.async_get_entity_id(
+            if device_unique_id := device_info["unique_id"]:
+                if entity_id := ent_reg.async_get_entity_id(
                     "light", DOMAIN, device_unique_id
-                )
-                if entity_id:
+                ):
                     light_entities.append(entity_id)
 
-        # Update instance variables
         self._group_lights = sorted(light_names)
         self._group_entity_ids = sorted(light_entities)
         self._group_device_count = len(group_info["devices"])
 
-        # Clear cached property to force refresh
         if hasattr(self, "extra_state_attributes"):
             delattr(self, "extra_state_attributes")
 
@@ -398,57 +387,48 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         if not self._group_entity_ids:
             return
 
-        # Get states of all member lights
         on_lights: list[Any] = []
         total_brightness = 0
         total_color_temp = 0
         rgbw_colors: list[tuple[int, int, int, int]] = []
 
         for entity_id in self._group_entity_ids:
-            state = self.hass.states.get(entity_id)
-            if state and state.state == "on":
-                on_lights.append(state)
+            if not (state := self.hass.states.get(entity_id)) or state.state != "on":
+                continue
 
-                # Collect brightness
-                if state.attributes.get(ATTR_BRIGHTNESS):
-                    total_brightness += state.attributes[ATTR_BRIGHTNESS]
+            on_lights.append(state)
+            if brightness := state.attributes.get(ATTR_BRIGHTNESS):
+                total_brightness += brightness
+            if color_temp := state.attributes.get(ATTR_COLOR_TEMP_KELVIN):
+                total_color_temp += color_temp
+            if rgbw_color := state.attributes.get(ATTR_RGBW_COLOR):
+                rgbw_colors.append(rgbw_color)
 
-                # Collect color temperature
-                if state.attributes.get(ATTR_COLOR_TEMP_KELVIN):
-                    total_color_temp += state.attributes[ATTR_COLOR_TEMP_KELVIN]
+        self._attr_is_on = bool(on_lights)
 
-                # Collect RGBW color
-                if state.attributes.get(ATTR_RGBW_COLOR):
-                    rgbw_colors.append(state.attributes[ATTR_RGBW_COLOR])
-
-        # Update group state based on aggregation
-        self._attr_is_on = len(on_lights) > 0
-
-        if on_lights:
-            # Calculate average brightness
-            self._attr_brightness = (
-                total_brightness // len(on_lights) if total_brightness > 0 else 0
-            )
-
-            # Calculate average color temperature
-            if total_color_temp > 0:
-                self._attr_color_temp_kelvin = total_color_temp // len(on_lights)
-                self._attr_color_mode = ColorMode.COLOR_TEMP
-
-            # Calculate average RGBW color
-            elif rgbw_colors:
-                avg_r = sum(c[0] for c in rgbw_colors) // len(rgbw_colors)
-                avg_g = sum(c[1] for c in rgbw_colors) // len(rgbw_colors)
-                avg_b = sum(c[2] for c in rgbw_colors) // len(rgbw_colors)
-                avg_w = sum(c[3] for c in rgbw_colors) // len(rgbw_colors)
-                self._attr_rgbw_color = (avg_r, avg_g, avg_b, avg_w)
-                self._attr_color_mode = ColorMode.RGBW
-            else:
-                # Only brightness mode
-                self._attr_color_mode = ColorMode.BRIGHTNESS
-        else:
-            # All lights are off
+        if not on_lights:
             self._attr_brightness = 0
+            return
+
+        light_count = len(on_lights)
+        self._attr_brightness = (
+            total_brightness // light_count if total_brightness > 0 else 0
+        )
+
+        if total_color_temp > 0:
+            self._attr_color_temp_kelvin = total_color_temp // light_count
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+        elif rgbw_colors:
+            color_count = len(rgbw_colors)
+            self._attr_rgbw_color = (
+                sum(c[0] for c in rgbw_colors) // color_count,
+                sum(c[1] for c in rgbw_colors) // color_count,
+                sum(c[2] for c in rgbw_colors) // color_count,
+                sum(c[3] for c in rgbw_colors) // color_count,
+            )
+            self._attr_color_mode = ColorMode.RGBW
+        else:
+            self._attr_color_mode = ColorMode.BRIGHTNESS
 
     @callback
     def _handle_member_light_update(self, event: Event[EventStateChangedData]) -> None:
