@@ -273,11 +273,13 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._attr_icon = "mdi:lightbulb-group"
         self._attr_is_on: bool | None = False
         self._attr_brightness: int | None = 0
-        self._attr_color_mode = ColorMode.RGBW
+        self._attr_color_mode = ColorMode.BRIGHTNESS
         self._attr_color_temp_kelvin: int | None = 1000
         self._attr_hs_color: tuple[float, float] | None = None
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
-        self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
+        self._attr_supported_color_modes: set[ColorMode] | set[str] | None = (
+            None  # Will be determined dynamically
+        )
 
         # Group device info for extra state attributes
         self._group_lights: list[str] = []
@@ -365,7 +367,9 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
             light_names.append(device_info["name"])
 
             if device_unique_id := device_info["unique_id"]:
-                if entity_id := ent_reg.async_get_entity_id("light", DOMAIN, device_unique_id):
+                if entity_id := ent_reg.async_get_entity_id(
+                    "light", DOMAIN, device_unique_id
+                ):
                     light_entities.append(entity_id)
 
         self._group_lights = sorted(light_names)
@@ -375,11 +379,45 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         if hasattr(self, "extra_state_attributes"):
             delattr(self, "extra_state_attributes")
 
+        # Determine supported color modes based on member lights
+        await self._determine_supported_color_modes()
+
         _LOGGER.debug(
             "Updated group %s devices: %d total, %d entities found",
             self._attr_unique_id,
             len(group_info["devices"]),
             len(light_entities),
+        )
+
+    async def _determine_supported_color_modes(self) -> None:
+        """Determine supported color modes based on member lights capabilities."""
+        if not self._group_entity_ids:
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+            return
+
+        # Collect supported modes from all member lights
+        supported_modes: set[ColorMode] = set()
+
+        for entity_id in self._group_entity_ids:
+            state = self.hass.states.get(entity_id)
+            if not state:
+                continue
+
+            # Get supported color modes from the light entity
+            entity_modes = state.attributes.get("supported_color_modes", [])
+            if entity_modes:
+                supported_modes.update(entity_modes)
+
+        # If no specific modes found, default to brightness
+        if not supported_modes:
+            supported_modes = {ColorMode.BRIGHTNESS}
+
+        self._attr_supported_color_modes = supported_modes
+
+        _LOGGER.debug(
+            "Group %s determined supported color modes: %s",
+            self._attr_unique_id,
+            supported_modes,
         )
 
     async def _calculate_group_state(self) -> None:
@@ -411,7 +449,9 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
             return
 
         light_count = len(on_lights)
-        self._attr_brightness = total_brightness // light_count if total_brightness > 0 else 0
+        self._attr_brightness = (
+            total_brightness // light_count if total_brightness > 0 else 0
+        )
 
         if total_color_temp > 0:
             self._attr_color_temp_kelvin = total_color_temp // light_count
@@ -477,7 +517,9 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         self._attr_color_temp_kelvin: int | None = 1000
         self._attr_hs_color: tuple[float, float] | None = None
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
-        self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
+        self._attr_supported_color_modes: set[ColorMode] | set[str] | None = (
+            None  # Will be determined dynamically
+        )
 
         # All lights tracking
         self._all_light_entities: list[str] = []
@@ -503,14 +545,53 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
 
         # Find only individual DaliCenterLight entities for this specific config entry
         # We'll match against the devices that were configured for this entry
-        device_unique_ids = {device["unique_id"] for device in self._config_entry.data.get("devices", [])}
+        device_unique_ids = {
+            device["unique_id"] for device in self._config_entry.data.get("devices", [])
+        }
 
         self._all_light_entities = [
-            entity_entry.entity_id for entity_entry in ent_reg.entities.values()
-            if (entity_entry.config_entry_id == self._config_entry.entry_id and
-                entity_entry.domain == "light" and
-                entity_entry.unique_id in device_unique_ids)  # Only individual device lights
+            entity_entry.entity_id
+            for entity_entry in ent_reg.entities.values()
+            if (
+                entity_entry.config_entry_id == self._config_entry.entry_id
+                and entity_entry.domain == "light"
+                and entity_entry.unique_id in device_unique_ids
+            )  # Only individual device lights
         ]
+
+        # Determine supported color modes based on individual lights
+        await self._determine_all_lights_color_modes()
+
+    async def _determine_all_lights_color_modes(self) -> None:
+        """Determine supported color modes based on all individual lights capabilities."""
+        if not self._all_light_entities:
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+            return
+
+        # Collect supported modes from all member lights
+        supported_modes: set[ColorMode] = set()
+
+        for entity_id in self._all_light_entities:
+            state = self.hass.states.get(entity_id)
+            if not state:
+                continue
+
+            # Get supported color modes from the light entity
+            entity_modes = state.attributes.get("supported_color_modes", [])
+            if entity_modes:
+                supported_modes.update(entity_modes)
+
+        # If no specific modes found, default to brightness
+        if not supported_modes:
+            supported_modes = {ColorMode.BRIGHTNESS}
+
+        self._attr_supported_color_modes = supported_modes
+
+        _LOGGER.debug(
+            "All Lights %s determined supported color modes: %s",
+            self._attr_unique_id,
+            supported_modes,
+        )
 
     async def _calculate_all_lights_state(self) -> None:
         """Calculate all lights state based on individual light states."""
@@ -541,7 +622,9 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
             return
 
         light_count = len(on_lights)
-        self._attr_brightness = total_brightness // light_count if total_brightness > 0 else 0
+        self._attr_brightness = (
+            total_brightness // light_count if total_brightness > 0 else 0
+        )
 
         if total_color_temp > 0:
             self._attr_color_temp_kelvin = total_color_temp // light_count
