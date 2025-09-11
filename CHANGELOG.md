@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-09-11
+
+### Added
+
+- Enhanced light group functionality with real-time state synchronization (#39, #38)
+- Gateway restart button for easy gateway management (#36)
+- Device tracking capabilities for light groups (#38)
+
+### Fixed
+
+- Centralized gateway availability handling for improved reliability (#34)
+- Broadcast color calculations in DaliCenterAllLights using Device API (#37)
+
+### Technical
+
+- **BREAKING CHANGE**: Enhanced light group functionality requires users to refresh group and device lists via Options flow
+- Modernized Home Assistant API and dependencies (#35)
+
 ## [0.6.0] - 2025-08-28
 
 ### Added
@@ -179,7 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/maginawin/ha-dali-center/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/maginawin/ha-dali-center/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/maginawin/ha-dali-center/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/maginawin/ha-dali-center/compare/v0.4.0...v0.5.0
