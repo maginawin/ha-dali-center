@@ -19,6 +19,7 @@ from homeassistant.components.light import (
 )
 from homeassistant.components.light.const import ColorMode
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
@@ -92,7 +93,7 @@ async def async_setup_entry(
         group_id = str(group)
         if group_id in added_group_entities:
             continue
-        new_groups.append(DaliCenterLightGroup(group))
+        new_groups.append(DaliCenterLightGroup(group, gateway))
         added_group_entities.add(group_id)
 
     if new_groups:
@@ -151,6 +152,15 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
             model=self._light.model,
             via_device=(DOMAIN, self._light.gw_sn),
         )
+
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        return {
+            "address": self._light.address,
+            "channel": self._light.channel,
+            "gw_sn": self._light.gw_sn,
+        }
 
     @property
     def min_color_temp_kelvin(self) -> int:
@@ -247,12 +257,13 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
 class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
     """Representation of a Dali Center Light Group."""
 
-    def __init__(self, group: Group) -> None:
+    def __init__(self, group: Group, gateway: DaliGateway) -> None:
         """Initialize the light group."""
         GatewayAvailabilityMixin.__init__(self, group.gw_sn)
         LightEntity.__init__(self)
 
         self._group = group
+        self._gateway = gateway
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.unique_id}"
         self._attr_available = True
@@ -264,6 +275,11 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._attr_hs_color: tuple[float, float] | None = None
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
+
+        # Group device info for extra state attributes
+        self._group_lights: list[str] = []
+        self._group_entity_ids: list[str] = []
+        self._group_device_count = 0
 
     @cached_property
     def device_info(self) -> DeviceInfo:
@@ -284,6 +300,11 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light group."""
+
+        _LOGGER.debug(
+            "Turning on group %s with kwargs: %s", self._attr_unique_id, kwargs
+        )
+
         brightness = kwargs.get(ATTR_BRIGHTNESS)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
@@ -313,6 +334,67 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._attr_is_on = False
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
+    async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
+        # Update group device information when entity is added
+        await self._async_update_group_devices()
+
+    async def _async_update_group_devices(self) -> None:
+        """Update the list of devices in this group."""
+
+        group_info = await self._gateway.read_group(
+            self._group.group_id, self._group.channel
+        )
+        ent_reg = er.async_get(self.hass)
+
+        light_names: list[str] = []
+        light_entities: list[str] = []
+
+        # Process each device in the group
+        for device_info in group_info["devices"]:
+            # Extract device name
+            device_name = device_info["name"]
+            light_names.append(device_name)
+
+            # Look up the corresponding entity ID
+            device_unique_id = device_info["unique_id"]
+            if device_unique_id:
+                entity_id = ent_reg.async_get_entity_id(
+                    "light", DOMAIN, device_unique_id
+                )
+                if entity_id:
+                    light_entities.append(entity_id)
+
+        # Update instance variables
+        self._group_lights = sorted(light_names)
+        self._group_entity_ids = sorted(light_entities)
+        self._group_device_count = len(group_info["devices"])
+
+        # Clear cached property to force refresh
+        if hasattr(self, "extra_state_attributes"):
+            delattr(self, "extra_state_attributes")
+
+        _LOGGER.debug(
+            "Updated group %s devices: %d total, %d entities found",
+            self._attr_unique_id,
+            len(group_info["devices"]),
+            len(light_entities),
+        )
+
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        return {
+            "is_dali_group": True,
+            "lights": self._group_lights,
+            "entity_id": self._group_entity_ids,
+            "group_id": self._group.group_id,
+            "channel": self._group.channel,
+            "total_devices": self._group_device_count,
+            "gw_sn": self._group.gw_sn,
+        }
+
 
 class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
     """Gateway-level all lights control via broadcast commands."""
@@ -336,6 +418,15 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         self._attr_hs_color: tuple[float, float] | None = None
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.RGBW}
+
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        return {
+            "address": self._light.address,
+            "channel": self._light.channel,
+            "gw_sn": self._light.gw_sn,
+        }
 
     @cached_property
     def device_info(self) -> DeviceInfo:
