@@ -18,7 +18,7 @@ from homeassistant.components.light import (
     LightEntity,
 )
 from homeassistant.components.light.const import ColorMode
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import (
@@ -26,6 +26,7 @@ from homeassistant.helpers.dispatcher import (
     async_dispatcher_send,
 )
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
@@ -339,6 +340,16 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         await super().async_added_to_hass()
         # Update group device information when entity is added
         await self._async_update_group_devices()
+        # Calculate initial group state based on member lights
+        await self._calculate_group_state()
+        self.async_write_ha_state()
+        # Subscribe to state changes of member lights
+        if self._group_entity_ids:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass, self._group_entity_ids, self._handle_member_light_update
+                )
+            )
 
     async def _async_update_group_devices(self) -> None:
         """Update the list of devices in this group."""
@@ -381,6 +392,76 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
             len(group_info["devices"]),
             len(light_entities),
         )
+
+    async def _calculate_group_state(self) -> None:
+        """Calculate group state based on member lights' actual states."""
+        if not self._group_entity_ids:
+            return
+
+        # Get states of all member lights
+        on_lights: list[Any] = []
+        total_brightness = 0
+        total_color_temp = 0
+        rgbw_colors: list[tuple[int, int, int, int]] = []
+
+        for entity_id in self._group_entity_ids:
+            state = self.hass.states.get(entity_id)
+            if state and state.state == "on":
+                on_lights.append(state)
+
+                # Collect brightness
+                if state.attributes.get(ATTR_BRIGHTNESS):
+                    total_brightness += state.attributes[ATTR_BRIGHTNESS]
+
+                # Collect color temperature
+                if state.attributes.get(ATTR_COLOR_TEMP_KELVIN):
+                    total_color_temp += state.attributes[ATTR_COLOR_TEMP_KELVIN]
+
+                # Collect RGBW color
+                if state.attributes.get(ATTR_RGBW_COLOR):
+                    rgbw_colors.append(state.attributes[ATTR_RGBW_COLOR])
+
+        # Update group state based on aggregation
+        self._attr_is_on = len(on_lights) > 0
+
+        if on_lights:
+            # Calculate average brightness
+            self._attr_brightness = (
+                total_brightness // len(on_lights) if total_brightness > 0 else 0
+            )
+
+            # Calculate average color temperature
+            if total_color_temp > 0:
+                self._attr_color_temp_kelvin = total_color_temp // len(on_lights)
+                self._attr_color_mode = ColorMode.COLOR_TEMP
+
+            # Calculate average RGBW color
+            elif rgbw_colors:
+                avg_r = sum(c[0] for c in rgbw_colors) // len(rgbw_colors)
+                avg_g = sum(c[1] for c in rgbw_colors) // len(rgbw_colors)
+                avg_b = sum(c[2] for c in rgbw_colors) // len(rgbw_colors)
+                avg_w = sum(c[3] for c in rgbw_colors) // len(rgbw_colors)
+                self._attr_rgbw_color = (avg_r, avg_g, avg_b, avg_w)
+                self._attr_color_mode = ColorMode.RGBW
+            else:
+                # Only brightness mode
+                self._attr_color_mode = ColorMode.BRIGHTNESS
+        else:
+            # All lights are off
+            self._attr_brightness = 0
+
+    @callback
+    def _handle_member_light_update(self, event: Event[EventStateChangedData]) -> None:
+        """Handle member light state change."""
+        entity_id = event.data["entity_id"]
+        if entity_id in self._group_entity_ids:
+            # Schedule state recalculation
+            self.hass.async_create_task(self._async_update_group_state())
+
+    async def _async_update_group_state(self) -> None:
+        """Update group state and notify Home Assistant."""
+        await self._calculate_group_state()
+        self.async_write_ha_state()
 
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any] | None:
