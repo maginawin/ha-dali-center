@@ -27,6 +27,22 @@ body:
         - Other
     validations:
       required: true
+  - type: input
+    id: gateway-software-version
+    attributes:
+      label: Gateway Software Version
+      description: Check the software version in your gateway information page
+      placeholder: ex. 3.59, 3.56.4
+    validations:
+      required: true
+  - type: input
+    id: gateway-firmware-version
+    attributes:
+      label: Gateway Firmware Version
+      description: Check the firmware version in your gateway information page  
+      placeholder: ex. 1.45
+    validations:
+      required: true
   - type: textarea
     id: what-happened
     attributes:
