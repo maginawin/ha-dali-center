@@ -80,7 +80,7 @@ class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
         GatewayAvailabilityMixin.__init__(self, gateway.gw_sn, gateway.to_dict())
         ButtonEntity.__init__(self)
 
-        self._gateway = gateway
+        self._gateway_obj = gateway
         self._attr_name = f"{gateway.name} Restart"
         self._attr_unique_id = f"{gateway.gw_sn}_restart"
         self._attr_icon = "mdi:restart"
@@ -90,10 +90,10 @@ class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
     def device_info(self) -> DeviceInfo:
         """Return device info for the gateway restart button."""
         return {
-            "identifiers": {(DOMAIN, self._gateway.gw_sn)},
+            "identifiers": {(DOMAIN, self._gateway_obj.gw_sn)},
         }
 
     async def async_press(self) -> None:
         """Handle button press to restart gateway."""
-        _LOGGER.info("Restarting gateway %s", self._gateway.gw_sn)
-        self._gateway.restart_gateway()
+        _LOGGER.info("Restarting gateway %s", self._gateway_obj.gw_sn)
+        self._gateway_obj.restart_gateway()
