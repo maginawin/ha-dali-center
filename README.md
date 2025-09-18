@@ -14,6 +14,11 @@ The DALI Center integration brings comprehensive DALI lighting control to Home A
   <img src="https://brands.home-assistant.io/dali_center/logo@2x.png" alt="DALI Center Logo" width="500">
 </p>
 
+## System Requirements
+
+- **Home Assistant**: Version 2024.4.4 or later
+- **Python**: Version 3.11 or later (as required by Home Assistant)
+
 ## Hardware Requirements
 
 ⚠️ **Important**: This integration requires a **Sunricher DALI Center Gateway** to function. It is NOT compatible with DALI gateways from different manufacturers.
