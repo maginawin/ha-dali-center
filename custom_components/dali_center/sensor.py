@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 import logging
+from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Device
+from PySrDaliGateway import DaliGateway, DaliGatewayType, Device
 from PySrDaliGateway.helper import (
     is_illuminance_sensor,
     is_light_device,
@@ -68,13 +69,13 @@ async def async_setup_entry(
             continue
 
         if is_light_device(device.dev_type):
-            new_sensors.append(DaliCenterEnergySensor(device))
+            new_sensors.append(DaliCenterEnergySensor(device, gateway.to_dict()))
             added_devices.add(device.dev_id)
         elif is_motion_sensor(device.dev_type):
-            new_sensors.append(DaliCenterMotionSensor(device))
+            new_sensors.append(DaliCenterMotionSensor(device, gateway.to_dict()))
             added_devices.add(device.dev_id)
         elif is_illuminance_sensor(device.dev_type):
-            new_sensors.append(DaliCenterIlluminanceSensor(device))
+            new_sensors.append(DaliCenterIlluminanceSensor(device, gateway.to_dict()))
             added_devices.add(device.dev_id)
         # Panel devices are now handled by event entities
         # elif is_panel_device(device.dev_type):
@@ -95,9 +96,9 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_suggested_display_precision = 2
     _attr_has_entity_name = True
 
-    def __init__(self, device: Device) -> None:
+    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
         """Initialize the energy sensor."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn)
+        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
 
         self._device = device
@@ -134,6 +135,14 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
 
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        attributes = self._get_gateway_attributes()
+        device_attrs = self._get_device_base_attributes(self._device)
+        attributes.update(device_attrs)
+        return attributes
+
 
 class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
     """Representation of a Dali Center Motion Sensor."""
@@ -143,9 +152,9 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_has_entity_name = True
     _attr_icon = "mdi:motion-sensor"
 
-    def __init__(self, device: Device) -> None:
+    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
         """Initialize the motion sensor."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn)
+        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
 
         self._device = device
@@ -196,6 +205,14 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
 
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        attributes = self._get_gateway_attributes()
+        device_attrs = self._get_device_base_attributes(self._device)
+        attributes.update(device_attrs)
+        return attributes
+
 
 class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
     """Representation of a Dali Center Illuminance Sensor."""
@@ -205,9 +222,9 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_native_unit_of_measurement = LIGHT_LUX
     _attr_has_entity_name = True
 
-    def __init__(self, device: Device) -> None:
+    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
         """Initialize the illuminance sensor."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn)
+        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
 
         self._device = device
@@ -277,6 +294,14 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
         )
 
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        attributes = self._get_gateway_attributes()
+        device_attrs = self._get_device_base_attributes(self._device)
+        attributes.update(device_attrs)
+        return attributes
 
     def _handle_sensor_on_off_update(self, on_off: bool) -> None:
         """Handle sensor on/off state updates from gateway."""
