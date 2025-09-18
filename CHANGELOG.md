@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2025-09-18
+
+### Fixed
+
+- MQTT compatibility with PySrDaliGateway 0.11.1 update (#43)
+
+### Technical
+
+- Standardized entity attributes and gateway handling across all entity types (#44)
+- Improved consistency of entity initialization and attribute structure (9598f29)
+- Bug report gateway version fields for improved debugging (1c7b660)
+
 ## [0.7.0] - 2025-09-11
 
 ### Added
@@ -197,7 +209,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/maginawin/ha-dali-center/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/maginawin/ha-dali-center/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/maginawin/ha-dali-center/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/maginawin/ha-dali-center/compare/v0.5.0...v0.5.1
