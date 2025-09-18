@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Device
+from PySrDaliGateway import DaliGateway, DaliGatewayType, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
 from homeassistant.components.switch import SwitchEntity
@@ -48,7 +48,9 @@ async def async_setup_entry(
 
         # Only create switches for illuminance sensor devices
         if is_illuminance_sensor(device.dev_type):
-            new_switches.append(DaliCenterIlluminanceSensorEnableSwitch(device))
+            new_switches.append(
+                DaliCenterIlluminanceSensorEnableSwitch(device, gateway.to_dict())
+            )
             added_devices.add(device.dev_id)
 
     if new_switches:
@@ -61,9 +63,9 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
     _attr_entity_category = EntityCategory.CONFIG
     _attr_has_entity_name = True
 
-    def __init__(self, device: Device) -> None:
+    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
         """Initialize the illuminance sensor enable/disable switch."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn)
+        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SwitchEntity.__init__(self)
 
         self._device = device
@@ -157,3 +159,11 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             on_off,
         )
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        attributes = self._get_gateway_attributes()
+        device_attrs = self._get_device_base_attributes(self._device)
+        attributes.update(device_attrs)
+        return attributes

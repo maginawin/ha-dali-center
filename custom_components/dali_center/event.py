@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Panel
+from PySrDaliGateway import DaliGateway, DaliGatewayType, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
 
@@ -46,7 +46,9 @@ async def async_setup_entry(
 
     _LOGGER.debug("Setting up event platform: %d devices", len(devices))
 
-    new_events: list[EventEntity] = [DaliCenterPanelEvent(device) for device in devices]
+    new_events: list[EventEntity] = [
+        DaliCenterPanelEvent(device, gateway.to_dict()) for device in devices
+    ]
 
     if new_events:
         async_add_entities(new_events)
@@ -58,9 +60,9 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
     _attr_has_entity_name = True
     _attr_device_class = EventDeviceClass.BUTTON
 
-    def __init__(self, panel: Panel) -> None:
+    def __init__(self, panel: Panel, gateway: DaliGatewayType) -> None:
         """Initialize the panel event entity."""
-        GatewayAvailabilityMixin.__init__(self, panel.gw_sn)
+        GatewayAvailabilityMixin.__init__(self, panel.gw_sn, gateway)
         EventEntity.__init__(self)
 
         self._panel = panel

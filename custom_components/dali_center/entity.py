@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from typing import Any
+
+from PySrDaliGateway import DaliGatewayType, Device
 
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -15,10 +18,11 @@ _LOGGER = logging.getLogger(__name__)
 class GatewayAvailabilityMixin(Entity):
     """Mixin to handle gateway availability for DALI entities."""
 
-    def __init__(self, gw_sn: str) -> None:
+    def __init__(self, gw_sn: str, gateway: DaliGatewayType) -> None:
         """Initialize the gateway availability mixin."""
         super().__init__()
         self._gw_sn = gw_sn
+        self._gateway = gateway
         self._gateway_available = True
         self._device_available = True
 
@@ -78,3 +82,30 @@ class GatewayAvailabilityMixin(Entity):
 
         self._device_available = available
         self._update_entity_availability()
+
+    def _get_gateway_attributes(self) -> dict[str, Any]:
+        """Get common gateway attributes for extra_state_attributes."""
+        gateway_attrs: dict[str, Any] = {
+            "gw_sn": self._gw_sn,
+            "gateway_ip": self._gateway["gw_ip"],
+            "gateway_port": self._gateway["port"],
+            "gateway_tls": self._gateway["is_tls"],
+            "gateway_name": self._gateway["name"],
+        }
+
+        return gateway_attrs
+
+    def _get_device_base_attributes(self, device: Device) -> dict[str, Any]:
+        """Get common device attributes for extra_state_attributes."""
+        if not device:
+            return {}
+
+        # Only use verified attributes that exist in the codebase
+        device_attrs: dict[str, Any] = {
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
+        }
+
+        return device_attrs

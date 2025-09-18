@@ -269,8 +269,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 await gateway.disconnect()
                 _LOGGER.debug("Disconnected existing gateway connection")
 
-            # Perform discovery with serial number to get updated IP
-            discovery = DaliGatewayDiscovery()  # type: ignore[no-untyped-call]
+            discovery = DaliGatewayDiscovery()
             discovered_gateways = await discovery.discover_gateways(current_sn)
 
             if not discovered_gateways:
@@ -282,10 +281,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     data_schema=vol.Schema({}),
                 )
 
-            # Get the first (and should be only) gateway found
             updated_gateway = discovered_gateways[0]
 
-            # Update config entry with new IP
             current_data = dict(self._config_entry.data)
             current_data["gateway"]["gw_ip"] = updated_gateway["gw_ip"]
 
@@ -362,7 +359,6 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle the initial step."""
         if user_input is not None:
-            # User confirmed, proceed to discovery
             return await self.async_step_discovery()
 
         return self.async_show_form(
@@ -422,7 +418,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
         if not self._gateways:
             _LOGGER.debug("Starting gateway discovery (3-minute timeout)")
             try:
-                discovered_gateways = await DaliGatewayDiscovery().discover_gateways()  # type: ignore[no-untyped-call]
+                discovered_gateways = await DaliGatewayDiscovery().discover_gateways()
             except DaliGatewayError:
                 _LOGGER.exception("Error discovering gateways")
                 errors["base"] = "discovery_failed"
@@ -465,7 +461,6 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema({}),
             )
 
-        # Show gateway selection
         _LOGGER.debug("Presenting gateway selection: %s", self._gateways)
         return self.async_show_form(
             step_id="discovery",

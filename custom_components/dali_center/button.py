@@ -3,7 +3,7 @@
 import logging
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Scene
+from PySrDaliGateway import DaliGateway, DaliGatewayType, Scene
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import EntityCategory
@@ -40,7 +40,7 @@ async def async_setup_entry(
         if scene.scene_id in added_scenes:
             continue
 
-        new_entities.append(DaliCenterSceneButton(scene))
+        new_entities.append(DaliCenterSceneButton(scene, gateway.to_dict()))
         added_scenes.add(scene.scene_id)
 
     if new_entities:
@@ -50,9 +50,9 @@ async def async_setup_entry(
 class DaliCenterSceneButton(GatewayAvailabilityMixin, ButtonEntity):
     """Representation of a Dali Center Scene Button."""
 
-    def __init__(self, scene: Scene) -> None:
+    def __init__(self, scene: Scene, gateway: DaliGatewayType) -> None:
         """Initialize the scene button."""
-        GatewayAvailabilityMixin.__init__(self, scene.gw_sn)
+        GatewayAvailabilityMixin.__init__(self, scene.gw_sn, gateway)
         ButtonEntity.__init__(self)
 
         self._scene = scene
@@ -77,7 +77,7 @@ class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
 
     def __init__(self, gateway: DaliGateway) -> None:
         """Initialize the gateway restart button."""
-        GatewayAvailabilityMixin.__init__(self, gateway.gw_sn)
+        GatewayAvailabilityMixin.__init__(self, gateway.gw_sn, gateway.to_dict())
         ButtonEntity.__init__(self)
 
         self._gateway = gateway
