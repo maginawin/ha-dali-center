@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-09-19
+
+### Added
+
+- Native Home Assistant scene platform support (#45)
+- Device state tracking in scene attributes
+- Support for group devices in scene configurations
+
+### Fixed
+
+- Scene entity mapping and activation
+- Group device unique ID generation in scenes
+
+### Technical
+
+- **BREAKING CHANGE**: Scenes migrated from button entities to native scene platform - users need to manually refresh scenes in integration options
+- Removed scene functionality from button platform (773a7d5, 5ec93e5, efa3417)
+- Updated documentation with Home Assistant version compatibility requirements (007263b)
+
 ## [0.7.1] - 2025-09-18
 
 ### Fixed
@@ -209,7 +228,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/maginawin/ha-dali-center/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/maginawin/ha-dali-center/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/maginawin/ha-dali-center/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/maginawin/ha-dali-center/compare/v0.5.1...v0.6.0
