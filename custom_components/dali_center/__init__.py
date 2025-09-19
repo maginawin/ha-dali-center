@@ -24,6 +24,7 @@ _PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.EVENT,
     Platform.SWITCH,
+    Platform.SCENE,
 ]
 _LOGGER = logging.getLogger(__name__)
 
