@@ -5,7 +5,7 @@ from typing import Any
 
 from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, DaliGatewayType, Scene, SceneType
-from PySrDaliGateway.helper import gen_device_unique_id
+from PySrDaliGateway.helper import gen_device_unique_id, gen_group_unique_id
 
 from homeassistant.components.scene import Scene as SceneEntity
 from homeassistant.core import HomeAssistant
@@ -96,12 +96,20 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
 
         for device in self._scene_details["devices"]:
             # Use SDK helper to generate correct unique_id
-            device_unique_id = gen_device_unique_id(
-                device["dev_type"],
-                device["channel"],
-                device["address"],
-                self._scene.gw_sn,
-            )
+            if device["dev_type"] == "0401":
+                # It's a group
+                device_unique_id = gen_group_unique_id(
+                    device["address"],
+                    device["channel"],
+                    self._scene.gw_sn,
+                )
+            else:
+                device_unique_id = gen_device_unique_id(
+                    device["dev_type"],
+                    device["channel"],
+                    device["address"],
+                    self._scene.gw_sn,
+                )
             entity_id = ent_reg.async_get_entity_id("light", DOMAIN, device_unique_id)
 
             device_state: dict[str, Any] = {}
@@ -136,28 +144,12 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
                 }
             )
 
-        _LOGGER.warning(
-            "Scene %s has %d devices, %d mapped to entities, %s",
-            self._attr_name,
-            len(raw_devices),
-            len(mapped_entities),
-            {
-                "scene_id": self._scene.scene_id,
-                "area_id": self._scene_details["area_id"],
-                "channel": self._scene_details["channel"],
-                "entity_states": entity_states,
-                "entity_ids": mapped_entities,
-                "device_count": len(raw_devices),
-                "devices": raw_devices,
-            },
-        )
-
         return {
             "scene_id": self._scene.scene_id,
             "area_id": self._scene_details["area_id"],
             "channel": self._scene_details["channel"],
             "entity_states": entity_states,
-            "entity_ids": mapped_entities,
+            "entity_id": mapped_entities,
             "device_count": len(raw_devices),
             "devices": raw_devices,
         }
