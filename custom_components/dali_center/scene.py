@@ -86,18 +86,12 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return scene device information as extra state attributes."""
-        # Get entity registry to map device unique_ids to actual entity_ids
         ent_reg = er.async_get(self.hass)
-
-        # Build entity states map in HA standard format
-        entity_states: dict[str, dict[str, Any]] = {}
         mapped_entities: list[str] = []
-        raw_devices: list[dict[str, Any]] = []
 
         for device in self._scene_details["devices"]:
             # Use SDK helper to generate correct unique_id
             if device["dev_type"] == "0401":
-                # It's a group
                 device_unique_id = gen_group_unique_id(
                     device["address"],
                     device["channel"],
@@ -112,46 +106,14 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
                 )
             entity_id = ent_reg.async_get_entity_id("light", DOMAIN, device_unique_id)
 
-            device_state: dict[str, Any] = {}
-            if light_property := device["property"]:
-                # Map to HA light state format
-                if light_property["is_on"] is not None:
-                    device_state["state"] = "on" if light_property["is_on"] else "off"
-                if light_property["brightness"] is not None:
-                    device_state["brightness"] = light_property["brightness"]
-                if light_property["color_temp_kelvin"] is not None:
-                    device_state["color_temp_kelvin"] = light_property[
-                        "color_temp_kelvin"
-                    ]
-                if light_property["white_level"] is not None:
-                    device_state["white_level"] = light_property["white_level"]
-
-            # If we found a real entity_id, use it
             if entity_id:
                 mapped_entities.append(entity_id)
-                if device_state:
-                    entity_states[entity_id] = device_state
-
-            # Keep raw device info for debugging
-            raw_devices.append(
-                {
-                    "address": device["address"],
-                    "channel": device["channel"],
-                    "device_type": device["dev_type"],
-                    "device_unique_id": device_unique_id,
-                    "entity_id": entity_id,
-                    "mapped": entity_id is not None,
-                }
-            )
 
         return {
             "scene_id": self._scene.scene_id,
             "area_id": self._scene_details["area_id"],
             "channel": self._scene_details["channel"],
-            "entity_states": entity_states,
             "entity_id": mapped_entities,
-            "device_count": len(raw_devices),
-            "devices": raw_devices,
         }
 
     async def async_activate(self, **kwargs: Any) -> None:
