@@ -40,21 +40,21 @@ async def async_setup_entry(
         try:
             # Load scene details during setup
             scene_details = await gateway.read_scene(
-                scene.scene_id, getattr(scene, 'channel', 0)
+                scene.scene_id, getattr(scene, "channel", 0)
             )
             _LOGGER.debug(
                 "Loaded scene details for %s: %d devices",
                 scene.name,
-                len(scene_details.get("devices", []))
+                len(scene_details.get("devices", [])),
             )
 
             scene_entities.append(
                 DaliCenterScene(scene, gateway.to_dict(), scene_details)
             )
-        except (OSError, ValueError, KeyError) as exc:
-            _LOGGER.error(
-                "Failed to read scene details for %s: %s, skipping scene",
-                scene.name, exc
+        except (OSError, ValueError, KeyError):
+            _LOGGER.exception(
+                "Failed to read scene details for %s, skipping scene",
+                scene.name,
             )
 
     if scene_entities:
@@ -65,10 +65,7 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
     """Representation of a DALI Center Scene."""
 
     def __init__(
-        self,
-        scene: Scene,
-        gateway: DaliGatewayType,
-        scene_details: SceneType
+        self, scene: Scene, gateway: DaliGatewayType, scene_details: SceneType
     ) -> None:
         """Initialize the DALI scene."""
         GatewayAvailabilityMixin.__init__(self, scene.gw_sn, gateway)
@@ -105,8 +102,7 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
                 device["address"],
                 self._scene.gw_sn,
             )
-            entity_id = ent_reg.async_get_entity_id(
-                "light", DOMAIN, device_unique_id)
+            entity_id = ent_reg.async_get_entity_id("light", DOMAIN, device_unique_id)
 
             device_state: dict[str, Any] = {}
             if light_property := device["property"]:
@@ -116,7 +112,9 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
                 if light_property["brightness"] is not None:
                     device_state["brightness"] = light_property["brightness"]
                 if light_property["color_temp_kelvin"] is not None:
-                    device_state["color_temp_kelvin"] = light_property["color_temp_kelvin"]
+                    device_state["color_temp_kelvin"] = light_property[
+                        "color_temp_kelvin"
+                    ]
                 if light_property["white_level"] is not None:
                     device_state["white_level"] = light_property["white_level"]
 
@@ -127,14 +125,16 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
                     entity_states[entity_id] = device_state
 
             # Keep raw device info for debugging
-            raw_devices.append({
-                "address": device["address"],
-                "channel": device["channel"],
-                "device_type": device["dev_type"],
-                "device_unique_id": device_unique_id,
-                "entity_id": entity_id,
-                "mapped": entity_id is not None,
-            })
+            raw_devices.append(
+                {
+                    "address": device["address"],
+                    "channel": device["channel"],
+                    "device_type": device["dev_type"],
+                    "device_unique_id": device_unique_id,
+                    "entity_id": entity_id,
+                    "mapped": entity_id is not None,
+                }
+            )
 
         _LOGGER.warning(
             "Scene %s has %d devices, %d mapped to entities, %s",
@@ -149,7 +149,7 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
                 "entity_ids": mapped_entities,
                 "device_count": len(raw_devices),
                 "devices": raw_devices,
-            }
+            },
         )
 
         return {
