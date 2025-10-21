@@ -1,9 +1,9 @@
 """Entity discovery and selection helpers for config flow."""
 
 import logging
-from typing import Any, cast
+from typing import Any
 
-from PySrDaliGateway import DaliGateway, DeviceType, GroupType, SceneType
+from PySrDaliGateway import DaliGateway
 from PySrDaliGateway.exceptions import DaliGatewayError
 import voluptuous as vol
 
@@ -84,9 +84,9 @@ class EntityDiscoveryHelper:
 
     @staticmethod
     def prepare_entity_selection_schema(
-        devices: list[DeviceType],
-        groups: list[GroupType],
-        scenes: list[SceneType],
+        devices: list[dict[str, Any]],
+        groups: list[dict[str, Any]],
+        scenes: list[dict[str, Any]],
         existing_selections: dict[str, Any] | None = None,
         show_diff: bool = False,
     ) -> vol.Schema:
@@ -108,9 +108,8 @@ class EntityDiscoveryHelper:
                 }
 
             for device in devices:
-                device_dict = cast("dict[str, Any]", device)
-                unique_id = str(device_dict.get("unique_id", ""))
-                name = str(device_dict.get("name", ""))
+                unique_id = str(device.get("unique_id", ""))
+                name = str(device.get("name", ""))
                 label = f"{name}"
                 if (
                     show_diff
@@ -122,13 +121,10 @@ class EntityDiscoveryHelper:
 
             # Add removed devices if showing diff
             if show_diff and existing_selections and "devices" in existing_selections:
-                current_device_ids = {
-                    str(cast("dict[str, Any]", d).get("unique_id", "")) for d in devices
-                }
+                current_device_ids = {str(d.get("unique_id", "")) for d in devices}
                 for device in existing_selections["devices"]:
-                    device_dict = cast("dict[str, Any]", device)
-                    device_unique_id = str(device_dict.get("unique_id", ""))
-                    device_name = str(device_dict.get("name", ""))
+                    device_unique_id = str(device.get("unique_id", ""))
+                    device_name = str(device.get("name", ""))
                     if device_unique_id not in current_device_ids:
                         device_options[device_unique_id] = f"[REMOVED] {device_name}"
 
@@ -154,8 +150,8 @@ class EntityDiscoveryHelper:
             group_options: dict[str, str] = {}
             existing_ids: set[str] = set()
             if existing_selections:
-                existing_groups = cast(
-                    "list[dict[str, Any]]", existing_selections.get("groups", [])
+                existing_groups: list[dict[str, Any]] = existing_selections.get(
+                    "groups", []
                 )
                 existing_ids = {
                     str(g.get("unique_id", ""))
@@ -164,11 +160,10 @@ class EntityDiscoveryHelper:
                 }
 
             for group in groups:
-                group_dict = cast("dict[str, Any]", group)
-                unique_id = str(group_dict.get("unique_id", ""))
-                name = str(group_dict.get("name", ""))
-                channel = str(group_dict.get("channel", ""))
-                group_id = str(group_dict.get("id", ""))
+                unique_id = str(group.get("unique_id", ""))
+                name = str(group.get("name", ""))
+                channel = str(group.get("channel", ""))
+                group_id = str(group.get("id", ""))
                 label = f"{name} (Channel {channel}, Group {group_id})"
                 if show_diff and existing_selections and unique_id not in existing_ids:
                     label = f"[NEW] {label}"
@@ -176,13 +171,10 @@ class EntityDiscoveryHelper:
 
             # Add removed groups if showing diff
             if show_diff and existing_selections and "groups" in existing_selections:
-                current_ids = {
-                    str(cast("dict[str, Any]", g).get("unique_id", "")) for g in groups
-                }
+                current_ids = {str(g.get("unique_id", "")) for g in groups}
                 for group in existing_selections["groups"]:
-                    group_dict = cast("dict[str, Any]", group)
-                    group_unique_id = str(group_dict.get("unique_id", ""))
-                    group_name = str(group_dict.get("name", ""))
+                    group_unique_id = str(group.get("unique_id", ""))
+                    group_name = str(group.get("name", ""))
                     if group_unique_id not in current_ids:
                         group_options[group_unique_id] = f"[REMOVED] {group_name}"
 
@@ -208,8 +200,8 @@ class EntityDiscoveryHelper:
             scene_options: dict[str, str] = {}
             existing_scene_ids: set[str] = set()
             if existing_selections:
-                existing_scenes = cast(
-                    "list[dict[str, Any]]", existing_selections.get("scenes", [])
+                existing_scenes: list[dict[str, Any]] = existing_selections.get(
+                    "scenes", []
                 )
                 existing_scene_ids = {
                     str(s.get("unique_id", ""))
@@ -218,11 +210,10 @@ class EntityDiscoveryHelper:
                 }
 
             for scene in scenes:
-                scene_dict = cast("dict[str, Any]", scene)
-                unique_id = str(scene_dict.get("unique_id", ""))
-                name = str(scene_dict.get("name", ""))
-                channel = str(scene_dict.get("channel", ""))
-                scene_id = str(scene_dict.get("id", ""))
+                unique_id = str(scene.get("unique_id", ""))
+                name = str(scene.get("name", ""))
+                channel = str(scene.get("channel", ""))
+                scene_id = str(scene.get("id", ""))
                 label = f"{name} (Channel {channel}, Scene {scene_id})"
                 if (
                     show_diff
@@ -234,13 +225,10 @@ class EntityDiscoveryHelper:
 
             # Add removed scenes if showing diff
             if show_diff and existing_selections and "scenes" in existing_selections:
-                current_ids = {
-                    str(cast("dict[str, Any]", s).get("unique_id", "")) for s in scenes
-                }
+                current_ids = {str(s.get("unique_id", "")) for s in scenes}
                 for scene in existing_selections["scenes"]:
-                    scene_dict = cast("dict[str, Any]", scene)
-                    scene_unique_id = str(scene_dict.get("unique_id", ""))
-                    scene_name = str(scene_dict.get("name", ""))
+                    scene_unique_id = str(scene.get("unique_id", ""))
+                    scene_name = str(scene.get("name", ""))
                     if scene_unique_id not in current_ids:
                         scene_options[scene_unique_id] = f"[REMOVED] {scene_name}"
 
@@ -266,9 +254,7 @@ class EntityDiscoveryHelper:
     @staticmethod
     def filter_selected_entities(
         user_input: dict[str, Any],
-        discovered_entities: dict[
-            str, list[DeviceType] | list[GroupType] | list[SceneType]
-        ],
+        discovered_entities: dict[str, list[dict[str, Any]]],
     ) -> ConfigData:
         """Filter selected entities from user input."""
         selected: ConfigData = {}
@@ -276,7 +262,7 @@ class EntityDiscoveryHelper:
         # Filter devices
         if "devices" in user_input and "devices" in discovered_entities:
             selected_ids = user_input["devices"]
-            devices = cast("list[DeviceType]", discovered_entities["devices"])
+            devices = discovered_entities["devices"]
             selected["devices"] = [
                 device for device in devices if device["unique_id"] in selected_ids
             ]
@@ -284,7 +270,7 @@ class EntityDiscoveryHelper:
         # Filter groups
         if "groups" in user_input and "groups" in discovered_entities:
             selected_ids = user_input["groups"]
-            groups = cast("list[GroupType]", discovered_entities["groups"])
+            groups = discovered_entities["groups"]
             selected["groups"] = [
                 group for group in groups if group["unique_id"] in selected_ids
             ]
@@ -292,7 +278,7 @@ class EntityDiscoveryHelper:
         # Filter scenes
         if "scenes" in user_input and "scenes" in discovered_entities:
             selected_ids = user_input["scenes"]
-            scenes = cast("list[SceneType]", discovered_entities["scenes"])
+            scenes = discovered_entities["scenes"]
             selected["scenes"] = [
                 scene for scene in scenes if scene["unique_id"] in selected_ids
             ]

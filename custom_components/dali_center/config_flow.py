@@ -2,27 +2,28 @@
 
 import asyncio
 import logging
-from typing import Any, cast
+from typing import Any
 
-from PySrDaliGateway import (
-    DaliGateway,
-    DaliGatewayType,
-    DeviceType,
-    GroupType,
-    SceneType,
-)
+from PySrDaliGateway import DaliGateway
 from PySrDaliGateway.discovery import DaliGatewayDiscovery
 from PySrDaliGateway.exceptions import DaliGatewayError
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_NAME,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+)
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .config_flow_helpers.entity_helpers import EntityDiscoveryHelper
 from .config_flow_helpers.ui_helpers import UIFormattingHelper
-from .const import DOMAIN
+from .const import CONF_SERIAL_NUMBER, DOMAIN
 from .types import ConfigData
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,9 +50,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._refresh_scenes = False
         self._refresh_gateway_ip = False
         self._refresh_results: dict[str, Any] = {}
-        self._discovered_entities: dict[
-            str, list[DeviceType] | list[GroupType] | list[SceneType]
-        ] = {}
+        self._discovered_entities: dict[str, list[dict[str, Any]]] = {}
 
     async def _reload_with_delay(self) -> bool:
         try:
@@ -114,22 +113,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_refresh(self) -> ConfigFlowResult:
         """Search for devices and automatically update configuration."""
         errors: dict[str, str] = {}
+        gateway_sn = self._config_entry.data.get(
+            CONF_SERIAL_NUMBER
+        ) or self._config_entry.data.get("sn")
 
         try:
-            _LOGGER.debug(
-                "Searching for devices on gateway %s", self._config_entry.data["sn"]
-            )
+            _LOGGER.debug("Searching for devices on gateway %s", gateway_sn)
 
             if not self._config_entry.runtime_data:
                 _LOGGER.warning(
                     "Gateway %s not found in runtime_data",
-                    self._config_entry.data["sn"],
+                    gateway_sn,
                 )
                 return self.async_abort(reason="gateway_not_found")
 
             gateway: DaliGateway = self._config_entry.runtime_data.gateway
 
-            # Discover entities based on user selection using helper
             discovered = await EntityDiscoveryHelper.discover_entities(
                 gateway,
                 discover_devices=self._refresh_devices,
@@ -137,16 +136,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 discover_scenes=self._refresh_scenes,
             )
 
-            # Store discovered entities for next step
             self._discovered_entities = discovered
 
-            # Go to entity selection step
             return await self.async_step_select_entities()
 
         except Exception as e:
             _LOGGER.warning(
                 "Error searching for devices on gateway %s: %s",
-                self._config_entry.data["sn"],
+                gateway_sn,
                 e,
             )
             errors["base"] = "cannot_connect"
@@ -213,14 +210,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             return await self.async_step_refresh_result()
 
-        # Prepare schema with existing selections and diff display using helper
         current_data = dict(self._config_entry.data)
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
-            devices=cast(
-                "list[DeviceType]", self._discovered_entities.get("devices", [])
-            ),
-            groups=cast("list[GroupType]", self._discovered_entities.get("groups", [])),
-            scenes=cast("list[SceneType]", self._discovered_entities.get("scenes", [])),
+            devices=self._discovered_entities.get("devices", []),
+            groups=self._discovered_entities.get("groups", []),
+            scenes=self._discovered_entities.get("scenes", []),
             existing_selections=current_data,
             show_diff=True,
         )
@@ -260,9 +254,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         try:
-            _LOGGER.debug("Refreshing IP for gateway %s", self._config_entry.data["sn"])
-
-            current_sn = self._config_entry.data["sn"]
+            current_sn = self._config_entry.data.get(
+                CONF_SERIAL_NUMBER
+            ) or self._config_entry.data.get("sn")
+            _LOGGER.debug("Refreshing IP for gateway %s", current_sn)
 
             if hasattr(self._config_entry, "runtime_data"):
                 gateway: DaliGateway = self._config_entry.runtime_data.gateway
@@ -284,14 +279,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             updated_gateway = discovered_gateways[0]
 
             current_data = dict(self._config_entry.data)
-            current_data["gateway"]["gw_ip"] = updated_gateway["gw_ip"]
+            current_data[CONF_HOST] = updated_gateway.gw_ip
 
             self.hass.config_entries.async_update_entry(
                 self._config_entry, data=current_data
             )
 
             _LOGGER.info(
-                "Gateway %s IP updated to %s", current_sn, updated_gateway["gw_ip"]
+                "Gateway %s IP updated to %s", current_sn, updated_gateway.gw_ip
             )
 
             reload_success = await self._reload_with_delay()
@@ -312,8 +307,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 step_id="refresh_gateway_ip_result",
                 data_schema=vol.Schema({}),
                 description_placeholders={
-                    "gateway_sn": current_sn,
-                    "new_ip": updated_gateway["gw_ip"],
+                    "gateway_sn": current_sn or "",
+                    "new_ip": updated_gateway.gw_ip,
                 },
             )
 
@@ -342,15 +337,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Dali Center."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""
         super().__init__()
-        self._gateways: list[DaliGatewayType] = []
-        self._discovered_entities: dict[
-            str, list[DeviceType] | list[GroupType] | list[SceneType]
-        ] = {}
+        self._gateways: list[DaliGateway] = []
+        self._discovered_entities: dict[str, list[dict[str, Any]]] = {}
         self._selected_gateway: DaliGateway | None = None
         self._config_data: ConfigData = {}
 
@@ -381,21 +374,24 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._gateways = []
                 return await self.async_step_discovery()
 
-            # User selected a gateway, proceed to connection
-            selected_gateway: DaliGatewayType | None = next(
+            selected_gateway: DaliGateway | None = next(
                 (
                     gateway
                     for gateway in self._gateways
-                    if gateway["gw_sn"] == discovery_info["selected_gateway"]
+                    if gateway.gw_sn == discovery_info["selected_gateway"]
                 ),
                 None,
             )
 
             if selected_gateway:
-                self._selected_gateway = DaliGateway(selected_gateway)
+                self._selected_gateway = selected_gateway
                 self._config_data = {
-                    "sn": self._selected_gateway.gw_sn,
-                    "gateway": self._selected_gateway.to_dict(),
+                    CONF_SERIAL_NUMBER: self._selected_gateway.gw_sn,
+                    CONF_HOST: self._selected_gateway.gw_ip,
+                    CONF_PORT: self._selected_gateway.port,
+                    CONF_NAME: self._selected_gateway.name,
+                    CONF_USERNAME: self._selected_gateway.username,
+                    CONF_PASSWORD: self._selected_gateway.passwd,
                 }
 
                 try:
@@ -431,16 +427,15 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                     data_schema=vol.Schema({}),
                 )
 
-            # Filter out already configured gateways
             configured_gateways = {
-                entry.data["sn"]
+                entry.data.get(CONF_SERIAL_NUMBER) or entry.data.get("sn")
                 for entry in self.hass.config_entries.async_entries(DOMAIN)
             }
 
             self._gateways = [
                 gateway
                 for gateway in discovered_gateways
-                if gateway["gw_sn"] not in configured_gateways
+                if gateway.gw_sn not in configured_gateways
             ]
 
             _LOGGER.info(
@@ -552,11 +547,9 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         schema = EntityDiscoveryHelper.prepare_entity_selection_schema(
-            devices=cast(
-                "list[DeviceType]", self._discovered_entities.get("devices", [])
-            ),
-            groups=cast("list[GroupType]", self._discovered_entities.get("groups", [])),
-            scenes=cast("list[SceneType]", self._discovered_entities.get("scenes", [])),
+            devices=self._discovered_entities.get("devices", []),
+            groups=self._discovered_entities.get("groups", []),
+            scenes=self._discovered_entities.get("scenes", []),
             existing_selections=None,
             show_diff=False,
         )

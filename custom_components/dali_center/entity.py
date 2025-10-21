@@ -6,7 +6,7 @@ import contextlib
 import logging
 from typing import Any
 
-from PySrDaliGateway import DaliGatewayType, Device
+from PySrDaliGateway import Device
 
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 class GatewayAvailabilityMixin(Entity):
     """Mixin to handle gateway availability for DALI entities."""
 
-    def __init__(self, gw_sn: str, gateway: DaliGatewayType) -> None:
+    def __init__(self, gw_sn: str, gateway: dict[str, Any]) -> None:
         """Initialize the gateway availability mixin."""
         super().__init__()
         self._gw_sn = gw_sn

@@ -13,6 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
 
     def __init__(self, gateway: DaliGateway) -> None:
         """Initialize the gateway restart button."""
-        GatewayAvailabilityMixin.__init__(self, gateway.gw_sn, gateway.to_dict())
+        GatewayAvailabilityMixin.__init__(self, gateway.gw_sn, gateway_to_dict(gateway))
         ButtonEntity.__init__(self)
 
         self._gateway_obj = gateway

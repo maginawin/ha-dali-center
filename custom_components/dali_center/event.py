@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Panel
+from PySrDaliGateway import DaliGateway, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
 
@@ -20,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +35,7 @@ async def async_setup_entry(
     """Set up Dali Center event entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Panel] = [
-        Panel(gateway, device)
+        Panel(gateway, **device)
         for device in entry.data.get("devices", [])
         if is_panel_device(device.get("dev_type"))
     ]
@@ -47,7 +49,7 @@ async def async_setup_entry(
     _LOGGER.debug("Setting up event platform: %d devices", len(devices))
 
     new_events: list[EventEntity] = [
-        DaliCenterPanelEvent(device, gateway.to_dict()) for device in devices
+        DaliCenterPanelEvent(device, gateway_to_dict(gateway)) for device in devices
     ]
 
     if new_events:
@@ -60,7 +62,7 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
     _attr_has_entity_name = True
     _attr_device_class = EventDeviceClass.BUTTON
 
-    def __init__(self, panel: Panel, gateway: DaliGatewayType) -> None:
+    def __init__(self, panel: Panel, gateway: dict[str, Any]) -> None:
         """Initialize the panel event entity."""
         GatewayAvailabilityMixin.__init__(self, panel.gw_sn, gateway)
         EventEntity.__init__(self)

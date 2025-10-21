@@ -8,7 +8,7 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Device
+from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import (
     is_illuminance_sensor,
     is_light_device,
@@ -33,6 +33,7 @@ from homeassistant.helpers.typing import StateType
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ async def async_setup_entry(
     """Set up Dali Center sensor entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
-        Device(gateway, device) for device in entry.data.get("devices", [])
+        Device(gateway, **device) for device in entry.data.get("devices", [])
     ]
 
     def _on_motion_status(dev_id: str, status: MotionStatus) -> None:
@@ -69,13 +70,15 @@ async def async_setup_entry(
             continue
 
         if is_light_device(device.dev_type):
-            new_sensors.append(DaliCenterEnergySensor(device, gateway.to_dict()))
+            new_sensors.append(DaliCenterEnergySensor(device, gateway_to_dict(gateway)))
             added_devices.add(device.dev_id)
         elif is_motion_sensor(device.dev_type):
-            new_sensors.append(DaliCenterMotionSensor(device, gateway.to_dict()))
+            new_sensors.append(DaliCenterMotionSensor(device, gateway_to_dict(gateway)))
             added_devices.add(device.dev_id)
         elif is_illuminance_sensor(device.dev_type):
-            new_sensors.append(DaliCenterIlluminanceSensor(device, gateway.to_dict()))
+            new_sensors.append(
+                DaliCenterIlluminanceSensor(device, gateway_to_dict(gateway))
+            )
             added_devices.add(device.dev_id)
         # Panel devices are now handled by event entities
         # elif is_panel_device(device.dev_type):
@@ -96,7 +99,7 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_suggested_display_precision = 2
     _attr_has_entity_name = True
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the energy sensor."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
@@ -152,7 +155,7 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_has_entity_name = True
     _attr_icon = "mdi:motion-sensor"
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the motion sensor."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
@@ -222,7 +225,7 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_native_unit_of_measurement = LIGHT_LUX
     _attr_has_entity_name = True
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the illuminance sensor."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)

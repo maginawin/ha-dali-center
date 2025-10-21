@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Device
+from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
 from homeassistant.components.switch import SwitchEntity
@@ -21,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ async def async_setup_entry(
 
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
-        Device(gateway, device) for device in entry.data.get("devices", [])
+        Device(gateway, **device) for device in entry.data.get("devices", [])
     ]
 
     _LOGGER.debug("Processing initially for illuminance sensor switches: %s", devices)
@@ -46,10 +47,11 @@ async def async_setup_entry(
         if device.dev_id in added_devices:
             continue
 
-        # Only create switches for illuminance sensor devices
         if is_illuminance_sensor(device.dev_type):
             new_switches.append(
-                DaliCenterIlluminanceSensorEnableSwitch(device, gateway.to_dict())
+                DaliCenterIlluminanceSensorEnableSwitch(
+                    device, gateway_to_dict(gateway)
+                )
             )
             added_devices.add(device.dev_id)
 
@@ -63,7 +65,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
     _attr_entity_category = EntityCategory.CONFIG
     _attr_has_entity_name = True
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the illuminance sensor enable/disable switch."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SwitchEntity.__init__(self)

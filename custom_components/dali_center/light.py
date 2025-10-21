@@ -6,9 +6,9 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Device, Group
+from PySrDaliGateway import DaliGateway, Device, Group
 from PySrDaliGateway.helper import is_light_device
-from PySrDaliGateway.types import DeviceType, LightStatus
+from PySrDaliGateway.types import LightStatus
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -30,6 +30,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,27 +44,25 @@ async def async_setup_entry(
     """Set up Dali Center light entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = [
-        Device(gateway, device) for device in entry.data.get("devices", [])
+        Device(gateway, **device) for device in entry.data.get("devices", [])
     ]
     groups: list[Group] = [
-        Group(gateway, group) for group in entry.data.get("groups", [])
+        Group(gateway, **group) for group in entry.data.get("groups", [])
     ]
     all_light: Device = Device(
         gateway,
-        DeviceType(
-            unique_id=f"{gateway.gw_sn}_all_lights",
-            id=gateway.gw_sn,
-            name="All Lights",
-            dev_type="FFFF",
-            channel=0,
-            address=1,
-            status="online",
-            dev_sn=gateway.gw_sn,
-            area_name="",
-            area_id="",
-            model="All Lights Controller",
-            prop=[],
-        ),
+        unique_id=f"{gateway.gw_sn}_all_lights",
+        dev_id=gateway.gw_sn,
+        name="All Lights",
+        dev_type="FFFF",
+        channel=0,
+        address=1,
+        status="online",
+        dev_sn=gateway.gw_sn,
+        area_name="",
+        area_id="",
+        model="All Lights Controller",
+        properties=[],
     )
 
     def _on_light_status(dev_id: str, status: LightStatus) -> None:
@@ -82,7 +81,7 @@ async def async_setup_entry(
         if device.dev_id in added_entities:
             continue
         if is_light_device(device.dev_type):
-            new_lights.append(DaliCenterLight(device, gateway.to_dict()))
+            new_lights.append(DaliCenterLight(device, gateway_to_dict(gateway)))
             added_entities.add(device.dev_id)
 
     if new_lights:
@@ -111,7 +110,7 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, light: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, light: Device, gateway: dict[str, Any]) -> None:
         """Initialize the light entity."""
         GatewayAvailabilityMixin.__init__(self, light.gw_sn, gateway)
         LightEntity.__init__(self)
@@ -260,7 +259,7 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
 
     def __init__(self, group: Group, gateway: DaliGateway) -> None:
         """Initialize the light group."""
-        GatewayAvailabilityMixin.__init__(self, group.gw_sn, gateway.to_dict())
+        GatewayAvailabilityMixin.__init__(self, group.gw_sn, gateway_to_dict(gateway))
         LightEntity.__init__(self)
 
         self._group = group
@@ -507,7 +506,7 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
     def __init__(self, light: Device, config_entry: DaliCenterConfigEntry) -> None:
         """Initialize the all lights control."""
         GatewayAvailabilityMixin.__init__(
-            self, light.gw_sn, config_entry.runtime_data.gateway.to_dict()
+            self, light.gw_sn, gateway_to_dict(config_entry.runtime_data.gateway)
         )
         LightEntity.__init__(self)
 

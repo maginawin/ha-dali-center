@@ -120,6 +120,8 @@ This is a Home Assistant custom integration for Dali Center lighting control sys
 - **Mentorship-Driven Development**: All AI interactions should enhance developer skills
 - **Architecture-First Thinking**: Design decisions before implementation details
 - **Learning Documentation**: Capture decision rationale and alternatives considered
+- **Code Readability First**: Minimize comments in favor of self-documenting code
+- **Virtual Environment Requirement**: All development commands must be executed within the activated virtual environment
 
 ## Development Setup
 
@@ -272,32 +274,6 @@ MQTT communication is handled by the PySrDaliGateway external library:
 Tests are located in `tests/` directory and use pytest with asyncio support. Configuration in `pytest.ini` sets up proper test discovery and async handling.
 
 ## Development Workflow
-
-### Mentorship-Enhanced Development Process
-
-#### 1. Requirement Analysis
-
-- **AI Role**: Analyze requirements and identify technical challenges
-- **Developer Role**: Validate understanding and provide domain context
-- **Output**: Technical requirements document with architectural implications
-
-#### 2. Solution Design
-
-- **AI Role**: Present multiple architectural approaches with trade-off analysis
-- **Developer Role**: Select preferred approach based on project constraints
-- **Output**: Architecture decision record with implementation roadmap
-
-#### 3. Guided Implementation
-
-- **AI Role**: Provide step-by-step guidance and code review feedback
-- **Developer Role**: Write all code while applying suggested patterns and practices
-- **Output**: Implemented solution with learning documentation
-
-#### 4. Review and Optimization
-
-- **AI Role**: Identify improvement opportunities and explain optimization strategies
-- **Developer Role**: Apply optimizations and document lessons learned
-- **Output**: Refined solution with performance and maintainability enhancements
 
 ### Branch Naming Convention
 
