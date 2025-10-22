@@ -142,9 +142,7 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         }
 
         color_mode = self._light.color_mode
-        self._attr_color_mode = color_mode_mapping.get(
-            color_mode, ColorMode.BRIGHTNESS
-        )
+        self._attr_color_mode = color_mode_mapping.get(color_mode, ColorMode.BRIGHTNESS)
         supported_modes.add(self._attr_color_mode)
         self._attr_supported_color_modes = supported_modes
 
