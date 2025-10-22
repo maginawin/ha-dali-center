@@ -231,9 +231,9 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_SERIAL_NUMBER: selected_gateway.gw_sn,
                             CONF_HOST: selected_gateway.gw_ip,
                             CONF_PORT: selected_gateway.port,
-                            CONF_NAME: selected_gateway.name,
-                            CONF_USERNAME: selected_gateway.username,
-                            CONF_PASSWORD: selected_gateway.passwd,
+                            CONF_NAME: selected_gateway.name or "",
+                            CONF_USERNAME: selected_gateway.username or "",
+                            CONF_PASSWORD: selected_gateway.passwd or "",
                         },
                     )
                 except DaliGatewayError:

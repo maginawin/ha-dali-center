@@ -35,12 +35,12 @@ def migrate_gateway_config(old_data: dict[str, Any]) -> dict[str, Any]:
 
     gateway_dict = old_data[CONF_GATEWAY_LEGACY]
     return {
-        CONF_SERIAL_NUMBER: gateway_dict.get("gw_sn"),
-        CONF_HOST: gateway_dict.get("gw_ip"),
-        CONF_PORT: gateway_dict.get("port"),
-        CONF_NAME: gateway_dict.get("name"),
-        CONF_USERNAME: gateway_dict.get("username"),
-        CONF_PASSWORD: gateway_dict.get("passwd"),
+        CONF_SERIAL_NUMBER: gateway_dict["gw_sn"],
+        CONF_HOST: gateway_dict["gw_ip"],
+        CONF_PORT: gateway_dict["port"],
+        CONF_NAME: gateway_dict.get("name") or "",
+        CONF_USERNAME: gateway_dict.get("username") or "",
+        CONF_PASSWORD: gateway_dict.get("passwd") or "",
     }
 
 

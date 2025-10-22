@@ -98,9 +98,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         gw_sn=entry.data[CONF_SERIAL_NUMBER],
         gw_ip=entry.data[CONF_HOST],
         port=entry.data[CONF_PORT],
-        username=entry.data.get(CONF_USERNAME, ""),
-        passwd=entry.data.get(CONF_PASSWORD, ""),
-        name=entry.data.get(CONF_NAME),
+        username=entry.data[CONF_USERNAME],
+        passwd=entry.data[CONF_PASSWORD],
+        name=entry.data[CONF_NAME],
     )
     gw_sn = gateway.gw_sn
     is_tls = gateway.is_tls
