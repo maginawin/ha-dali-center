@@ -40,13 +40,6 @@ class GatewayAvailabilityMixin(Entity):
     @callback
     def _handle_gateway_availability(self, available: bool) -> None:
         """Handle gateway availability changes."""
-        _LOGGER.debug(
-            "Gateway %s availability changed to %s for entity %s",
-            self._gw_sn,
-            available,
-            getattr(self, "entity_id", "unknown"),
-        )
-
         self._gateway_available = available
         self._update_entity_availability()
 
@@ -74,12 +67,6 @@ class GatewayAvailabilityMixin(Entity):
     @callback
     def _handle_device_availability(self, available: bool) -> None:
         """Handle device-specific availability changes."""
-        _LOGGER.debug(
-            "Device availability changed to %s for entity %s",
-            available,
-            getattr(self, "entity_id", "unknown"),
-        )
-
         self._device_available = available
         self._update_entity_availability()
 
@@ -100,7 +87,6 @@ class GatewayAvailabilityMixin(Entity):
         if not device:
             return {}
 
-        # Only use verified attributes that exist in the codebase
         device_attrs: dict[str, Any] = {
             "address": device.address,
             "channel": device.channel,

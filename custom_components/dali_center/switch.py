@@ -37,8 +37,6 @@ async def async_setup_entry(
     gateway: DaliGateway = entry.runtime_data.gateway
     devices: list[Device] = entry.runtime_data.devices
 
-    _LOGGER.debug("Processing initially for illuminance sensor switches: %s", devices)
-
     added_devices: set[str] = set()
     new_switches: list[SwitchEntity] = []
     for device in devices:
@@ -140,7 +138,6 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             )
         )
 
-        # Listen for sensor on/off state updates
         signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
@@ -148,12 +145,11 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             )
         )
 
-        # Sync initial state
         self._sync_sensor_state()
 
     def _handle_sensor_on_off_update(self, on_off: bool) -> None:
         self._attr_is_on = on_off
-        _LOGGER.warning(
+        _LOGGER.debug(
             "Illuminance sensor enable state for device %s updated to: %s",
             self._device.dev_id,
             on_off,

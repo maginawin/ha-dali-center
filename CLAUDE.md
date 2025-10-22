@@ -123,6 +123,71 @@ This is a Home Assistant custom integration for Dali Center lighting control sys
 - **Code Readability First**: Minimize comments in favor of self-documenting code
 - **Virtual Environment Requirement**: All development commands must be executed within the activated virtual environment
 
+## Code Quality Guidelines
+
+Following Home Assistant's [Style Guidelines](https://developers.home-assistant.io/docs/development_guidelines/) for integration development.
+
+### Logging Best Practices
+
+**Source**: [Home Assistant Style Guidelines - Logging](https://developers.home-assistant.io/docs/development_guidelines/)
+
+#### Logging Format
+
+Always use percentage formatting (not f-strings) for log messages:
+
+```python
+# Correct
+_LOGGER.info("Gateway %s connected with %d devices", gw_sn, device_count)
+
+# Incorrect
+_LOGGER.info(f"Gateway {gw_sn} connected with {device_count} devices")
+```
+
+**Reason**: Percentage formatting avoids formatting the message when logging is suppressed at that level, improving performance.
+
+#### Log Level Usage
+
+- **Exception**: Use `_LOGGER.exception()` in exception handlers to include stack trace
+- **Error**: Critical failures requiring user attention
+- **Warning**: Recoverable issues or deprecated features (not normal operations)
+- **Info**: Important state transitions and milestones (use sparingly)
+- **Debug**: Detailed diagnostic information for troubleshooting
+
+#### What NOT to Log
+
+- Redundant logs that repeat what code obviously does
+- Success confirmations for normal operations (absence of error = success)
+- Verbose parameter dumps (Home Assistant traces capture this)
+- Low-value debug messages that don't aid diagnostics
+
+### Comment Guidelines
+
+**Source**: [Home Assistant Style Guidelines - Comments](https://developers.home-assistant.io/docs/development_guidelines/)
+
+Comments should be full sentences ending with a period.
+
+#### When to Comment
+
+- Non-obvious design decisions
+- Complex algorithms requiring explanation
+- Important warnings or gotchas
+- Workarounds with context
+
+#### Prefer Self-Documenting Code
+
+Instead of comments, use:
+
+- Clear, descriptive variable and function names
+- Type hints and docstrings (Google style)
+- Small, well-named functions
+- Logical code organization
+
+### References
+
+- [Home Assistant Development Guidelines](https://developers.home-assistant.io/docs/development_guidelines/)
+- [Home Assistant Core - Best Practices](https://developers.home-assistant.io/docs/development_checklist/)
+- [Python Logging Best Practices](https://docs.python.org/3/howto/logging.html)
+
 ## Development Setup
 
 ### Virtual Environment
@@ -285,24 +350,48 @@ Tests are located in `tests/` directory and use pytest with asyncio support. Con
 
 ### Commit Message Format
 
-Follow conventional commits format:
+Follow conventional commits format with emphasis on brevity and clarity:
 
 ```text
-type(scope): brief description
+type(scope): concise summary of what changed
 
-Detailed explanation of changes (if necessary)
-
-- Bullet points for multiple changes
-- Reference issue numbers (#123)
-- Breaking changes noted with BREAKING CHANGE:
+Optional body for context (why, not what)
 ```
+
+**Commit Types:**
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code restructuring without behavior change
+- `docs`: Documentation changes
+- `test`: Test additions or modifications
+- `chore`: Maintenance tasks (dependencies, tooling, releases)
+
+**Best Practices:**
+
+- **Keep subject line under 72 characters**
+- **Use imperative mood**: "add feature" not "added feature" or "adds feature"
+- **Be specific but concise**: Focus on the impact, not implementation details
+- **Omit obvious details**: The diff shows the "what", commit explains the "why"
+- **Group related changes**: Use single commit for cohesive changes across files
 
 **Examples:**
 
-- `feat(gateway): add support for DALI device groups`
-- `fix(sensor): correct energy sensor precision`
-- `docs(readme): update installation instructions`
+✅ Good:
+
+- `feat(gateway): add group control support`
+- `fix(sensor): correct energy calculation overflow`
+- `refactor: remove redundant logs and comments`
 - `chore(release): bump version to 0.2.0`
+
+❌ Too verbose:
+
+- `refactor: remove unnecessary logs and comments for code clarity. Remove verbose debug logs that echo parameters. Remove obvious comments...`
+
+❌ Too vague:
+
+- `refactor: cleanup`
+- `fix: bug fixes`
 
 **IMPORTANT**: Do not include Claude Code signatures, co-author attributions, or AI-generated markers in commit messages. Keep commits clean and focused on the technical changes.
 

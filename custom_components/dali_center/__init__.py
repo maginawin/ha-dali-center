@@ -45,8 +45,6 @@ def _setup_dependency_logging() -> None:
     gateway_logger = logging.getLogger("PySrDaliGateway")
     gateway_logger.setLevel(current_level)
 
-    _LOGGER.debug("Configured PySrDaliGateway logging level to %s", current_level)
-
 
 async def _notify_user_error(
     hass: HomeAssistant, title: str, message: str, gw_sn: str = ""
@@ -68,8 +66,6 @@ async def async_migrate_entry(
     hass: HomeAssistant, entry: DaliCenterConfigEntry
 ) -> bool:
     """Migrate old entry format to new format."""
-    _LOGGER.debug("Migrating entry from version %s", entry.version)
-
     if entry.version == 1:
         old_data = dict(entry.data)
 
@@ -84,7 +80,6 @@ async def async_migrate_entry(
             )
             _LOGGER.info("Migration to version 2 completed successfully")
         else:
-            _LOGGER.debug("Entry already in new format, updating version only")
             hass.config_entries.async_update_entry(entry, version=2)
 
     return True
@@ -110,7 +105,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
     try:
         async with async_timeout.timeout(30):
             await gateway.connect()
-            _LOGGER.info("Successfully connected to gateway %s", gw_sn)
     except DaliGatewayError as exc:
         _LOGGER.exception("Error connecting to gateway %s", gw_sn)
         await _notify_user_error(hass, "Connection Failed", str(exc), gw_sn)
@@ -169,30 +163,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         serial_number=gw_sn,
     )
 
-    # Discover all entities from gateway
-    _LOGGER.info("Discovering entities on gateway %s", gw_sn)
     try:
         devices = await gateway.discover_devices()
-        _LOGGER.info("Found %d devices on gateway %s", len(devices), gw_sn)
     except DaliGatewayError as exc:
         _LOGGER.warning("Failed to discover devices on gateway %s: %s", gw_sn, exc)
         devices = []
 
     try:
         groups = await gateway.discover_groups()
-        _LOGGER.info("Found %d groups on gateway %s", len(groups), gw_sn)
     except DaliGatewayError as exc:
         _LOGGER.warning("Failed to discover groups on gateway %s: %s", gw_sn, exc)
         groups = []
 
     try:
         scenes = await gateway.discover_scenes()
-        _LOGGER.info("Found %d scenes on gateway %s", len(scenes), gw_sn)
     except DaliGatewayError as exc:
         _LOGGER.warning("Failed to discover scenes on gateway %s: %s", gw_sn, exc)
         scenes = []
 
-    # Store gateway and discovered entities in runtime_data
     entry.runtime_data = DaliCenterData(
         gateway=gateway,
         devices=devices,

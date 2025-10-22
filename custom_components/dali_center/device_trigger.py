@@ -51,15 +51,8 @@ async def async_get_triggers(
 
     for entry in entries:
         event_types = get_capability(hass, entry.entity_id, "event_types")
-        _LOGGER.debug(
-            "Processing entry %s, entity_id=%s, event_types=%s",
-            entry.id,
-            entry.entity_id,
-            event_types,
-        )
 
         if not event_types:
-            _LOGGER.debug("No event_types found for %s, skipping", entry.entity_id)
             continue
 
         for event_type in event_types:
@@ -71,7 +64,6 @@ async def async_get_triggers(
                 CONF_TYPE: event_type,
             }
             triggers.append(trigger)
-            _LOGGER.debug("Created device trigger: %s", trigger)
 
     return triggers
 
@@ -93,12 +85,6 @@ async def async_attach_trigger(
             "event_type": config[CONF_TYPE],
         },
     }
-
-    _LOGGER.debug(
-        "Setting up device trigger: entity=%s, event_type=%s",
-        config[CONF_ENTITY_ID],
-        config[CONF_TYPE],
-    )
 
     validated_config = cast("ConfigType", event_trigger.TRIGGER_SCHEMA(event_config))
     return await event_trigger.async_attach_trigger(

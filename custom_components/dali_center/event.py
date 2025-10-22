@@ -127,19 +127,14 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
 
     @callback
     def _handle_device_update(self, status: PanelStatus) -> None:
-        key_no = status["key_no"]
-        value = status["rotate_value"]
-
         event_name = status["event_name"]
         event_type = status["event_type"]
+        rotate_value = status["rotate_value"]
 
         _LOGGER.debug(
-            "Panel event triggered: dev_id=%s, key_no=%d, event=%s, type=%s, value=%s",
-            self._panel.dev_id,
-            key_no,
+            "Panel event: %s (dev_id=%s)",
             event_name,
-            event_type,
-            value,
+            self._panel.dev_id,
         )
 
         event_data: dict[str, str | int] = {
@@ -147,9 +142,9 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
             "event_type": event_name,
         }
 
-        if event_type == PanelEventType.ROTATE and value is not None:
-            event_data["rotate_value"] = value
-            self._trigger_event(event_name, {"rotate_value": value})
+        if event_type == PanelEventType.ROTATE and rotate_value is not None:
+            event_data["rotate_value"] = rotate_value
+            self._trigger_event(event_name, {"rotate_value": rotate_value})
         else:
             self._trigger_event(event_name)
 

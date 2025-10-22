@@ -95,10 +95,8 @@ async def async_setup_entry(
     if new_groups:
         async_add_entities(new_groups)
 
-    # Add All Lights control entity
     all_lights_entity = DaliCenterAllLights(all_light, entry)
     async_add_entities([all_lights_entity])
-    _LOGGER.info("Added All Lights control entity")
 
 
 class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
@@ -169,9 +167,6 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
-        _LOGGER.debug(
-            "Turning on light %s with kwargs: %s", self._attr_unique_id, kwargs
-        )
         brightness = kwargs.get(ATTR_BRIGHTNESS)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
         hs_color = kwargs.get(ATTR_HS_COLOR)
@@ -298,11 +293,6 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light group."""
-
-        _LOGGER.debug(
-            "Turning on group %s with kwargs: %s", self._attr_unique_id, kwargs
-        )
-
         brightness = kwargs.get(ATTR_BRIGHTNESS)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
@@ -370,13 +360,6 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
 
         await self._determine_supported_color_modes()
 
-        _LOGGER.debug(
-            "Updated group %s devices: %d total, %d entities found",
-            self._attr_unique_id,
-            len(group_info["devices"]),
-            len(light_entities),
-        )
-
     async def _determine_supported_color_modes(self) -> None:
         """Determine supported color modes based on member lights capabilities."""
         if not self._group_entity_ids:
@@ -401,12 +384,6 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
             supported_modes = {ColorMode.BRIGHTNESS}
 
         self._attr_supported_color_modes = supported_modes
-
-        _LOGGER.debug(
-            "Group %s determined supported color modes: %s",
-            self._attr_unique_id,
-            supported_modes,
-        )
 
     async def _calculate_group_state(self) -> None:
         """Calculate group state based on member lights' actual states."""
