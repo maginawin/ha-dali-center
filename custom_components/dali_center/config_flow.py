@@ -174,7 +174,13 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({}),
             description_placeholders={
-                "message": "Click SUBMIT to start gateway discovery (takes up to 3 minutes)."
+                "message": (
+                    "**Three-step process:**\n\n"
+                    "1. Ensure the gateway is powered and on the same network.\n"
+                    "2. Select **Submit** to start discovery (searches for up to 3 minutes)\n"
+                    "3. While discovery is in progress, press the **Reset** button on your DALI gateway device **once**.\n\n"
+                    "The gateway will respond immediately after the button press."
+                )
             },
         )
 
@@ -237,7 +243,13 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                     step_id="discovery",
                     errors=errors,
                     description_placeholders={
-                        "message": "Gateway discovery failed. Please ensure gateways are powered on and connected to the network."
+                        "message": (
+                            "**Gateway discovery failed.**\n\n"
+                            "Please check:\n"
+                            "- Gateway is powered on\n"
+                            "- Gateway is connected to the same network\n"
+                            "- Reset button was pressed during discovery"
+                        )
                     },
                     data_schema=vol.Schema({}),
                 )
@@ -264,7 +276,11 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="discovery",
                 errors={"base": "no_devices_found"},
                 description_placeholders={
-                    "message": "No new gateways found. All discovered gateways are already configured."
+                    "message": (
+                        "**No new gateways found.**\n\n"
+                        "All discovered gateways are already configured.\n\n"
+                        "If you want to reconfigure an existing gateway, remove it first and try again."
+                    )
                 },
                 data_schema=vol.Schema({}),
             )
@@ -283,7 +299,10 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
             description_placeholders={
-                "message": f"Found {len(self._gateways)} gateway(s). Select one to configure."
+                "message": (
+                    f"**Found {len(self._gateways)} gateway(s).**\n\n"
+                    "Select a gateway to configure."
+                )
             },
         )
 
