@@ -43,12 +43,8 @@ async def async_setup_entry(
 ) -> None:
     """Set up Dali Center light entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = [
-        Device(gateway, **device) for device in entry.data.get("devices", [])
-    ]
-    groups: list[Group] = [
-        Group(gateway, **group) for group in entry.data.get("groups", [])
-    ]
+    devices: list[Device] = entry.runtime_data.devices
+    groups: list[Group] = entry.runtime_data.groups
     all_light: Device = Device(
         gateway,
         unique_id=f"{gateway.gw_sn}_all_lights",
@@ -549,9 +545,9 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         ent_reg = er.async_get(self.hass)
 
         # Find only individual DaliCenterLight entities for this specific config entry
-        # We'll match against the devices that were configured for this entry
+        # We'll match against the devices discovered from the gateway
         device_unique_ids = {
-            device["unique_id"] for device in self._config_entry.data.get("devices", [])
+            device.unique_id for device in self._config_entry.runtime_data.devices
         }
 
         self._all_light_entities = [

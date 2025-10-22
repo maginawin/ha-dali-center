@@ -35,9 +35,7 @@ async def async_setup_entry(
     """Set up Dali Center illuminance sensor enable/disable switches."""
 
     gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = [
-        Device(gateway, **device) for device in entry.data.get("devices", [])
-    ]
+    devices: list[Device] = entry.runtime_data.devices
 
     _LOGGER.debug("Processing initially for illuminance sensor switches: %s", devices)
 

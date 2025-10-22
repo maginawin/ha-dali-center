@@ -34,7 +34,7 @@ def migrate_gateway_config(old_data: dict[str, Any]) -> dict[str, Any]:
         return old_data
 
     gateway_dict = old_data[CONF_GATEWAY_LEGACY]
-    new_data = {
+    return {
         CONF_SERIAL_NUMBER: gateway_dict.get("gw_sn"),
         CONF_HOST: gateway_dict.get("gw_ip"),
         CONF_PORT: gateway_dict.get("port"),
@@ -42,12 +42,6 @@ def migrate_gateway_config(old_data: dict[str, Any]) -> dict[str, Any]:
         CONF_USERNAME: gateway_dict.get("username"),
         CONF_PASSWORD: gateway_dict.get("passwd"),
     }
-
-    for key in ["devices", "groups", "scenes"]:
-        if key in old_data:
-            new_data[key] = old_data[key]
-
-    return new_data
 
 
 def find_set_differences(

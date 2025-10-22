@@ -169,12 +169,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         serial_number=gw_sn,
     )
 
-    # Store gateway instance in runtime_data
-    entry.runtime_data = DaliCenterData(gateway=gateway)
+    # Discover all entities from gateway
+    _LOGGER.info("Discovering entities on gateway %s", gw_sn)
+    try:
+        devices = await gateway.discover_devices()
+        _LOGGER.info("Found %d devices on gateway %s", len(devices), gw_sn)
+    except DaliGatewayError as exc:
+        _LOGGER.warning("Failed to discover devices on gateway %s: %s", gw_sn, exc)
+        devices = []
+
+    try:
+        groups = await gateway.discover_groups()
+        _LOGGER.info("Found %d groups on gateway %s", len(groups), gw_sn)
+    except DaliGatewayError as exc:
+        _LOGGER.warning("Failed to discover groups on gateway %s: %s", gw_sn, exc)
+        groups = []
+
+    try:
+        scenes = await gateway.discover_scenes()
+        _LOGGER.info("Found %d scenes on gateway %s", len(scenes), gw_sn)
+    except DaliGatewayError as exc:
+        _LOGGER.warning("Failed to discover scenes on gateway %s: %s", gw_sn, exc)
+        scenes = []
+
+    # Store gateway and discovered entities in runtime_data
+    entry.runtime_data = DaliCenterData(
+        gateway=gateway,
+        devices=devices,
+        groups=groups,
+        scenes=scenes,
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
-    _LOGGER.info("DALI Center gateway %s setup completed successfully", gw_sn)
+    _LOGGER.info(
+        "DALI Center gateway %s setup completed successfully "
+        "(%d devices, %d groups, %d scenes)",
+        gw_sn,
+        len(devices),
+        len(groups),
+        len(scenes),
+    )
     return True
 
 

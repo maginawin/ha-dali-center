@@ -46,9 +46,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Dali Center sensor entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = [
-        Device(gateway, **device) for device in entry.data.get("devices", [])
-    ]
+    devices: list[Device] = entry.runtime_data.devices
 
     def _on_motion_status(dev_id: str, status: MotionStatus) -> None:
         signal = f"dali_center_update_{dev_id}"

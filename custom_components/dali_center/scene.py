@@ -28,10 +28,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up DALI Center scene entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
-
-    scenes: list[Scene] = [
-        Scene(gateway, **scene) for scene in entry.data.get("scenes", [])
-    ]
+    scenes: list[Scene] = entry.runtime_data.scenes
 
     _LOGGER.debug("Setting up scene platform with %d scenes", len(scenes))
 
