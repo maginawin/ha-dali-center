@@ -8,7 +8,7 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Device
+from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import (
     is_illuminance_sensor,
     is_light_device,
@@ -33,6 +33,7 @@ from homeassistant.helpers.typing import StateType
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,9 +46,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Dali Center sensor entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = [
-        Device(gateway, device) for device in entry.data.get("devices", [])
-    ]
+    devices: list[Device] = entry.runtime_data.devices
 
     def _on_motion_status(dev_id: str, status: MotionStatus) -> None:
         signal = f"dali_center_update_{dev_id}"
@@ -69,18 +68,16 @@ async def async_setup_entry(
             continue
 
         if is_light_device(device.dev_type):
-            new_sensors.append(DaliCenterEnergySensor(device, gateway.to_dict()))
+            new_sensors.append(DaliCenterEnergySensor(device, gateway_to_dict(gateway)))
             added_devices.add(device.dev_id)
         elif is_motion_sensor(device.dev_type):
-            new_sensors.append(DaliCenterMotionSensor(device, gateway.to_dict()))
+            new_sensors.append(DaliCenterMotionSensor(device, gateway_to_dict(gateway)))
             added_devices.add(device.dev_id)
         elif is_illuminance_sensor(device.dev_type):
-            new_sensors.append(DaliCenterIlluminanceSensor(device, gateway.to_dict()))
+            new_sensors.append(
+                DaliCenterIlluminanceSensor(device, gateway_to_dict(gateway))
+            )
             added_devices.add(device.dev_id)
-        # Panel devices are now handled by event entities
-        # elif is_panel_device(device.dev_type):
-        #     new_sensors.append(DaliCenterPanelSensor(device))
-        #     added_devices.add(device.dev_id)
 
     if new_sensors:
         async_add_entities(new_sensors)
@@ -95,14 +92,14 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 2
     _attr_has_entity_name = True
+    _attr_name = "Energy"
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the energy sensor."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "Energy"
         self._attr_unique_id = f"{device.unique_id}_energy"
         self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
@@ -151,14 +148,14 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_options = ["no_motion", "motion", "vacant", "presence", "occupancy"]
     _attr_has_entity_name = True
     _attr_icon = "mdi:motion-sensor"
+    _attr_name = "State"
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the motion sensor."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value = "no_motion"
@@ -190,18 +187,11 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
             )
         )
 
-        # Read initial status
         self._device.read_status()
 
     def _handle_device_update(self, status: MotionStatus) -> None:
         motion_state = status["motion_state"]
         self._attr_native_value = motion_state.value
-        _LOGGER.debug(
-            "%s %s state changed to: %s",
-            self._attr_name,
-            self._attr_unique_id,
-            self._attr_native_value,
-        )
 
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
@@ -221,14 +211,14 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = LIGHT_LUX
     _attr_has_entity_name = True
+    _attr_name = "State"
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the illuminance sensor."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SensorEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value: StateType | date | datetime | Decimal = None
@@ -261,7 +251,6 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
             )
         )
 
-        # Listen for sensor on/off state updates
         signal = f"dali_center_sensor_on_off_{self._attr_unique_id}"
         self.async_on_remove(
             async_dispatcher_connect(
@@ -269,7 +258,6 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
             )
         )
 
-        # Read initial status
         self._device.read_status()
 
     def _handle_device_update(self, status: IlluminanceStatus) -> None:
@@ -277,7 +265,7 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
         is_valid = status["is_valid"]
 
         if not is_valid:
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "%s %s value is not valid: %s lux",
                 self._attr_name,
                 self._attr_unique_id,
@@ -286,12 +274,6 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
             return
 
         self._attr_native_value = illuminance_value
-        _LOGGER.debug(
-            "%s %s value updated to: %s lux",
-            self._attr_name,
-            self._attr_unique_id,
-            self._attr_native_value,
-        )
 
         self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
 
@@ -312,7 +294,6 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
             on_off,
         )
 
-        # If sensor is disabled, clear the current state
         if not self._sensor_enabled:
             self._attr_native_value = None
 

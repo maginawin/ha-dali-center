@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Device
+from PySrDaliGateway import DaliGateway, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
 from homeassistant.components.switch import SwitchEntity
@@ -21,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,11 +35,7 @@ async def async_setup_entry(
     """Set up Dali Center illuminance sensor enable/disable switches."""
 
     gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = [
-        Device(gateway, device) for device in entry.data.get("devices", [])
-    ]
-
-    _LOGGER.debug("Processing initially for illuminance sensor switches: %s", devices)
+    devices: list[Device] = entry.runtime_data.devices
 
     added_devices: set[str] = set()
     new_switches: list[SwitchEntity] = []
@@ -46,10 +43,11 @@ async def async_setup_entry(
         if device.dev_id in added_devices:
             continue
 
-        # Only create switches for illuminance sensor devices
         if is_illuminance_sensor(device.dev_type):
             new_switches.append(
-                DaliCenterIlluminanceSensorEnableSwitch(device, gateway.to_dict())
+                DaliCenterIlluminanceSensorEnableSwitch(
+                    device, gateway_to_dict(gateway)
+                )
             )
             added_devices.add(device.dev_id)
 
@@ -62,18 +60,18 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
 
     _attr_entity_category = EntityCategory.CONFIG
     _attr_has_entity_name = True
+    _attr_name = "Sensor Enable"
+    _attr_icon = "mdi:brightness-6"
 
-    def __init__(self, device: Device, gateway: DaliGatewayType) -> None:
+    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the illuminance sensor enable/disable switch."""
         GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
         SwitchEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "Sensor Enable"
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
         self._attr_available = device.status == "online"
         self._attr_is_on: bool | None = True  # Default to enabled
-        self._attr_icon = "mdi:brightness-6"
 
         self._sync_sensor_state()
 
@@ -140,7 +138,6 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             )
         )
 
-        # Listen for sensor on/off state updates
         signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
         self.async_on_remove(
             async_dispatcher_connect(
@@ -148,12 +145,11 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
             )
         )
 
-        # Sync initial state
         self._sync_sensor_state()
 
     def _handle_sensor_on_off_update(self, on_off: bool) -> None:
         self._attr_is_on = on_off
-        _LOGGER.warning(
+        _LOGGER.debug(
             "Illuminance sensor enable state for device %s updated to: %s",
             self._device.dev_id,
             on_off,

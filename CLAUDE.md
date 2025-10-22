@@ -2,114 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## AI Collaboration Philosophy
-
-### Core Mentorship Principles
-
-**You are a technical mentor, not a code generator.** This collaboration follows the "teach to fish" philosophy rather than "give a fish" approach. Every interaction should be a learning opportunity that preserves and enhances developer skills while accelerating delivery.
-
-#### Fundamental Collaboration Rules
-
-- **Think-Plan-Execute Architecture**: Always break complex tasks into analysis, design, and guided implementation phases
-- **Human Implementation Control**: Developer maintains authority over all code implementation decisions
-- **Learning-First Interactions**: Explain the "why" behind recommendations, not just the "how"
-- **Solution Comparison**: Present multiple approaches with trade-off analysis
-- **Skill Preservation**: Guide rather than replace technical decision-making
-
-### Interaction Framework
-
-#### 1. Analysis Phase
-
-- **Problem Decomposition**: Break down requirements into core technical challenges
-- **Context Assessment**: Analyze existing codebase patterns and architectural constraints
-- **Solution Space Exploration**: Identify 2-3 viable approaches with different trade-offs
-- **Risk Identification**: Highlight potential technical risks and edge cases
-
-#### 2. Design Phase
-
-- **Architecture Decision Records**: Document decisions with context, options considered, and rationale
-- **Implementation Strategy**: Create step-by-step implementation roadmap
-- **Integration Points**: Identify how changes fit into existing system architecture
-- **Testing Strategy**: Outline verification and validation approaches
-
-#### 3. Guided Implementation Phase
-
-- **Code Review Guidance**: Provide architectural feedback during implementation
-- **Best Practices Coaching**: Explain design patterns and coding standards in context
-- **Debugging Mentorship**: Guide problem-solving process rather than providing direct fixes
-- **Optimization Insights**: Share performance and maintainability considerations
-
-### Response Structure Requirements
-
-Every response must include:
-
-```markdown
-## Technical Analysis
-- Core challenge identification
-- Architectural implications
-- Performance considerations
-
-## Solution Options
-- Option A: [Brief description with pros/cons]
-- Option B: [Brief description with pros/cons]  
-- Option C: [Brief description with pros/cons]
-
-## Recommended Approach
-- Selected solution with detailed rationale
-- Implementation complexity assessment
-- Integration strategy
-
-## Learning Points
-- Key technical concepts involved
-- Design patterns applicable
-- Best practices to consider
-
-## Implementation Guidance
-- Step-by-step development approach
-- Code review checkpoints
-- Testing strategy
-
-## Reference Resources
-- Documentation links
-- Learning materials for deeper understanding
-```
-
-### Anti-Patterns to Avoid
-
-**Prohibited Behaviors:**
-
-- Generating complete code implementations without explanation
-- Providing solutions without exploring alternatives
-- Using social validation language ("Sure!", "Of course!")
-- Offering partial implementations or placeholder code
-- Delegating thinking to AI rather than enhancing human reasoning
-
-### Dynamic Mode Adaptation
-
-#### Exploration Mode
-
-- Focus on solution discovery and architectural alternatives
-- Emphasize learning and understanding over quick solutions
-- Deep-dive into technical concepts and design principles
-
-#### Implementation Mode  
-
-- Provide detailed step-by-step guidance
-- Code review and architectural feedback
-- Performance and security considerations
-
-#### Debugging Mode
-
-- Guide diagnostic thinking process
-- Explain root cause analysis methodology
-- Share debugging strategies and tools
-
-#### Optimization Mode
-
-- Performance analysis and improvement strategies
-- Code quality and maintainability enhancements
-- Architectural refactoring guidance
-
 ## Project Overview
 
 This is a Home Assistant custom integration for Dali Center lighting control systems. The integration communicates with Dali Center gateways via MQTT to control DALI lighting devices, groups, and scenes.
@@ -120,6 +12,185 @@ This is a Home Assistant custom integration for Dali Center lighting control sys
 - **Mentorship-Driven Development**: All AI interactions should enhance developer skills
 - **Architecture-First Thinking**: Design decisions before implementation details
 - **Learning Documentation**: Capture decision rationale and alternatives considered
+- **Code Readability First**: Minimize comments in favor of self-documenting code
+- **Virtual Environment Requirement**: All development commands must be executed within the activated virtual environment
+
+## Code Quality Guidelines
+
+Following Home Assistant's [Style Guidelines](https://developers.home-assistant.io/docs/development_guidelines/) for integration development.
+
+### Logging Best Practices
+
+**Source**: [Home Assistant Style Guidelines - Logging](https://developers.home-assistant.io/docs/development_guidelines/)
+
+#### Logging Format
+
+Always use percentage formatting (not f-strings) for log messages:
+
+```python
+# Correct
+_LOGGER.info("Gateway %s connected with %d devices", gw_sn, device_count)
+
+# Incorrect
+_LOGGER.info(f"Gateway {gw_sn} connected with {device_count} devices")
+```
+
+**Reason**: Percentage formatting avoids formatting the message when logging is suppressed at that level, improving performance.
+
+#### Log Level Usage
+
+- **Exception**: Use `_LOGGER.exception()` in exception handlers to include stack trace
+- **Error**: Critical failures requiring user attention
+- **Warning**: Recoverable issues or deprecated features (not normal operations)
+- **Info**: Important state transitions and milestones (use sparingly)
+- **Debug**: Detailed diagnostic information for troubleshooting
+
+#### What NOT to Log
+
+- Redundant logs that repeat what code obviously does
+- Success confirmations for normal operations (absence of error = success)
+- Verbose parameter dumps (Home Assistant traces capture this)
+- Low-value debug messages that don't aid diagnostics
+
+### Comment Guidelines
+
+**Source**: [Home Assistant Style Guidelines - Comments](https://developers.home-assistant.io/docs/development_guidelines/)
+
+Comments should be full sentences ending with a period.
+
+#### When to Comment
+
+- Non-obvious design decisions
+- Complex algorithms requiring explanation
+- Important warnings or gotchas
+- Workarounds with context
+
+#### Prefer Self-Documenting Code
+
+Instead of comments, use:
+
+- Clear, descriptive variable and function names
+- Type hints and docstrings (Google style)
+- Small, well-named functions
+- Logical code organization
+
+### Entity Class Best Practices
+
+**Source**: Home Assistant entity architecture patterns
+
+#### Attribute Declaration Pattern
+
+Distinguish between constant class-level attributes and dynamic instance-level state:
+
+**Class-level attributes** (constants shared across all instances):
+
+```python
+class MyEntity(BaseEntity):
+    _attr_has_entity_name = True
+    _attr_name = "Sensor"  # Same for all instances
+    _attr_icon = "mdi:thermometer"  # Same for all instances
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_min_value = 1000  # Constant
+    _attr_max_value = 8000  # Constant
+```
+
+**Instance-level attributes** (unique per instance):
+
+```python
+    def __init__(self, device: Device) -> None:
+        super().__init__()
+        self._device = device
+        self._attr_unique_id = f"{device.id}_temperature"  # Dynamic
+        self._attr_native_value = device.current_temp  # State
+        self._attr_available = device.status == "online"  # State
+```
+
+#### Property Usage Guidelines
+
+- **Avoid `@property`** for simple constant values - use class-level `_attr_*` attributes instead
+- **Use `@cached_property`** for computed values that never change after initialization
+- **Use `@property`** only for values that must be computed on every access
+
+**Example:**
+
+```python
+# Bad - unnecessary @property for constants
+@property
+def min_value(self) -> int:
+    return 1000
+
+# Good - class-level attribute
+_attr_min_value = 1000
+
+# Good - cached computation
+@cached_property
+def device_info(self) -> DeviceInfo:
+    return {"identifiers": {(DOMAIN, self._device.id)}}
+
+# Good - dynamic computation
+@property
+def is_heating(self) -> bool:
+    return self._current_temp < self._target_temp
+```
+
+#### Benefits
+
+- **Performance**: Class-level attributes shared across instances, reducing memory
+- **Clarity**: Clear separation between configuration (class) and state (instance)
+- **Consistency**: Uniform pattern across all entity classes
+- **Maintainability**: Easier to identify what changes vs what's constant
+
+### Code Pattern Best Practices
+
+#### Use Dictionary Mapping Instead of If-Elif Chains
+
+When mapping string values to other values, prefer dictionaries over if-elif chains for clarity and maintainability.
+
+**Bad - If-Elif Chain:**
+
+```python
+def map_color_mode(self, mode: str) -> ColorMode:
+    if mode == "color_temp":
+        return ColorMode.COLOR_TEMP
+    elif mode == "hs":
+        return ColorMode.HS
+    elif mode == "rgbw":
+        return ColorMode.RGBW
+    else:
+        return ColorMode.BRIGHTNESS
+```
+
+**Good - Dictionary Mapping:**
+
+```python
+def map_color_mode(self, mode: str) -> ColorMode:
+    color_mode_mapping: dict[str, ColorMode] = {
+        "color_temp": ColorMode.COLOR_TEMP,
+        "hs": ColorMode.HS,
+        "rgbw": ColorMode.RGBW,
+    }
+    return color_mode_mapping.get(mode, ColorMode.BRIGHTNESS)
+```
+
+**Benefits:**
+
+- **Readability**: Mapping is immediately visible as a data structure
+- **Maintainability**: Adding new mappings requires only one line
+- **Performance**: O(1) dictionary lookup vs O(n) if-elif chain
+- **Extensibility**: Easy to move mapping to class/module level if needed
+
+**When NOT to use dictionaries:**
+
+- Complex conditional logic beyond simple value mapping
+- Binary decisions (single if-else)
+- Different function signatures for each case
+
+### References
+
+- [Home Assistant Development Guidelines](https://developers.home-assistant.io/docs/development_guidelines/)
+- [Home Assistant Core - Best Practices](https://developers.home-assistant.io/docs/development_checklist/)
+- [Python Logging Best Practices](https://docs.python.org/3/howto/logging.html)
+- [Python @cached_property](https://docs.python.org/3/library/functools.html#functools.cached_property)
 
 ## Development Setup
 
@@ -273,32 +344,6 @@ Tests are located in `tests/` directory and use pytest with asyncio support. Con
 
 ## Development Workflow
 
-### Mentorship-Enhanced Development Process
-
-#### 1. Requirement Analysis
-
-- **AI Role**: Analyze requirements and identify technical challenges
-- **Developer Role**: Validate understanding and provide domain context
-- **Output**: Technical requirements document with architectural implications
-
-#### 2. Solution Design
-
-- **AI Role**: Present multiple architectural approaches with trade-off analysis
-- **Developer Role**: Select preferred approach based on project constraints
-- **Output**: Architecture decision record with implementation roadmap
-
-#### 3. Guided Implementation
-
-- **AI Role**: Provide step-by-step guidance and code review feedback
-- **Developer Role**: Write all code while applying suggested patterns and practices
-- **Output**: Implemented solution with learning documentation
-
-#### 4. Review and Optimization
-
-- **AI Role**: Identify improvement opportunities and explain optimization strategies
-- **Developer Role**: Apply optimizations and document lessons learned
-- **Output**: Refined solution with performance and maintainability enhancements
-
 ### Branch Naming Convention
 
 - **Features**: `feature/description-of-feature`
@@ -309,24 +354,48 @@ Tests are located in `tests/` directory and use pytest with asyncio support. Con
 
 ### Commit Message Format
 
-Follow conventional commits format:
+Follow conventional commits format with emphasis on brevity and clarity:
 
 ```text
-type(scope): brief description
+type(scope): concise summary of what changed
 
-Detailed explanation of changes (if necessary)
-
-- Bullet points for multiple changes
-- Reference issue numbers (#123)
-- Breaking changes noted with BREAKING CHANGE:
+Optional body for context (why, not what)
 ```
+
+**Commit Types:**
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code restructuring without behavior change
+- `docs`: Documentation changes
+- `test`: Test additions or modifications
+- `chore`: Maintenance tasks (dependencies, tooling, releases)
+
+**Best Practices:**
+
+- **Keep subject line under 72 characters**
+- **Use imperative mood**: "add feature" not "added feature" or "adds feature"
+- **Be specific but concise**: Focus on the impact, not implementation details
+- **Omit obvious details**: The diff shows the "what", commit explains the "why"
+- **Group related changes**: Use single commit for cohesive changes across files
 
 **Examples:**
 
-- `feat(gateway): add support for DALI device groups`
-- `fix(sensor): correct energy sensor precision`
-- `docs(readme): update installation instructions`
+✅ Good:
+
+- `feat(gateway): add group control support`
+- `fix(sensor): correct energy calculation overflow`
+- `refactor: remove redundant logs and comments`
 - `chore(release): bump version to 0.2.0`
+
+❌ Too verbose:
+
+- `refactor: remove unnecessary logs and comments for code clarity. Remove verbose debug logs that echo parameters. Remove obvious comments...`
+
+❌ Too vague:
+
+- `refactor: cleanup`
+- `fix: bug fixes`
 
 **IMPORTANT**: Do not include Claude Code signatures, co-author attributions, or AI-generated markers in commit messages. Keep commits clean and focused on the technical changes.
 

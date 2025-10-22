@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Scene, SceneType
+from PySrDaliGateway import DaliGateway, Scene
 from PySrDaliGateway.helper import gen_device_unique_id, gen_group_unique_id
 
 from homeassistant.components.scene import Scene as SceneEntity
@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,18 +28,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up DALI Center scene entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
-
-    scenes: list[Scene] = [
-        Scene(gateway, scene) for scene in entry.data.get("scenes", [])
-    ]
+    scenes: list[Scene] = entry.runtime_data.scenes
 
     _LOGGER.debug("Setting up scene platform with %d scenes", len(scenes))
 
-    # Pre-load scene details for all scenes
     scene_entities: list[DaliCenterScene] = []
     for scene in scenes:
         try:
-            # Load scene details during setup
             scene_details = await gateway.read_scene(
                 scene.scene_id, getattr(scene, "channel", 0)
             )
@@ -49,7 +45,7 @@ async def async_setup_entry(
             )
 
             scene_entities.append(
-                DaliCenterScene(scene, gateway.to_dict(), scene_details)
+                DaliCenterScene(scene, gateway_to_dict(gateway), scene_details)
             )
         except (OSError, ValueError, KeyError):
             _LOGGER.exception(
@@ -65,7 +61,7 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
     """Representation of a DALI Center Scene."""
 
     def __init__(
-        self, scene: Scene, gateway: DaliGatewayType, scene_details: SceneType
+        self, scene: Scene, gateway: dict[str, Any], scene_details: dict[str, Any]
     ) -> None:
         """Initialize the DALI scene."""
         GatewayAvailabilityMixin.__init__(self, scene.gw_sn, gateway)

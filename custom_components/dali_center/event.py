@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, DaliGatewayType, Panel
+from PySrDaliGateway import DaliGateway, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
 
@@ -20,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .entity import GatewayAvailabilityMixin
+from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,10 +34,31 @@ async def async_setup_entry(
 ) -> None:
     """Set up Dali Center event entities from config entry."""
     gateway: DaliGateway = entry.runtime_data.gateway
+    # Filter panel devices from discovered devices
+    panel_devices = [
+        device
+        for device in entry.runtime_data.devices
+        if is_panel_device(device.dev_type)
+    ]
+
+    # Convert Device objects to Panel objects for panel-specific functionality
     devices: list[Panel] = [
-        Panel(gateway, device)
-        for device in entry.data.get("devices", [])
-        if is_panel_device(device.get("dev_type"))
+        Panel(
+            gateway,
+            unique_id=device.unique_id,
+            dev_id=device.dev_id,
+            name=device.name,
+            dev_type=device.dev_type,
+            channel=device.channel,
+            address=device.address,
+            status=device.status,
+            dev_sn=device.dev_sn,
+            area_name=device.area_name,
+            area_id=device.area_id,
+            model=device.model,
+            properties=device.properties,
+        )
+        for device in panel_devices
     ]
 
     def _on_panel_status(dev_id: str, status: PanelStatus) -> None:
@@ -47,7 +70,7 @@ async def async_setup_entry(
     _LOGGER.debug("Setting up event platform: %d devices", len(devices))
 
     new_events: list[EventEntity] = [
-        DaliCenterPanelEvent(device, gateway.to_dict()) for device in devices
+        DaliCenterPanelEvent(device, gateway_to_dict(gateway)) for device in devices
     ]
 
     if new_events:
@@ -59,16 +82,16 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
 
     _attr_has_entity_name = True
     _attr_device_class = EventDeviceClass.BUTTON
+    _attr_name = "Panel Buttons"
+    _attr_icon = "mdi:gesture-tap-button"
 
-    def __init__(self, panel: Panel, gateway: DaliGatewayType) -> None:
+    def __init__(self, panel: Panel, gateway: dict[str, Any]) -> None:
         """Initialize the panel event entity."""
         GatewayAvailabilityMixin.__init__(self, panel.gw_sn, gateway)
         EventEntity.__init__(self)
 
         self._panel = panel
-        self._attr_name = "Panel Buttons"
         self._attr_unique_id = f"{panel.dev_id}_panel_events"
-        self._attr_icon = "mdi:gesture-tap-button"
         self._attr_available = panel.status == "online"
 
         self._attr_event_types = panel.get_available_event_types()
@@ -104,19 +127,14 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
 
     @callback
     def _handle_device_update(self, status: PanelStatus) -> None:
-        key_no = status["key_no"]
-        value = status["rotate_value"]
-
         event_name = status["event_name"]
         event_type = status["event_type"]
+        rotate_value = status["rotate_value"]
 
         _LOGGER.debug(
-            "Panel event triggered: dev_id=%s, key_no=%d, event=%s, type=%s, value=%s",
-            self._panel.dev_id,
-            key_no,
+            "Panel event: %s (dev_id=%s)",
             event_name,
-            event_type,
-            value,
+            self._panel.dev_id,
         )
 
         event_data: dict[str, str | int] = {
@@ -124,9 +142,9 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
             "event_type": event_name,
         }
 
-        if event_type == PanelEventType.ROTATE and value is not None:
-            event_data["rotate_value"] = value
-            self._trigger_event(event_name, {"rotate_value": value})
+        if event_type == PanelEventType.ROTATE and rotate_value is not None:
+            event_data["rotate_value"] = rotate_value
+            self._trigger_event(event_name, {"rotate_value": rotate_value})
         else:
             self._trigger_event(event_name)
 

@@ -9,13 +9,21 @@ from PySrDaliGateway import DaliGateway
 from PySrDaliGateway.exceptions import DaliGatewayError
 
 from homeassistant.components.persistent_notification import async_create
-from homeassistant.const import Platform
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_NAME,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+    Platform,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DOMAIN, MANUFACTURER
+from .const import CONF_GATEWAY_LEGACY, CONF_SERIAL_NUMBER, DOMAIN, MANUFACTURER
+from .helper import migrate_gateway_config
 from .types import DaliCenterConfigEntry, DaliCenterData
 
 _PLATFORMS: list[Platform] = [
@@ -37,8 +45,6 @@ def _setup_dependency_logging() -> None:
     gateway_logger = logging.getLogger("PySrDaliGateway")
     gateway_logger.setLevel(current_level)
 
-    _LOGGER.debug("Configured PySrDaliGateway logging level to %s", current_level)
-
 
 async def _notify_user_error(
     hass: HomeAssistant, title: str, message: str, gw_sn: str = ""
@@ -56,11 +62,41 @@ async def _notify_user_error(
     )
 
 
+async def async_migrate_entry(
+    hass: HomeAssistant, entry: DaliCenterConfigEntry
+) -> bool:
+    """Migrate old entry format to new format."""
+    if entry.version == 1:
+        old_data = dict(entry.data)
+
+        if CONF_GATEWAY_LEGACY in old_data:
+            _LOGGER.info("Migrating gateway configuration from legacy format")
+            new_data = migrate_gateway_config(old_data)
+
+            hass.config_entries.async_update_entry(
+                entry,
+                data=new_data,
+                version=2,
+            )
+            _LOGGER.info("Migration to version 2 completed successfully")
+        else:
+            hass.config_entries.async_update_entry(entry, version=2)
+
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -> bool:
     """Set up dali_center from a config entry using paho-mqtt."""
     _setup_dependency_logging()
 
-    gateway: DaliGateway = DaliGateway(entry.data["gateway"])
+    gateway = DaliGateway(
+        gw_sn=entry.data[CONF_SERIAL_NUMBER],
+        gw_ip=entry.data[CONF_HOST],
+        port=entry.data[CONF_PORT],
+        username=entry.data[CONF_USERNAME],
+        passwd=entry.data[CONF_PASSWORD],
+        name=entry.data[CONF_NAME],
+    )
     gw_sn = gateway.gw_sn
     is_tls = gateway.is_tls
 
@@ -69,7 +105,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
     try:
         async with async_timeout.timeout(30):
             await gateway.connect()
-            _LOGGER.info("Successfully connected to gateway %s", gw_sn)
     except DaliGatewayError as exc:
         _LOGGER.exception("Error connecting to gateway %s", gw_sn)
         await _notify_user_error(hass, "Connection Failed", str(exc), gw_sn)
@@ -128,12 +163,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         serial_number=gw_sn,
     )
 
-    # Store gateway instance in runtime_data
-    entry.runtime_data = DaliCenterData(gateway=gateway)
+    try:
+        devices = await gateway.discover_devices()
+    except DaliGatewayError as exc:
+        _LOGGER.warning("Failed to discover devices on gateway %s: %s", gw_sn, exc)
+        devices = []
+
+    try:
+        groups = await gateway.discover_groups()
+    except DaliGatewayError as exc:
+        _LOGGER.warning("Failed to discover groups on gateway %s: %s", gw_sn, exc)
+        groups = []
+
+    try:
+        scenes = await gateway.discover_scenes()
+    except DaliGatewayError as exc:
+        _LOGGER.warning("Failed to discover scenes on gateway %s: %s", gw_sn, exc)
+        scenes = []
+
+    entry.runtime_data = DaliCenterData(
+        gateway=gateway,
+        devices=devices,
+        groups=groups,
+        scenes=scenes,
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
-    _LOGGER.info("DALI Center gateway %s setup completed successfully", gw_sn)
+    _LOGGER.info(
+        "DALI Center gateway %s setup completed successfully "
+        "(%d devices, %d groups, %d scenes)",
+        gw_sn,
+        len(devices),
+        len(groups),
+        len(scenes),
+    )
     return True
 
 
