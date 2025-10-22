@@ -60,6 +60,8 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
 
     _attr_entity_category = EntityCategory.CONFIG
     _attr_has_entity_name = True
+    _attr_name = "Sensor Enable"
+    _attr_icon = "mdi:brightness-6"
 
     def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the illuminance sensor enable/disable switch."""
@@ -67,11 +69,9 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
         SwitchEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "Sensor Enable"
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
         self._attr_available = device.status == "online"
         self._attr_is_on: bool | None = True  # Default to enabled
-        self._attr_icon = "mdi:brightness-6"
 
         self._sync_sensor_state()
 

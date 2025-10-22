@@ -103,6 +103,15 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
     """Representation of a Dali Center Light."""
 
     _attr_has_entity_name = True
+    _attr_is_on: bool | None = None
+    _attr_brightness: int | None = None
+    _white_level: int | None = None
+    _attr_color_mode: ColorMode | str | None = None
+    _attr_color_temp_kelvin: int | None = None
+    _attr_hs_color: tuple[float, float] | None = None
+    _attr_rgbw_color: tuple[int, int, int, int] | None = None
+    _attr_max_color_temp_kelvin = 8000
+    _attr_min_color_temp_kelvin = 1000
 
     def __init__(self, light: Device, gateway: dict[str, Any]) -> None:
         """Initialize the light entity."""
@@ -113,13 +122,14 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         self._attr_name = "Light"
         self._attr_unique_id = light.unique_id
         self._attr_available = light.status == "online"
-        self._attr_is_on: bool | None = None
-        self._attr_brightness: int | None = None
-        self._white_level: int | None = None
-        self._attr_color_mode: ColorMode | str | None = None
-        self._attr_color_temp_kelvin: int | None = None
-        self._attr_hs_color: tuple[float, float] | None = None
-        self._attr_rgbw_color: tuple[int, int, int, int] | None = None
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, light.dev_id)},
+            "name": light.name,
+            "manufacturer": MANUFACTURER,
+            "model": light.model,
+            "via_device": (DOMAIN, light.gw_sn),
+        }
+
         self._determine_features()
 
     def _determine_features(self) -> None:
@@ -137,33 +147,12 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         self._attr_supported_color_modes = supported_modes
 
     @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._light.dev_id)},
-            name=self._light.name,
-            manufacturer=MANUFACTURER,
-            model=self._light.model,
-            via_device=(DOMAIN, self._light.gw_sn),
-        )
-
-    @cached_property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the optional state attributes."""
         attributes = self._get_gateway_attributes()
         device_attrs = self._get_device_base_attributes(self._light)
         attributes.update(device_attrs)
         return attributes
-
-    @property
-    def min_color_temp_kelvin(self) -> int:
-        """Return minimum color temperature in Kelvin."""
-        return 1000
-
-    @property
-    def max_color_temp_kelvin(self) -> int:
-        """Return maximum color temperature in Kelvin."""
-        return 8000
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
@@ -247,6 +236,9 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
     """Representation of a Dali Center Light Group."""
 
     _attr_has_entity_name = True
+    _attr_icon = "mdi:lightbulb-group"
+    _attr_min_color_temp_kelvin = 1000
+    _attr_max_color_temp_kelvin = 8000
 
     def __init__(self, group: Group, gateway: DaliGateway) -> None:
         """Initialize the light group."""
@@ -258,7 +250,6 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.unique_id}"
         self._attr_available = True
-        self._attr_icon = "mdi:lightbulb-group"
         self._attr_is_on: bool | None = False
         self._attr_brightness: int | None = 0
         self._attr_color_mode = ColorMode.BRIGHTNESS
@@ -267,9 +258,8 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
         self._attr_supported_color_modes: set[ColorMode] | set[str] | None = {
             ColorMode.BRIGHTNESS
-        }  # Will be updated dynamically in async_added_to_hass
+        }
 
-        # Group device info for extra state attributes
         self._group_lights: list[str] = []
         self._group_entity_ids: list[str] = []
         self._group_device_count = 0
@@ -280,16 +270,6 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         return {
             "identifiers": {(DOMAIN, self._group.gw_sn)},
         }
-
-    @property
-    def min_color_temp_kelvin(self) -> int:
-        """Return minimum color temperature in Kelvin."""
-        return 1000
-
-    @property
-    def max_color_temp_kelvin(self) -> int:
-        """Return maximum color temperature in Kelvin."""
-        return 8000
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light group."""
@@ -475,6 +455,10 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
     """Gateway-level all lights control via broadcast commands."""
 
     _attr_has_entity_name = True
+    _attr_name = "All Lights"
+    _attr_icon = "mdi:lightbulb-group-outline"
+    _attr_min_color_temp_kelvin = 1000
+    _attr_max_color_temp_kelvin = 8000
 
     def __init__(self, light: Device, config_entry: DaliCenterConfigEntry) -> None:
         """Initialize the all lights control."""
@@ -485,10 +469,8 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
 
         self._light = light
         self._config_entry = config_entry
-        self._attr_name = "All Lights"
         self._attr_unique_id = light.unique_id
         self._attr_available = True
-        self._attr_icon = "mdi:lightbulb-group-outline"
         self._attr_is_on: bool | None = False
         self._attr_brightness: int | None = 0
         self._attr_color_mode = ColorMode.RGBW
@@ -497,9 +479,8 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         self._attr_rgbw_color: tuple[int, int, int, int] | None = None
         self._attr_supported_color_modes: set[ColorMode] | set[str] | None = {
             ColorMode.BRIGHTNESS
-        }  # Will be updated dynamically in async_added_to_hass
+        }
 
-        # All lights tracking
         self._all_light_entities: list[str] = []
 
     async def async_added_to_hass(self) -> None:
@@ -658,16 +639,6 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         return {
             "identifiers": {(DOMAIN, self._light.gw_sn)},
         }
-
-    @property
-    def min_color_temp_kelvin(self) -> int:
-        """Return minimum color temperature in Kelvin."""
-        return 1000
-
-    @property
-    def max_color_temp_kelvin(self) -> int:
-        """Return maximum color temperature in Kelvin."""
-        return 8000
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on all lights."""

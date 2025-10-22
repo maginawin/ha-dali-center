@@ -35,6 +35,9 @@ async def async_setup_entry(
 class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
     """Representation of a Dali Center Gateway Restart Button."""
 
+    _attr_icon = "mdi:restart"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
     def __init__(self, gateway: DaliGateway) -> None:
         """Initialize the gateway restart button."""
         GatewayAvailabilityMixin.__init__(self, gateway.gw_sn, gateway_to_dict(gateway))
@@ -43,8 +46,6 @@ class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
         self._gateway_obj = gateway
         self._attr_name = f"{gateway.name} Restart"
         self._attr_unique_id = f"{gateway.gw_sn}_restart"
-        self._attr_icon = "mdi:restart"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @cached_property
     def device_info(self) -> DeviceInfo:

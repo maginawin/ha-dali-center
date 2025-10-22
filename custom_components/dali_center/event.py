@@ -82,6 +82,8 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
 
     _attr_has_entity_name = True
     _attr_device_class = EventDeviceClass.BUTTON
+    _attr_name = "Panel Buttons"
+    _attr_icon = "mdi:gesture-tap-button"
 
     def __init__(self, panel: Panel, gateway: dict[str, Any]) -> None:
         """Initialize the panel event entity."""
@@ -89,9 +91,7 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
         EventEntity.__init__(self)
 
         self._panel = panel
-        self._attr_name = "Panel Buttons"
         self._attr_unique_id = f"{panel.dev_id}_panel_events"
-        self._attr_icon = "mdi:gesture-tap-button"
         self._attr_available = panel.status == "online"
 
         self._attr_event_types = panel.get_available_event_types()

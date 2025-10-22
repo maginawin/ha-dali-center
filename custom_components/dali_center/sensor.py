@@ -92,6 +92,7 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 2
     _attr_has_entity_name = True
+    _attr_name = "Energy"
 
     def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the energy sensor."""
@@ -99,7 +100,6 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
         SensorEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "Energy"
         self._attr_unique_id = f"{device.unique_id}_energy"
         self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
@@ -148,6 +148,7 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_options = ["no_motion", "motion", "vacant", "presence", "occupancy"]
     _attr_has_entity_name = True
     _attr_icon = "mdi:motion-sensor"
+    _attr_name = "State"
 
     def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the motion sensor."""
@@ -155,7 +156,6 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
         SensorEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value = "no_motion"
@@ -211,6 +211,7 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = LIGHT_LUX
     _attr_has_entity_name = True
+    _attr_name = "State"
 
     def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
         """Initialize the illuminance sensor."""
@@ -218,7 +219,6 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
         SensorEntity.__init__(self)
 
         self._device = device
-        self._attr_name = "State"
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value: StateType | date | datetime | Decimal = None
