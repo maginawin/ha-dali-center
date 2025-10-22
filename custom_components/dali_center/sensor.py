@@ -23,7 +23,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import LIGHT_LUX, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
@@ -103,12 +102,8 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
         self._attr_unique_id = f"{device.unique_id}_energy"
         self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._device.dev_id)},
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
         }
 
     async def async_added_to_hass(self) -> None:
@@ -159,16 +154,12 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value = "no_motion"
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._device.dev_id)},
-            "name": self._device.name,
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
+            "name": device.name,
             "manufacturer": MANUFACTURER,
-            "model": self._device.model,
-            "via_device": (DOMAIN, self._device.gw_sn),
+            "model": device.model,
+            "via_device": (DOMAIN, device.gw_sn),
         }
 
     async def async_added_to_hass(self) -> None:
@@ -223,16 +214,12 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
         self._attr_available = device.status == "online"
         self._attr_native_value: StateType | date | datetime | Decimal = None
         self._sensor_enabled: bool = True  # Track sensor enable state
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._device.dev_id)},
-            "name": self._device.name,
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
+            "name": device.name,
             "manufacturer": MANUFACTURER,
-            "model": self._device.model,
-            "via_device": (DOMAIN, self._device.gw_sn),
+            "model": device.model,
+            "via_device": (DOMAIN, device.gw_sn),
         }
 
     async def async_added_to_hass(self) -> None:

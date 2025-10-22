@@ -103,12 +103,47 @@ class MyEntity(BaseEntity):
         self._attr_unique_id = f"{device.id}_temperature"  # Dynamic
         self._attr_native_value = device.current_temp  # State
         self._attr_available = device.status == "online"  # State
+        self._attr_device_info = {  # Device info set in constructor
+            "identifiers": {(DOMAIN, device.dev_id)},
+            "name": device.name,
+            "manufacturer": MANUFACTURER,
+            "model": device.model,
+            "via_device": (DOMAIN, device.gw_sn),
+        }
+```
+
+#### Device Info Pattern
+
+Always set `device_info` in the constructor using `_attr_device_info` dictionary, not as a `@cached_property`:
+
+**Good - Device info in constructor:**
+
+```python
+def __init__(self, device: Device) -> None:
+    super().__init__()
+    self._attr_device_info = {
+        "identifiers": {(DOMAIN, device.dev_id)},
+        "name": device.name,
+        "manufacturer": MANUFACTURER,
+        "model": device.model,
+        "via_device": (DOMAIN, device.gw_sn),
+    }
+```
+
+**Bad - Device info as cached property:**
+
+```python
+@cached_property
+def device_info(self) -> DeviceInfo:
+    return {
+        "identifiers": {(DOMAIN, self._device.dev_id)},
+    }
 ```
 
 #### Property Usage Guidelines
 
 - **Avoid `@property`** for simple constant values - use class-level `_attr_*` attributes instead
-- **Use `@cached_property`** for computed values that never change after initialization
+- **Use `@cached_property`** for computed values that depend on Home Assistant context (e.g., `extra_state_attributes` that queries entity registry)
 - **Use `@property`** only for values that must be computed on every access
 
 **Example:**
@@ -122,10 +157,12 @@ def min_value(self) -> int:
 # Good - class-level attribute
 _attr_min_value = 1000
 
-# Good - cached computation
+# Good - cached property for HA-dependent computation
 @cached_property
-def device_info(self) -> DeviceInfo:
-    return {"identifiers": {(DOMAIN, self._device.id)}}
+def extra_state_attributes(self) -> dict[str, Any]:
+    ent_reg = er.async_get(self.hass)
+    # ... compute attributes using entity registry
+    return attributes
 
 # Good - dynamic computation
 @property

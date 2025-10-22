@@ -5,14 +5,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
 
 from homeassistant.components.event import EventDeviceClass, EventEntity
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
@@ -95,16 +93,12 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
         self._attr_available = panel.status == "online"
 
         self._attr_event_types = panel.get_available_event_types()
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for the panel."""
-        return {
-            "identifiers": {(DOMAIN, self._panel.dev_id)},
-            "name": self._panel.name,
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, panel.dev_id)},
+            "name": panel.name,
             "manufacturer": MANUFACTURER,
-            "model": self._panel.model,
-            "via_device": (DOMAIN, self._panel.gw_sn),
+            "model": panel.model,
+            "via_device": (DOMAIN, panel.gw_sn),
         }
 
     async def async_added_to_hass(self) -> None:

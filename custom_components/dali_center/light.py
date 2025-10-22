@@ -20,7 +20,6 @@ from homeassistant.components.light import (
 from homeassistant.components.light.const import ColorMode
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
@@ -263,12 +262,8 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self._group_lights: list[str] = []
         self._group_entity_ids: list[str] = []
         self._group_device_count = 0
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._group.gw_sn)},
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, group.gw_sn)},
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -482,6 +477,9 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         }
 
         self._all_light_entities: list[str] = []
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, light.gw_sn)},
+        }
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
@@ -632,13 +630,6 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         )
 
         return attributes
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information - associate with gateway."""
-        return {
-            "identifiers": {(DOMAIN, self._light.gw_sn)},
-        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on all lights."""

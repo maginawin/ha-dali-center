@@ -2,13 +2,11 @@
 
 import logging
 
-from propcache.api import cached_property
 from PySrDaliGateway import DaliGateway
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -46,12 +44,8 @@ class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
         self._gateway_obj = gateway
         self._attr_name = f"{gateway.name} Restart"
         self._attr_unique_id = f"{gateway.gw_sn}_restart"
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for the gateway restart button."""
-        return {
-            "identifiers": {(DOMAIN, self._gateway_obj.gw_sn)},
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, gateway.gw_sn)},
         }
 
     async def async_press(self) -> None:

@@ -10,7 +10,6 @@ from PySrDaliGateway.helper import gen_device_unique_id, gen_group_unique_id
 from homeassistant.components.scene import Scene as SceneEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -71,13 +70,9 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
         self._attr_name = scene.name
         self._attr_unique_id = scene.unique_id
         self._scene_details = scene_details
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for the scene."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._scene.gw_sn)},
-        )
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, scene.gw_sn)},
+        }
 
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any]:
