@@ -9,11 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 
 @dataclass
 class DaliCenterData:
-    """Runtime data for the Dali Center integration.
-
-    Contains the gateway connection and all discovered entities.
-    Entities are discovered during setup, not stored in config entry.
-    """
+    """Runtime data for the Dali Center integration."""
 
     gateway: DaliGateway
     devices: list[Device]

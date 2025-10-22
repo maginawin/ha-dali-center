@@ -92,9 +92,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         try:
-            current_sn = self._config_entry.data.get(
-                CONF_SERIAL_NUMBER
-            ) or self._config_entry.data.get("sn")
+            current_sn = self._config_entry.data[CONF_SERIAL_NUMBER]
             _LOGGER.debug("Refreshing IP for gateway %s", current_sn)
 
             if hasattr(self._config_entry, "runtime_data"):
@@ -138,12 +136,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     data_schema=vol.Schema({}),
                 )
 
-            # IP refresh successful, show result
             return self.async_show_form(
                 step_id="refresh_gateway_ip_result",
                 data_schema=vol.Schema({}),
                 description_placeholders={
-                    "gateway_sn": current_sn or "",
+                    "gateway_sn": current_sn,
                     "new_ip": updated_gateway.gw_ip,
                 },
             )
@@ -231,9 +228,9 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_SERIAL_NUMBER: selected_gateway.gw_sn,
                             CONF_HOST: selected_gateway.gw_ip,
                             CONF_PORT: selected_gateway.port,
-                            CONF_NAME: selected_gateway.name or "",
-                            CONF_USERNAME: selected_gateway.username or "",
-                            CONF_PASSWORD: selected_gateway.passwd or "",
+                            CONF_NAME: selected_gateway.name,
+                            CONF_USERNAME: selected_gateway.username,
+                            CONF_PASSWORD: selected_gateway.passwd,
                         },
                     )
                 except DaliGatewayError:
