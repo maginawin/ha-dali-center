@@ -134,15 +134,17 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
 
     def _determine_features(self) -> None:
         supported_modes: set[ColorMode] = set()
+
+        color_mode_mapping: dict[str, ColorMode] = {
+            "color_temp": ColorMode.COLOR_TEMP,
+            "hs": ColorMode.HS,
+            "rgbw": ColorMode.RGBW,
+        }
+
         color_mode = self._light.color_mode
-        if color_mode == "color_temp":
-            self._attr_color_mode = ColorMode.COLOR_TEMP
-        elif color_mode == "hs":
-            self._attr_color_mode = ColorMode.HS
-        elif color_mode == "rgbw":
-            self._attr_color_mode = ColorMode.RGBW
-        else:
-            self._attr_color_mode = ColorMode.BRIGHTNESS
+        self._attr_color_mode = color_mode_mapping.get(
+            color_mode, ColorMode.BRIGHTNESS
+        )
         supported_modes.add(self._attr_color_mode)
         self._attr_supported_color_modes = supported_modes
 
