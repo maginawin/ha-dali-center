@@ -182,11 +182,78 @@ Instead of comments, use:
 - Small, well-named functions
 - Logical code organization
 
+### Entity Class Best Practices
+
+**Source**: Home Assistant entity architecture patterns
+
+#### Attribute Declaration Pattern
+
+Distinguish between constant class-level attributes and dynamic instance-level state:
+
+**Class-level attributes** (constants shared across all instances):
+
+```python
+class MyEntity(BaseEntity):
+    _attr_has_entity_name = True
+    _attr_name = "Sensor"  # Same for all instances
+    _attr_icon = "mdi:thermometer"  # Same for all instances
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_min_value = 1000  # Constant
+    _attr_max_value = 8000  # Constant
+```
+
+**Instance-level attributes** (unique per instance):
+
+```python
+    def __init__(self, device: Device) -> None:
+        super().__init__()
+        self._device = device
+        self._attr_unique_id = f"{device.id}_temperature"  # Dynamic
+        self._attr_native_value = device.current_temp  # State
+        self._attr_available = device.status == "online"  # State
+```
+
+#### Property Usage Guidelines
+
+- **Avoid `@property`** for simple constant values - use class-level `_attr_*` attributes instead
+- **Use `@cached_property`** for computed values that never change after initialization
+- **Use `@property`** only for values that must be computed on every access
+
+**Example:**
+
+```python
+# Bad - unnecessary @property for constants
+@property
+def min_value(self) -> int:
+    return 1000
+
+# Good - class-level attribute
+_attr_min_value = 1000
+
+# Good - cached computation
+@cached_property
+def device_info(self) -> DeviceInfo:
+    return {"identifiers": {(DOMAIN, self._device.id)}}
+
+# Good - dynamic computation
+@property
+def is_heating(self) -> bool:
+    return self._current_temp < self._target_temp
+```
+
+#### Benefits
+
+- **Performance**: Class-level attributes shared across instances, reducing memory
+- **Clarity**: Clear separation between configuration (class) and state (instance)
+- **Consistency**: Uniform pattern across all entity classes
+- **Maintainability**: Easier to identify what changes vs what's constant
+
 ### References
 
 - [Home Assistant Development Guidelines](https://developers.home-assistant.io/docs/development_guidelines/)
 - [Home Assistant Core - Best Practices](https://developers.home-assistant.io/docs/development_checklist/)
 - [Python Logging Best Practices](https://docs.python.org/3/howto/logging.html)
+- [Python @cached_property](https://docs.python.org/3/library/functools.html#functools.cached_property)
 
 ## Development Setup
 
