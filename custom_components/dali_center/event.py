@@ -132,7 +132,7 @@ class DaliCenterPanelEvent(EventEntity):
             self._trigger_event(event_name)
 
         self.hass.bus.async_fire(f"{DOMAIN}_event", event_data)
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:

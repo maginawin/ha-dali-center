@@ -111,7 +111,7 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             return
 
         self._attr_is_on = on_off
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:

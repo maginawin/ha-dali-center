@@ -107,7 +107,7 @@ class DaliCenterEnergySensor(SensorEntity):
         if dev_id != self._device.dev_id:
             return
         self._attr_native_value = energy_value
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
@@ -179,7 +179,7 @@ class DaliCenterMotionSensor(SensorEntity):
 
         motion_state = status["motion_state"]
         self._attr_native_value = motion_state.value
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
@@ -271,7 +271,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
             return
 
         self._attr_native_value = illuminance_value
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
