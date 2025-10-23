@@ -3,7 +3,6 @@
 import logging
 from typing import Any
 
-from propcache.api import cached_property
 from PySrDaliGateway import CallbackEventType, DaliGateway, Scene
 from PySrDaliGateway.helper import gen_device_unique_id, gen_group_unique_id
 
@@ -61,6 +60,13 @@ class DaliCenterScene(SceneEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, scene.gw_sn)},
         }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": scene.gw_sn,
+            "scene_id": scene.scene_id,
+            "area_id": scene_details["area_id"],
+            "channel": scene_details["channel"],
+            "entity_id": [],
+        }
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
@@ -71,6 +77,8 @@ class DaliCenterScene(SceneEntity):
             )
         )
 
+        self._update_entity_mappings()
+
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
         """Handle gateway availability changes."""
@@ -80,14 +88,12 @@ class DaliCenterScene(SceneEntity):
         self._attr_available = available
         self.schedule_update_ha_state()
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return scene device information as extra state attributes."""
+    def _update_entity_mappings(self) -> None:
+        """Update entity ID mappings in extra_state_attributes."""
         ent_reg = er.async_get(self.hass)
         mapped_entities: list[str] = []
 
         for device in self._scene_details["devices"]:
-            # Use SDK helper to generate correct unique_id
             if device["dev_type"] == "0401":
                 device_unique_id = gen_group_unique_id(
                     device["address"],
@@ -106,12 +112,7 @@ class DaliCenterScene(SceneEntity):
             if entity_id:
                 mapped_entities.append(entity_id)
 
-        return {
-            "scene_id": self._scene.scene_id,
-            "area_id": self._scene_details["area_id"],
-            "channel": self._scene_details["channel"],
-            "entity_id": mapped_entities,
-        }
+        self._attr_extra_state_attributes["entity_id"] = mapped_entities
 
     async def async_activate(self, **kwargs: Any) -> None:
         """Activate the DALI scene."""

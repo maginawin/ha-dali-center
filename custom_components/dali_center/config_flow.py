@@ -159,7 +159,6 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
-        super().__init__()
         self._gateways: list[DaliGateway] = []
         self._selected_gateway: DaliGateway | None = None
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, cast
 
-from propcache.api import cached_property
 from PySrDaliGateway import CallbackEventType, DaliGateway, Device, Group
 from PySrDaliGateway.helper import is_light_device
 from PySrDaliGateway.types import LightStatus
@@ -96,6 +95,13 @@ class DaliCenterLight(LightEntity):
             "model": light.model,
             "via_device": (DOMAIN, light.gw_sn),
         }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": light.gw_sn,
+            "address": light.address,
+            "channel": light.channel,
+            "device_type": light.dev_type,
+            "device_model": light.model,
+        }
 
         self._determine_features()
 
@@ -112,16 +118,6 @@ class DaliCenterLight(LightEntity):
         self._attr_color_mode = color_mode_mapping.get(color_mode, ColorMode.BRIGHTNESS)
         supported_modes.add(self._attr_color_mode)
         self._attr_supported_color_modes = supported_modes
-
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the optional state attributes."""
-        return {
-            "address": self._light.address,
-            "channel": self._light.channel,
-            "device_type": self._light.dev_type,
-            "device_model": self._light.model,
-        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
@@ -243,6 +239,16 @@ class DaliCenterLightGroup(LightEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, group.gw_sn)},
         }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": group.gw_sn,
+            "is_dali_group": True,
+            "group_id": group.group_id,
+            "channel": group.channel,
+            "total_devices": 0,
+            "lights": [],
+            "entity_id": [],
+            "group_name": group.name,
+        }
 
     @callback
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -309,6 +315,14 @@ class DaliCenterLightGroup(LightEntity):
         self._group_lights = sorted(light_names)
         self._group_entity_ids = sorted(light_entities)
         self._group_device_count = len(group_info["devices"])
+
+        self._attr_extra_state_attributes.update(
+            {
+                "total_devices": self._group_device_count,
+                "lights": self._group_lights,
+                "entity_id": self._group_entity_ids,
+            }
+        )
 
         await self._determine_supported_color_modes()
 
@@ -390,20 +404,6 @@ class DaliCenterLightGroup(LightEntity):
         await self._calculate_group_state()
         self.schedule_update_ha_state()
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the optional state attributes."""
-
-        return {
-            "is_dali_group": True,
-            "group_id": self._group.group_id,
-            "channel": self._group.channel,
-            "total_devices": self._group_device_count,
-            "lights": self._group_lights,
-            "entity_id": self._group_entity_ids,
-            "group_name": self._group.name,
-        }
-
 
 class DaliCenterAllLights(LightEntity):
     """Gateway-level all lights control via broadcast commands."""
@@ -435,6 +435,16 @@ class DaliCenterAllLights(LightEntity):
         self._all_light_entities: list[str] = []
         self._attr_device_info = {
             "identifiers": {(DOMAIN, light.gw_sn)},
+        }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": light.gw_sn,
+            "address": light.address,
+            "channel": light.channel,
+            "device_type": light.dev_type,
+            "device_model": light.model,
+            "is_all_lights": True,
+            "entity_id": [],
+            "total_lights": 0,
         }
 
     async def async_added_to_hass(self) -> None:
@@ -468,7 +478,13 @@ class DaliCenterAllLights(LightEntity):
             )  # Only individual device lights
         ]
 
-        # Determine supported color modes based on individual lights
+        self._attr_extra_state_attributes.update(
+            {
+                "entity_id": self._all_light_entities,
+                "total_lights": len(self._all_light_entities),
+            }
+        )
+
         await self._determine_all_lights_color_modes()
 
     async def _determine_all_lights_color_modes(self) -> None:
@@ -554,19 +570,6 @@ class DaliCenterAllLights(LightEntity):
         """Calculate all lights state and schedule update."""
         await self._calculate_all_lights_state()
         self.schedule_update_ha_state()
-
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        return {
-            "address": self._light.address,
-            "channel": self._light.channel,
-            "device_type": self._light.dev_type,
-            "device_model": self._light.model,
-            "is_all_lights": True,
-            "entity_id": self._all_light_entities,
-            "total_lights": len(self._all_light_entities),
-        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on all lights."""

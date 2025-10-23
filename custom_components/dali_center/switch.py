@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from propcache.api import cached_property
 from PySrDaliGateway import CallbackEventType, DaliGateway, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
@@ -59,6 +58,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
             "model": device.model,
             "via_device": (DOMAIN, device.gw_sn),
         }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": device.gw_sn,
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
+        }
 
         self._sync_sensor_state()
 
@@ -111,13 +117,3 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
 
         self._attr_available = available
         self.schedule_update_ha_state()
-
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        return {
-            "address": self._device.address,
-            "channel": self._device.channel,
-            "device_type": self._device.dev_type,
-            "device_model": self._device.model,
-        }

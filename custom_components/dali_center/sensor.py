@@ -5,9 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 import logging
-from typing import Any
 
-from propcache.api import cached_property
 from PySrDaliGateway import CallbackEventType, DaliGateway, Device
 from PySrDaliGateway.helper import (
     is_illuminance_sensor,
@@ -76,6 +74,13 @@ class DaliCenterEnergySensor(SensorEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device.dev_id)},
         }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": device.gw_sn,
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
+        }
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
@@ -109,16 +114,6 @@ class DaliCenterEnergySensor(SensorEntity):
         self._attr_available = available
         self.schedule_update_ha_state()
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        return {
-            "address": self._device.address,
-            "channel": self._device.channel,
-            "device_type": self._device.dev_type,
-            "device_model": self._device.model,
-        }
-
 
 class DaliCenterMotionSensor(SensorEntity):
     """Representation of a Dali Center Motion Sensor."""
@@ -143,6 +138,13 @@ class DaliCenterMotionSensor(SensorEntity):
             "manufacturer": MANUFACTURER,
             "model": device.model,
             "via_device": (DOMAIN, device.gw_sn),
+        }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": device.gw_sn,
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
         }
 
     async def async_added_to_hass(self) -> None:
@@ -181,16 +183,6 @@ class DaliCenterMotionSensor(SensorEntity):
         self._attr_available = available
         self.schedule_update_ha_state()
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        return {
-            "address": self._device.address,
-            "channel": self._device.channel,
-            "device_type": self._device.dev_type,
-            "device_model": self._device.model,
-        }
-
 
 class DaliCenterIlluminanceSensor(SensorEntity):
     """Representation of a Dali Center Illuminance Sensor."""
@@ -216,6 +208,13 @@ class DaliCenterIlluminanceSensor(SensorEntity):
             "manufacturer": MANUFACTURER,
             "model": device.model,
             "via_device": (DOMAIN, device.gw_sn),
+        }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": device.gw_sn,
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
         }
 
     async def async_added_to_hass(self) -> None:
@@ -290,13 +289,3 @@ class DaliCenterIlluminanceSensor(SensorEntity):
             self._attr_native_value = None
 
         self.schedule_update_ha_state()
-
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        return {
-            "address": self._device.address,
-            "channel": self._device.channel,
-            "device_type": self._device.dev_type,
-            "device_model": self._device.model,
-        }
