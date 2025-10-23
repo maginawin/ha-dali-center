@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from propcache.api import cached_property
 from PySrDaliGateway import CallbackEventType, DaliGateway, Device, Group
@@ -15,7 +15,9 @@ from homeassistant.components.light import (
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
     ATTR_RGBW_COLOR,
+    ATTR_SUPPORTED_COLOR_MODES,
     LightEntity,
+    filter_supported_color_modes,
 )
 from homeassistant.components.light.const import ColorMode
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
@@ -333,28 +335,21 @@ class DaliCenterLightGroup(LightEntity):
 
     async def _determine_supported_color_modes(self) -> None:
         """Determine supported color modes based on member lights capabilities."""
-        if not self._group_entity_ids:
-            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
-            return
-
-        # Collect supported modes from all member lights
-        supported_modes: set[ColorMode] = set()
+        supported_color_modes = {ColorMode.ONOFF}
+        all_supported_modes: list[set[ColorMode]] = []
 
         for entity_id in self._group_entity_ids:
-            state = self.hass.states.get(entity_id)
-            if not state:
-                continue
+            if state := self.hass.states.get(entity_id):
+                if modes := state.attributes.get(ATTR_SUPPORTED_COLOR_MODES):
+                    all_supported_modes.append(set(modes))
 
-            # Get supported color modes from the light entity
-            entity_modes = state.attributes.get("supported_color_modes", [])
-            if entity_modes:
-                supported_modes.update(entity_modes)
+        if all_supported_modes:
+            # Merge all color modes and filter invalid combinations
+            supported_color_modes = filter_supported_color_modes(
+                cast("set[ColorMode]", set().union(*all_supported_modes))
+            )
 
-        # If no specific modes found, default to brightness
-        if not supported_modes:
-            supported_modes = {ColorMode.BRIGHTNESS}
-
-        self._attr_supported_color_modes = supported_modes
+        self._attr_supported_color_modes = supported_color_modes
 
     async def _calculate_group_state(self) -> None:
         """Calculate group state based on member lights' actual states."""
@@ -501,33 +496,26 @@ class DaliCenterAllLights(LightEntity):
 
     async def _determine_all_lights_color_modes(self) -> None:
         """Determine supported color modes based on all individual lights capabilities."""
-        if not self._all_light_entities:
-            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
-            return
-
-        # Collect supported modes from all member lights
-        supported_modes: set[ColorMode] = set()
+        supported_color_modes = {ColorMode.ONOFF}
+        all_supported_modes: list[set[ColorMode]] = []
 
         for entity_id in self._all_light_entities:
-            state = self.hass.states.get(entity_id)
-            if not state:
-                continue
+            if state := self.hass.states.get(entity_id):
+                if modes := state.attributes.get(ATTR_SUPPORTED_COLOR_MODES):
+                    all_supported_modes.append(set(modes))
 
-            # Get supported color modes from the light entity
-            entity_modes = state.attributes.get("supported_color_modes", [])
-            if entity_modes:
-                supported_modes.update(entity_modes)
+        if all_supported_modes:
+            # Merge all color modes and filter invalid combinations
+            supported_color_modes = filter_supported_color_modes(
+                cast("set[ColorMode]", set().union(*all_supported_modes))
+            )
 
-        # If no specific modes found, default to brightness
-        if not supported_modes:
-            supported_modes = {ColorMode.BRIGHTNESS}
-
-        self._attr_supported_color_modes = supported_modes
+        self._attr_supported_color_modes = supported_color_modes
 
         _LOGGER.debug(
             "All Lights %s determined supported color modes: %s",
             self._attr_unique_id,
-            supported_modes,
+            supported_color_modes,
         )
 
     async def _calculate_all_lights_state(self) -> None:
