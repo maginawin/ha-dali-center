@@ -36,7 +36,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize the options flow."""
-        super().__init__()
         self._config_entry = config_entry
 
     async def _reload_with_delay(self) -> bool:

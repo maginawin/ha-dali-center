@@ -80,8 +80,6 @@ class DaliCenterPanelEvent(EventEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle when entity is added to hass."""
-        await super().async_added_to_hass()
-
         self.async_on_remove(
             self._gateway.register_listener(
                 CallbackEventType.PANEL_STATUS, self._handle_device_update
@@ -128,7 +126,7 @@ class DaliCenterPanelEvent(EventEntity):
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
         """Handle device-specific availability changes."""
-        if dev_id not in (self._panel.dev_id, self._gateway.gw_sn):
+        if dev_id not in (self._panel.dev_id, self._panel.gw_sn):
             return
 
         self._attr_available = available

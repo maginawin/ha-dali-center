@@ -200,7 +200,7 @@ class DaliCenterLight(LightEntity):
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
         """Handle device-specific availability changes."""
-        if dev_id not in (self._light.dev_id, self._gateway.gw_sn):
+        if dev_id not in (self._light.dev_id, self._light.gw_sn):
             return
 
         self._attr_available = available

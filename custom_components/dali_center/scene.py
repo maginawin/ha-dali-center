@@ -82,7 +82,7 @@ class DaliCenterScene(SceneEntity):
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
         """Handle gateway availability changes."""
-        if dev_id != self._gateway.gw_sn:
+        if dev_id != self._scene.gw_sn:
             return
 
         self._attr_available = available

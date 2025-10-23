@@ -98,7 +98,6 @@ class MyEntity(BaseEntity):
 
 ```python
     def __init__(self, device: Device) -> None:
-        super().__init__()
         self._device = device
         self._attr_unique_id = f"{device.id}_temperature"  # Dynamic
         self._attr_native_value = device.current_temp  # State
@@ -122,7 +121,6 @@ All entity attributes should be set in the constructor using the `_attr_*` namin
 
 ```python
 def __init__(self, device: Device) -> None:
-    super().__init__()
     self._attr_unique_id = device.unique_id
     self._attr_device_info = {
         "identifiers": {(DOMAIN, device.dev_id)},
