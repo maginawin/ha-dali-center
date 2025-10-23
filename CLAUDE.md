@@ -112,15 +112,18 @@ class MyEntity(BaseEntity):
         }
 ```
 
-#### Device Info Pattern
+#### Attribute Declaration Guidelines
 
-Always set `device_info` in the constructor using `_attr_device_info` dictionary, not as a `@cached_property`:
+**Always use `_attr_*` pattern in constructors. Avoid `@property` and `@cached_property` decorators.**
 
-**Good - Device info in constructor:**
+All entity attributes should be set in the constructor using the `_attr_*` naming convention:
+
+**Good - Attributes in constructor:**
 
 ```python
 def __init__(self, device: Device) -> None:
     super().__init__()
+    self._attr_unique_id = device.unique_id
     self._attr_device_info = {
         "identifiers": {(DOMAIN, device.dev_id)},
         "name": device.name,
@@ -128,46 +131,34 @@ def __init__(self, device: Device) -> None:
         "model": device.model,
         "via_device": (DOMAIN, device.gw_sn),
     }
+    self._attr_extra_state_attributes = {
+        "gateway_sn": device.gw_sn,
+        "address": device.address,
+        "channel": device.channel,
+    }
 ```
 
-**Bad - Device info as cached property:**
+**Bad - Using property decorators:**
 
 ```python
 @cached_property
 def device_info(self) -> DeviceInfo:
-    return {
-        "identifiers": {(DOMAIN, self._device.dev_id)},
-    }
-```
+    return {"identifiers": {(DOMAIN, self._device.dev_id)}}
 
-#### Property Usage Guidelines
-
-- **Avoid `@property`** for simple constant values - use class-level `_attr_*` attributes instead
-- **Use `@cached_property`** for computed values that depend on Home Assistant context (e.g., `extra_state_attributes` that queries entity registry)
-- **Use `@property`** only for values that must be computed on every access
-
-**Example:**
-
-```python
-# Bad - unnecessary @property for constants
-@property
-def min_value(self) -> int:
-    return 1000
-
-# Good - class-level attribute
-_attr_min_value = 1000
-
-# Good - cached property for HA-dependent computation
 @cached_property
 def extra_state_attributes(self) -> dict[str, Any]:
-    ent_reg = er.async_get(self.hass)
-    # ... compute attributes using entity registry
-    return attributes
+    return {"address": self._device.address}
+```
 
-# Good - dynamic computation
-@property
-def is_heating(self) -> bool:
-    return self._current_temp < self._target_temp
+For dynamic data that needs updating, use methods to update `_attr_*` attributes:
+
+```python
+async def _async_update_group_devices(self) -> None:
+    # ... fetch data
+    self._attr_extra_state_attributes.update({
+        "entity_id": self._group_entity_ids,
+        "total_devices": len(devices),
+    })
 ```
 
 #### Benefits
