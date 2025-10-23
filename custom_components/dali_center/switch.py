@@ -26,24 +26,14 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center illuminance sensor enable/disable switches."""
+    gateway = entry.runtime_data.gateway
+    devices = entry.runtime_data.devices
 
-    gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = entry.runtime_data.devices
-
-    added_devices: set[str] = set()
-    new_switches: list[SwitchEntity] = []
-    for device in devices:
-        if device.dev_id in added_devices:
-            continue
-
-        if is_illuminance_sensor(device.dev_type):
-            new_switches.append(
-                DaliCenterIlluminanceSensorEnableSwitch(device, gateway)
-            )
-            added_devices.add(device.dev_id)
-
-    if new_switches:
-        async_add_entities(new_switches)
+    async_add_entities(
+        DaliCenterIlluminanceSensorEnableSwitch(device, gateway)
+        for device in devices
+        if is_illuminance_sensor(device.dev_type)
+    )
 
 
 class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):

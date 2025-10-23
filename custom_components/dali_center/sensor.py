@@ -38,29 +38,20 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center sensor entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = entry.runtime_data.devices
+    gateway = entry.runtime_data.gateway
+    devices = entry.runtime_data.devices
 
-    _LOGGER.info("Setting up sensor platform: %d devices", len(devices))
-
-    added_devices: set[str] = set()
-    new_sensors: list[SensorEntity] = []
+    sensors: list[SensorEntity] = []
     for device in devices:
-        if device.dev_id in added_devices:
-            continue
-
         if is_light_device(device.dev_type):
-            new_sensors.append(DaliCenterEnergySensor(device, gateway))
-            added_devices.add(device.dev_id)
+            sensors.append(DaliCenterEnergySensor(device, gateway))
         elif is_motion_sensor(device.dev_type):
-            new_sensors.append(DaliCenterMotionSensor(device, gateway))
-            added_devices.add(device.dev_id)
+            sensors.append(DaliCenterMotionSensor(device, gateway))
         elif is_illuminance_sensor(device.dev_type):
-            new_sensors.append(DaliCenterIlluminanceSensor(device, gateway))
-            added_devices.add(device.dev_id)
+            sensors.append(DaliCenterIlluminanceSensor(device, gateway))
 
-    if new_sensors:
-        async_add_entities(new_sensors)
+    if sensors:
+        async_add_entities(sensors)
 
 
 class DaliCenterEnergySensor(SensorEntity):

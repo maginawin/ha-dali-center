@@ -24,10 +24,8 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up DALI Center scene entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-    scenes: list[Scene] = entry.runtime_data.scenes
-
-    _LOGGER.debug("Setting up scene platform with %d scenes", len(scenes))
+    gateway = entry.runtime_data.gateway
+    scenes = entry.runtime_data.scenes
 
     scene_entities: list[DaliCenterScene] = []
     for scene in scenes:
@@ -35,12 +33,6 @@ async def async_setup_entry(
             scene_details = await gateway.read_scene(
                 scene.scene_id, getattr(scene, "channel", 0)
             )
-            _LOGGER.debug(
-                "Loaded scene details for %s: %d devices",
-                scene.name,
-                len(scene_details.get("devices", [])),
-            )
-
             scene_entities.append(DaliCenterScene(scene, gateway, scene_details))
         except (OSError, ValueError, KeyError):
             _LOGGER.exception(

@@ -37,10 +37,10 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center light entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = entry.runtime_data.devices
-    groups: list[Group] = entry.runtime_data.groups
-    all_light: Device = Device(
+    gateway = entry.runtime_data.gateway
+    devices = entry.runtime_data.devices
+    groups = entry.runtime_data.groups
+    all_light = Device(
         gateway,
         unique_id=f"{gateway.gw_sn}_all_lights",
         dev_id=gateway.gw_sn,
@@ -56,36 +56,15 @@ async def async_setup_entry(
         properties=[],
     )
 
-    _LOGGER.info(
-        "Setting up light platform: %d devices, %d groups", len(devices), len(groups)
+    async_add_entities(
+        DaliCenterLight(device, gateway)
+        for device in devices
+        if is_light_device(device.dev_type)
     )
 
-    added_entities: set[str] = set()
-    new_lights: list[DaliCenterLight] = []
-    for device in devices:
-        if device.dev_id in added_entities:
-            continue
-        if is_light_device(device.dev_type):
-            new_lights.append(DaliCenterLight(device, gateway))
-            added_entities.add(device.dev_id)
+    async_add_entities(DaliCenterLightGroup(group, gateway) for group in groups)
 
-    if new_lights:
-        async_add_entities(new_lights)
-
-    added_group_entities: set[str] = set()
-    new_groups: list[DaliCenterLightGroup] = []
-    for group in groups:
-        group_id = str(group)
-        if group_id in added_group_entities:
-            continue
-        new_groups.append(DaliCenterLightGroup(group, gateway))
-        added_group_entities.add(group_id)
-
-    if new_groups:
-        async_add_entities(new_groups)
-
-    all_lights_entity = DaliCenterAllLights(all_light, gateway, entry)
-    async_add_entities([all_lights_entity])
+    async_add_entities([DaliCenterAllLights(all_light, entry)])
 
 
 class DaliCenterLight(LightEntity):
@@ -435,13 +414,11 @@ class DaliCenterAllLights(LightEntity):
     _attr_min_color_temp_kelvin = 1000
     _attr_max_color_temp_kelvin = 8000
 
-    def __init__(
-        self, light: Device, gateway: DaliGateway, config_entry: DaliCenterConfigEntry
-    ) -> None:
+    def __init__(self, light: Device, config_entry: DaliCenterConfigEntry) -> None:
         """Initialize the all lights control."""
 
         self._light = light
-        self._gateway = gateway
+        self._gateway = config_entry.runtime_data.gateway
         self._config_entry = config_entry
         self._attr_unique_id = light.unique_id
         self._attr_available = True

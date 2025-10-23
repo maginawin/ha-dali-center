@@ -21,9 +21,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center button entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-
-    _LOGGER.debug("Setting up button platform for gateway %s", gateway.gw_sn)
+    gateway = entry.runtime_data.gateway
 
     async_add_entities([DaliCenterGatewayRestartButton(gateway)])
 
