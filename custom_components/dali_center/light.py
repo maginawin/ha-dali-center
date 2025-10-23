@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Device, Group
+from PySrDaliGateway import CallbackEventType, DaliGateway, Device, Group
 from PySrDaliGateway.helper import is_light_device
 from PySrDaliGateway.types import LightStatus
 
@@ -20,16 +20,10 @@ from homeassistant.components.light import (
 from homeassistant.components.light.const import ColorMode
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN, MANUFACTURER
-from .entity import GatewayAvailabilityMixin
-from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,12 +54,6 @@ async def async_setup_entry(
         properties=[],
     )
 
-    def _on_light_status(dev_id: str, status: LightStatus) -> None:
-        signal = f"dali_center_update_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, status)
-
-    gateway.on_light_status = _on_light_status
-
     _LOGGER.info(
         "Setting up light platform: %d devices, %d groups", len(devices), len(groups)
     )
@@ -76,7 +64,7 @@ async def async_setup_entry(
         if device.dev_id in added_entities:
             continue
         if is_light_device(device.dev_type):
-            new_lights.append(DaliCenterLight(device, gateway_to_dict(gateway)))
+            new_lights.append(DaliCenterLight(device, gateway))
             added_entities.add(device.dev_id)
 
     if new_lights:
@@ -94,11 +82,11 @@ async def async_setup_entry(
     if new_groups:
         async_add_entities(new_groups)
 
-    all_lights_entity = DaliCenterAllLights(all_light, entry)
+    all_lights_entity = DaliCenterAllLights(all_light, gateway, entry)
     async_add_entities([all_lights_entity])
 
 
-class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
+class DaliCenterLight(LightEntity):
     """Representation of a Dali Center Light."""
 
     _attr_has_entity_name = True
@@ -112,12 +100,11 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
     _attr_max_color_temp_kelvin = 8000
     _attr_min_color_temp_kelvin = 1000
 
-    def __init__(self, light: Device, gateway: dict[str, Any]) -> None:
+    def __init__(self, light: Device, gateway: DaliGateway) -> None:
         """Initialize the light entity."""
-        GatewayAvailabilityMixin.__init__(self, light.gw_sn, gateway)
-        LightEntity.__init__(self)
 
         self._light = light
+        self._gateway = gateway
         self._attr_name = "Light"
         self._attr_unique_id = light.unique_id
         self._attr_available = light.status == "online"
@@ -146,12 +133,14 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         self._attr_supported_color_modes = supported_modes
 
     @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return the optional state attributes."""
-        attributes = self._get_gateway_attributes()
-        device_attrs = self._get_device_base_attributes(self._light)
-        attributes.update(device_attrs)
-        return attributes
+        return {
+            "address": self._light.address,
+            "channel": self._light.channel,
+            "device_type": self._light.dev_type,
+            "device_model": self._light.model,
+        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
@@ -172,25 +161,26 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
-        await super().async_added_to_hass()
 
-        # Handle device-specific updates
-        signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(self.hass, signal, self._handle_device_update)
+            self._gateway.register_listener(
+                CallbackEventType.LIGHT_STATUS, self._handle_device_update
+            )
         )
 
-        # Handle device-specific availability
-        signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_availability
+            self._gateway.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
         self._light.read_status()
 
-    def _handle_device_update(self, status: LightStatus) -> None:
+    @callback
+    def _handle_device_update(self, dev_id: str, status: LightStatus) -> None:
+        if dev_id != self._attr_unique_id:
+            return
+
         if status.get("is_on") is not None:
             self._attr_is_on = status["is_on"]
 
@@ -228,44 +218,52 @@ class DaliCenterLight(GatewayAvailabilityMixin, LightEntity):
         ):
             self._attr_rgbw_color = status["rgbw_color"]
 
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        """Handle device-specific availability changes."""
+        if dev_id not in (self._light.dev_id, self._gateway.gw_sn):
+            return
+
+        self._attr_available = available
+        self.schedule_update_ha_state()
 
 
-class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
+class DaliCenterLightGroup(LightEntity):
     """Representation of a Dali Center Light Group."""
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:lightbulb-group"
     _attr_min_color_temp_kelvin = 1000
     _attr_max_color_temp_kelvin = 8000
+    _attr_available = True
+    _attr_is_on: bool | None = False
+    _attr_brightness: int | None = 0
+    _attr_color_mode = ColorMode.BRIGHTNESS
+    _attr_color_temp_kelvin: int | None = 1000
+    _attr_hs_color: tuple[float, float] | None = None
+    _attr_rgbw_color: tuple[int, int, int, int] | None = None
+    _attr_supported_color_modes: set[ColorMode] | set[str] | None = {
+        ColorMode.BRIGHTNESS
+    }
+
+    _group_lights: list[str] = []
+    _group_entity_ids: list[str] = []
+    _group_device_count = 0
 
     def __init__(self, group: Group, gateway: DaliGateway) -> None:
         """Initialize the light group."""
-        GatewayAvailabilityMixin.__init__(self, group.gw_sn, gateway_to_dict(gateway))
-        LightEntity.__init__(self)
 
         self._group = group
-        self._gateway_obj = gateway
+        self._gateway = gateway
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.unique_id}"
-        self._attr_available = True
-        self._attr_is_on: bool | None = False
-        self._attr_brightness: int | None = 0
-        self._attr_color_mode = ColorMode.BRIGHTNESS
-        self._attr_color_temp_kelvin: int | None = 1000
-        self._attr_hs_color: tuple[float, float] | None = None
-        self._attr_rgbw_color: tuple[int, int, int, int] | None = None
-        self._attr_supported_color_modes: set[ColorMode] | set[str] | None = {
-            ColorMode.BRIGHTNESS
-        }
-
-        self._group_lights: list[str] = []
-        self._group_entity_ids: list[str] = []
-        self._group_device_count = 0
         self._attr_device_info = {
             "identifiers": {(DOMAIN, group.gw_sn)},
         }
 
+    @callback
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light group."""
         brightness = kwargs.get(ATTR_BRIGHTNESS)
@@ -288,7 +286,7 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
             self._attr_color_mode = ColorMode.COLOR_TEMP
             self._attr_color_temp_kelvin = color_temp_kelvin
 
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+        self.schedule_update_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light group."""
@@ -312,7 +310,7 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
     async def _async_update_group_devices(self) -> None:
         """Update the list of devices in this group."""
 
-        group_info = await self._gateway_obj.read_group(
+        group_info = await self._gateway.read_group(
             self._group.group_id, self._group.channel
         )
         ent_reg = er.async_get(self.hass)
@@ -422,31 +420,21 @@ class DaliCenterLightGroup(GatewayAvailabilityMixin, LightEntity):
         self.async_write_ha_state()
 
     @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return the optional state attributes."""
-        # Start with gateway attributes
-        attributes = self._get_gateway_attributes()
 
-        # Add group-specific attributes that we know exist
-        attributes.update(
-            {
-                "is_dali_group": True,
-                "group_id": self._group.group_id,
-                "channel": self._group.channel,
-                "total_devices": self._group_device_count,
-                "lights": self._group_lights,
-                "entity_id": self._group_entity_ids,
-            }
-        )
-
-        # Add group name if available
-        if hasattr(self._group, "name"):
-            attributes["group_name"] = self._group.name
-
-        return attributes
+        return {
+            "is_dali_group": True,
+            "group_id": self._group.group_id,
+            "channel": self._group.channel,
+            "total_devices": self._group_device_count,
+            "lights": self._group_lights,
+            "entity_id": self._group_entity_ids,
+            "group_name": self._group.name,
+        }
 
 
-class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
+class DaliCenterAllLights(LightEntity):
     """Gateway-level all lights control via broadcast commands."""
 
     _attr_has_entity_name = True
@@ -455,14 +443,13 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
     _attr_min_color_temp_kelvin = 1000
     _attr_max_color_temp_kelvin = 8000
 
-    def __init__(self, light: Device, config_entry: DaliCenterConfigEntry) -> None:
+    def __init__(
+        self, light: Device, gateway: DaliGateway, config_entry: DaliCenterConfigEntry
+    ) -> None:
         """Initialize the all lights control."""
-        GatewayAvailabilityMixin.__init__(
-            self, light.gw_sn, gateway_to_dict(config_entry.runtime_data.gateway)
-        )
-        LightEntity.__init__(self)
 
         self._light = light
+        self._gateway = gateway
         self._config_entry = config_entry
         self._attr_unique_id = light.unique_id
         self._attr_available = True
@@ -500,7 +487,6 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
         """Discover all light entities in this config entry (gateway)."""
         ent_reg = er.async_get(self.hass)
 
-        # Find only individual DaliCenterLight entities for this specific config entry
         # We'll match against the devices discovered from the gateway
         device_unique_ids = {
             device.unique_id for device in self._config_entry.runtime_data.devices
@@ -613,23 +599,15 @@ class DaliCenterAllLights(GatewayAvailabilityMixin, LightEntity):
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the optional state attributes."""
-        # Start with gateway attributes
-        attributes = self._get_gateway_attributes()
-
-        # Add device-specific attributes
-        device_attrs = self._get_device_base_attributes(self._light)
-        attributes.update(device_attrs)
-
-        # Add all lights specific attributes
-        attributes.update(
-            {
-                "is_all_lights": True,
-                "entity_id": self._all_light_entities,
-                "total_lights": len(self._all_light_entities),
-            }
-        )
-
-        return attributes
+        return {
+            "address": self._light.address,
+            "channel": self._light.channel,
+            "device_type": self._light.dev_type,
+            "device_model": self._light.model,
+            "is_all_lights": True,
+            "entity_id": self._all_light_entities,
+            "total_lights": len(self._all_light_entities),
+        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on all lights."""

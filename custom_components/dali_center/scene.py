@@ -4,17 +4,15 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Scene
+from PySrDaliGateway import CallbackEventType, DaliGateway, Scene
 from PySrDaliGateway.helper import gen_device_unique_id, gen_group_unique_id
 
 from homeassistant.components.scene import Scene as SceneEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .entity import GatewayAvailabilityMixin
-from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,9 +41,7 @@ async def async_setup_entry(
                 len(scene_details.get("devices", [])),
             )
 
-            scene_entities.append(
-                DaliCenterScene(scene, gateway_to_dict(gateway), scene_details)
-            )
+            scene_entities.append(DaliCenterScene(scene, gateway, scene_details))
         except (OSError, ValueError, KeyError):
             _LOGGER.exception(
                 "Failed to read scene details for %s, skipping scene",
@@ -56,23 +52,41 @@ async def async_setup_entry(
         async_add_entities(scene_entities)
 
 
-class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
+class DaliCenterScene(SceneEntity):
     """Representation of a DALI Center Scene."""
 
     def __init__(
-        self, scene: Scene, gateway: dict[str, Any], scene_details: dict[str, Any]
+        self, scene: Scene, gateway: DaliGateway, scene_details: dict[str, Any]
     ) -> None:
         """Initialize the DALI scene."""
-        GatewayAvailabilityMixin.__init__(self, scene.gw_sn, gateway)
-        SceneEntity.__init__(self)
 
         self._scene = scene
+        self._gateway = gateway
         self._attr_name = scene.name
         self._attr_unique_id = scene.unique_id
         self._scene_details = scene_details
+        self._attr_available = True
         self._attr_device_info = {
             "identifiers": {(DOMAIN, scene.gw_sn)},
         }
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
+
+        self.async_on_remove(
+            self._gateway.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
+            )
+        )
+
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        """Handle gateway availability changes."""
+        if dev_id != self._gateway.gw_sn:
+            return
+
+        self._attr_available = available
+        self.schedule_update_ha_state()
 
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any]:

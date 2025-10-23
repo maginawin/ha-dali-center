@@ -6,29 +6,22 @@ import logging
 from typing import Any
 
 from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Device
+from PySrDaliGateway import CallbackEventType, DaliGateway, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
-from .entity import GatewayAvailabilityMixin
-from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # pylint: disable=unused-argument
+    hass: HomeAssistant,
     entry: DaliCenterConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
@@ -45,9 +38,7 @@ async def async_setup_entry(
 
         if is_illuminance_sensor(device.dev_type):
             new_switches.append(
-                DaliCenterIlluminanceSensorEnableSwitch(
-                    device, gateway_to_dict(gateway)
-                )
+                DaliCenterIlluminanceSensorEnableSwitch(device, gateway)
             )
             added_devices.add(device.dev_id)
 
@@ -55,7 +46,7 @@ async def async_setup_entry(
         async_add_entities(new_switches)
 
 
-class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEntity):
+class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
     """Representation of an Illuminance Sensor Enable/Disable Switch."""
 
     _attr_entity_category = EntityCategory.CONFIG
@@ -63,103 +54,80 @@ class DaliCenterIlluminanceSensorEnableSwitch(GatewayAvailabilityMixin, SwitchEn
     _attr_name = "Sensor Enable"
     _attr_icon = "mdi:brightness-6"
 
-    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
+    def __init__(self, device: Device, gateway: DaliGateway) -> None:
         """Initialize the illuminance sensor enable/disable switch."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
-        SwitchEntity.__init__(self)
 
         self._device = device
+        self._gateway = gateway
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
         self._attr_available = device.status == "online"
-        self._attr_is_on: bool | None = True  # Default to enabled
+        self._attr_is_on: bool | None = True
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
+            "name": device.name,
+            "manufacturer": MANUFACTURER,
+            "model": device.model,
+            "via_device": (DOMAIN, device.gw_sn),
+        }
 
         self._sync_sensor_state()
 
     def _sync_sensor_state(self) -> None:
         self._device.get_sensor_enabled()
 
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._device.dev_id)},
-            "name": self._device.name,
-            "manufacturer": MANUFACTURER,
-            "model": self._device.model,
-            "via_device": (DOMAIN, self._device.gw_sn),
-        }
-
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Enable the illuminance sensor."""
-        try:
-            self._device.set_sensor_enabled(True)
-            _LOGGER.debug(
-                "Enabled illuminance sensor for device %s (%s)",
-                self._device.name,
-                self._device.dev_id,
-            )
-
-            signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
-            self.hass.add_job(async_dispatcher_send, self.hass, signal, True)
-
-        except Exception:
-            _LOGGER.exception(
-                "Failed to enable illuminance sensor for device %s",
-                self._device.dev_id,
-            )
+        self._device.set_sensor_enabled(True)
+        self._attr_is_on = True
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Disable the illuminance sensor."""
-        try:
-            self._device.set_sensor_enabled(False)
-            _LOGGER.debug(
-                "Disabled illuminance sensor for device %s (%s)",
-                self._device.name,
-                self._device.dev_id,
-            )
-
-            signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
-            self.hass.add_job(async_dispatcher_send, self.hass, signal, False)
-
-        except Exception:
-            _LOGGER.exception(
-                "Failed to disable illuminance sensor for device %s",
-                self._device.dev_id,
-            )
+        self._device.set_sensor_enabled(False)
+        self._attr_is_on = False
+        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
-        await super().async_added_to_hass()
 
-        signal = f"dali_center_update_available_{self._device.dev_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_availability
+            self._gateway.register_listener(
+                CallbackEventType.SENSOR_ON_OFF, self._handle_sensor_on_off
             )
         )
 
-        signal = f"dali_center_sensor_on_off_{self._device.dev_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_sensor_on_off_update
+            self._gateway.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
         self._sync_sensor_state()
 
-    def _handle_sensor_on_off_update(self, on_off: bool) -> None:
+    @callback
+    def _handle_sensor_on_off(self, dev_id: str, on_off: bool) -> None:
+        """Handle sensor on/off updates."""
+        if dev_id != f"{self._device.dev_id}_sensor_enable":
+            return
+
         self._attr_is_on = on_off
-        _LOGGER.debug(
-            "Illuminance sensor enable state for device %s updated to: %s",
-            self._device.dev_id,
-            on_off,
-        )
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        """Handle device-specific availability changes."""
+        if dev_id not in (self._device.dev_id, self._gateway.gw_sn):
+            return
+
+        self._attr_available = available
+        self.schedule_update_ha_state()
 
     @cached_property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the optional state attributes."""
-        attributes = self._get_gateway_attributes()
-        device_attrs = self._get_device_base_attributes(self._device)
-        attributes.update(device_attrs)
-        return attributes
+        return {
+            "address": self._device.address,
+            "channel": self._device.channel,
+            "device_type": self._device.dev_type,
+            "device_model": self._device.model,
+        }

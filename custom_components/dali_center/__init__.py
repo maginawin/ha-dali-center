@@ -20,7 +20,6 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import CONF_GATEWAY_LEGACY, CONF_SERIAL_NUMBER, DOMAIN, MANUFACTURER
 from .helper import migrate_gateway_config
@@ -119,22 +118,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
             f"Timeout while connecting to DALI Center gateway. {exc}",
             gw_sn,
         )
-
-    def on_online_status(dev_id: str, available: bool) -> None:
-        signal = f"dali_center_update_available_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, available)
-
-    def on_energy_report(dev_id: str, energy: float) -> None:
-        signal = f"dali_center_energy_update_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, energy)
-
-    def on_sensor_on_off(dev_id: str, on_off: bool) -> None:
-        signal = f"dali_center_sensor_on_off_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, on_off)
-
-    gateway.on_online_status = on_online_status
-    gateway.on_energy_report = on_energy_report
-    gateway.on_sensor_on_off = on_sensor_on_off
 
     try:
         version = await gateway.get_version()
