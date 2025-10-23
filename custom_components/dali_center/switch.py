@@ -111,7 +111,6 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
-        """Handle device-specific availability changes."""
         if dev_id not in (self._device.dev_id, self._device.gw_sn):
             return
 

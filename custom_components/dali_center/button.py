@@ -58,7 +58,6 @@ class DaliCenterGatewayRestartButton(ButtonEntity):
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
-        """Handle device-specific availability changes."""
         if dev_id != self._gateway.gw_sn:
             return
 

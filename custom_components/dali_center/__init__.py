@@ -37,7 +37,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _setup_dependency_logging() -> None:
-    """Set up PySrDaliGateway logging to match integration level."""
     current_logger = logging.getLogger(__name__)
     current_level = current_logger.getEffectiveLevel()
 
@@ -48,7 +47,6 @@ def _setup_dependency_logging() -> None:
 async def _notify_user_error(
     hass: HomeAssistant, title: str, message: str, gw_sn: str = ""
 ) -> None:
-    """Create persistent notification for user-visible errors."""
     notification_id = f"dali_center_{gw_sn}_{hash(title + message)}"
     gw_part = f" ({gw_sn})" if gw_sn else ""
     full_title = f"DALI Center{gw_part}: {title}"
@@ -96,73 +94,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         passwd=entry.data[CONF_PASSWORD],
         name=entry.data[CONF_NAME],
     )
-    gw_sn = gateway.gw_sn
-    is_tls = gateway.is_tls
-
-    _LOGGER.info("Setting up DALI Center gateway %s (TLS: %s)", gw_sn, is_tls)
 
     try:
         async with async_timeout.timeout(30):
             await gateway.connect()
     except DaliGatewayError as exc:
-        _LOGGER.exception("Error connecting to gateway %s", gw_sn)
-        await _notify_user_error(hass, "Connection Failed", str(exc), gw_sn)
+        _LOGGER.exception("Error connecting to gateway %s", gateway.gw_sn)
+        await _notify_user_error(hass, "Connection Failed", str(exc), gateway.gw_sn)
         raise ConfigEntryNotReady(
             "You can try to delete the gateway and add it again"
         ) from exc
     except TimeoutError as exc:
-        _LOGGER.warning("Overall timeout connecting to gateway %s", gw_sn)
+        _LOGGER.warning("Overall timeout connecting to gateway %s", gateway.gw_sn)
         await _notify_user_error(
             hass,
             "Connection Timeout",
             f"Timeout while connecting to DALI Center gateway. {exc}",
-            gw_sn,
+            gateway.gw_sn,
         )
 
     try:
         version = await gateway.get_version()
     except DaliGatewayError as exc:
-        _LOGGER.warning("Failed to get gateway %s version: %s", gw_sn, exc)
-        await _notify_user_error(hass, "Version Query Failed", str(exc), gw_sn)
+        _LOGGER.warning("Failed to get gateway %s version: %s", gateway.gw_sn, exc)
+        await _notify_user_error(hass, "Version Query Failed", str(exc), gateway.gw_sn)
         version = None
-
-    if version:
-        _LOGGER.info(
-            "Gateway %s version - Software: %s, Firmware: %s",
-            gw_sn,
-            version.get("software"),
-            version.get("firmware"),
-        )
 
     dev_reg = dr.async_get(hass)
     dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, gw_sn)},
+        identifiers={(DOMAIN, gateway.gw_sn)},
         manufacturer=MANUFACTURER,
-        name=f"{gateway.name} (Secure)" if is_tls else gateway.name,
+        name=gateway.name,
         model="SR-GW-EDA",
         sw_version=version["software"] if version else None,
         hw_version=version["firmware"] if version else None,
-        serial_number=gw_sn,
+        serial_number=gateway.gw_sn,
     )
 
-    try:
-        devices = await gateway.discover_devices()
-    except DaliGatewayError as exc:
-        _LOGGER.warning("Failed to discover devices on gateway %s: %s", gw_sn, exc)
-        devices = []
-
-    try:
-        groups = await gateway.discover_groups()
-    except DaliGatewayError as exc:
-        _LOGGER.warning("Failed to discover groups on gateway %s: %s", gw_sn, exc)
-        groups = []
-
-    try:
-        scenes = await gateway.discover_scenes()
-    except DaliGatewayError as exc:
-        _LOGGER.warning("Failed to discover scenes on gateway %s: %s", gw_sn, exc)
-        scenes = []
+    devices = await gateway.discover_devices()
+    groups = await gateway.discover_groups()
+    scenes = await gateway.discover_scenes()
 
     entry.runtime_data = DaliCenterData(
         gateway=gateway,
@@ -172,15 +144,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
-
-    _LOGGER.info(
-        "DALI Center gateway %s setup completed successfully "
-        "(%d devices, %d groups, %d scenes)",
-        gw_sn,
-        len(devices),
-        len(groups),
-        len(scenes),
-    )
     return True
 
 

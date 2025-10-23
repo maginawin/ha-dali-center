@@ -125,7 +125,6 @@ class DaliCenterPanelEvent(EventEntity):
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
-        """Handle device-specific availability changes."""
         if dev_id not in (self._panel.dev_id, self._panel.gw_sn):
             return
 

@@ -107,7 +107,6 @@ class DaliCenterEnergySensor(SensorEntity):
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
-        """Handle device-specific availability changes."""
         if dev_id != self._device.dev_id:
             return
 
@@ -176,7 +175,6 @@ class DaliCenterMotionSensor(SensorEntity):
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
-        """Handle device-specific availability changes."""
         if dev_id not in (self._device.dev_id, self._device.gw_sn):
             return
 
@@ -265,7 +263,6 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
-        """Handle device-specific availability changes."""
         if dev_id not in (self._device.dev_id, self._device.gw_sn):
             return
 
