@@ -380,12 +380,14 @@ Tests are located in `tests/` directory and use pytest with asyncio support. Con
 
 ### Commit Message Format
 
-Follow conventional commits format with emphasis on brevity and clarity:
+Follow conventional commits format with **strong emphasis on brevity and clarity**:
 
 ```text
 type(scope): concise summary of what changed
 
-Optional body for context (why, not what)
+- Optional bullet point for key changes
+- Keep each point short and focused
+- Maximum 3-4 bullet points
 ```
 
 **Commit Types:**
@@ -404,19 +406,52 @@ Optional body for context (why, not what)
 - **Be specific but concise**: Focus on the impact, not implementation details
 - **Omit obvious details**: The diff shows the "what", commit explains the "why"
 - **Group related changes**: Use single commit for cohesive changes across files
+- **Bullet points**: If using body, keep to 3-4 concise bullet points maximum
+- **No verbose explanations**: Trust the code diff to show implementation details
 
 **Examples:**
 
-✅ Good:
+✅ Good (single line):
 
 - `feat(gateway): add group control support`
 - `fix(sensor): correct energy calculation overflow`
 - `refactor: remove redundant logs and comments`
 - `chore(release): bump version to 0.2.0`
 
+✅ Good (with bullets):
+
+```text
+refactor: move register_listener to entity objects and add AllLightsController
+
+- Add register_listener() to Device/Group/Scene in SDK
+- Add AllLightsController class for all-lights control
+- Remove gateway parameter from integration entities
+- Simplify all-light creation from 14 lines to 1 line
+```
+
 ❌ Too verbose:
 
-- `refactor: remove unnecessary logs and comments for code clarity. Remove verbose debug logs that echo parameters. Remove obvious comments...`
+```text
+refactor: move register_listener to entity objects
+
+Move register_listener method into Device/Group/Scene classes in SDK,
+eliminating need to pass gateway to integration entities. Add
+AllLightsController class to encapsulate all-lights control logic.
+
+Changes:
+- SDK: Add register_listener() to Device, Group, Scene classes
+- SDK: Add read_group() to Group class
+- SDK: Add read_scene() to Scene class
+- SDK: Add AllLightsController class for broadcast control
+- Integration: Remove gateway parameter from all entity constructors
+- Integration: Simplify all-light creation from 14 lines to 1 line
+- Integration: Remove config_entry dependency from DaliCenterAllLights
+
+Benefits:
+- Reduced coupling: entities no longer need gateway reference
+- Cleaner API: register_listener available directly on entity objects
+...
+```
 
 ❌ Too vague:
 
