@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from PySrDaliGateway import CallbackEventType, DaliGateway, Device
+from PySrDaliGateway import CallbackEventType, Device
 from PySrDaliGateway.helper import is_illuminance_sensor
 
 from homeassistant.components.switch import SwitchEntity
@@ -25,11 +25,10 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center illuminance sensor enable/disable switches."""
-    gateway = entry.runtime_data.gateway
     devices = entry.runtime_data.devices
 
     async_add_entities(
-        DaliCenterIlluminanceSensorEnableSwitch(device, gateway)
+        DaliCenterIlluminanceSensorEnableSwitch(device)
         for device in devices
         if is_illuminance_sensor(device.dev_type)
     )
@@ -43,11 +42,10 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
     _attr_name = "Sensor Enable"
     _attr_icon = "mdi:brightness-6"
 
-    def __init__(self, device: Device, gateway: DaliGateway) -> None:
+    def __init__(self, device: Device) -> None:
         """Initialize the illuminance sensor enable/disable switch."""
 
         self._device = device
-        self._gateway = gateway
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
         self._attr_available = device.status == "online"
         self._attr_is_on: bool | None = True
@@ -87,13 +85,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         """Handle entity which will be added."""
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.SENSOR_ON_OFF, self._handle_sensor_on_off
             )
         )
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )

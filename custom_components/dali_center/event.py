@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from PySrDaliGateway import CallbackEventType, DaliGateway, Panel
+from PySrDaliGateway import CallbackEventType, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
 
@@ -50,7 +50,7 @@ async def async_setup_entry(
         for device in panel_devices
     ]
 
-    async_add_entities(DaliCenterPanelEvent(device, gateway) for device in devices)
+    async_add_entities(DaliCenterPanelEvent(device) for device in devices)
 
 
 class DaliCenterPanelEvent(EventEntity):
@@ -61,11 +61,10 @@ class DaliCenterPanelEvent(EventEntity):
     _attr_name = "Panel Buttons"
     _attr_icon = "mdi:gesture-tap-button"
 
-    def __init__(self, panel: Panel, gateway: DaliGateway) -> None:
+    def __init__(self, panel: Panel) -> None:
         """Initialize the panel event entity."""
 
         self._panel = panel
-        self._gateway = gateway
         self._attr_unique_id = f"{panel.dev_id}_panel_events"
         self._attr_available = panel.status == "online"
 
@@ -81,13 +80,13 @@ class DaliCenterPanelEvent(EventEntity):
     async def async_added_to_hass(self) -> None:
         """Handle when entity is added to hass."""
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._panel.register_listener(
                 CallbackEventType.PANEL_STATUS, self._handle_device_update
             )
         )
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._panel.register_listener(
                 CallbackEventType.ONLINE_STATUS,
                 self._handle_availability,
             )

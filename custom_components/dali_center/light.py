@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, cast
 
-from PySrDaliGateway import CallbackEventType, DaliGateway, Device, Group
+from PySrDaliGateway import AllLightsController, CallbackEventType, Device, Group
 from PySrDaliGateway.helper import is_light_device
 from PySrDaliGateway.types import LightStatus
 
@@ -39,31 +39,16 @@ async def async_setup_entry(
     gateway = entry.runtime_data.gateway
     devices = entry.runtime_data.devices
     groups = entry.runtime_data.groups
-    all_light = Device(
-        gateway,
-        unique_id=f"{gateway.gw_sn}_all_lights",
-        dev_id=gateway.gw_sn,
-        name="All Lights",
-        dev_type="FFFF",
-        channel=0,
-        address=1,
-        status="online",
-        dev_sn=gateway.gw_sn,
-        area_name="",
-        area_id="",
-        model="All Lights Controller",
-        properties=[],
-    )
 
     async_add_entities(
-        DaliCenterLight(device, gateway)
+        DaliCenterLight(device)
         for device in devices
         if is_light_device(device.dev_type)
     )
 
-    async_add_entities(DaliCenterLightGroup(group, gateway) for group in groups)
+    async_add_entities(DaliCenterLightGroup(group) for group in groups)
 
-    async_add_entities([DaliCenterAllLights(all_light, entry)])
+    async_add_entities([DaliCenterAllLights(AllLightsController(gateway, devices))])
 
 
 class DaliCenterLight(LightEntity):
@@ -80,11 +65,10 @@ class DaliCenterLight(LightEntity):
     _attr_max_color_temp_kelvin = 8000
     _attr_min_color_temp_kelvin = 1000
 
-    def __init__(self, light: Device, gateway: DaliGateway) -> None:
+    def __init__(self, light: Device) -> None:
         """Initialize the light entity."""
 
         self._light = light
-        self._gateway = gateway
         self._attr_name = "Light"
         self._attr_unique_id = light.unique_id
         self._attr_available = light.status == "online"
@@ -140,13 +124,13 @@ class DaliCenterLight(LightEntity):
         """Handle entity addition to Home Assistant."""
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._light.register_listener(
                 CallbackEventType.LIGHT_STATUS, self._handle_device_update
             )
         )
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._light.register_listener(
                 CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
@@ -228,11 +212,10 @@ class DaliCenterLightGroup(LightEntity):
     _group_entity_ids: list[str] = []
     _group_device_count = 0
 
-    def __init__(self, group: Group, gateway: DaliGateway) -> None:
+    def __init__(self, group: Group) -> None:
         """Initialize the light group."""
 
         self._group = group
-        self._gateway = gateway
         self._attr_name = f"{group.name}"
         self._attr_unique_id = f"{group.unique_id}"
         self._attr_device_info = {
@@ -294,9 +277,7 @@ class DaliCenterLightGroup(LightEntity):
     async def _async_update_group_devices(self) -> None:
         """Update the list of devices in this group."""
 
-        group_info = await self._gateway.read_group(
-            self._group.group_id, self._group.channel
-        )
+        group_info = await self._group.read_group()
         ent_reg = er.async_get(self.hass)
 
         light_names: list[str] = []
@@ -412,35 +393,33 @@ class DaliCenterAllLights(LightEntity):
     _attr_icon = "mdi:lightbulb-group-outline"
     _attr_min_color_temp_kelvin = 1000
     _attr_max_color_temp_kelvin = 8000
+    _attr_available = True
+    _attr_is_on: bool | None = False
+    _attr_brightness: int | None = 0
+    _attr_color_mode = ColorMode.RGBW
+    _attr_color_temp_kelvin: int | None = 1000
+    _attr_hs_color: tuple[float, float] | None = None
+    _attr_rgbw_color: tuple[int, int, int, int] | None = None
+    _attr_supported_color_modes: set[ColorMode] | set[str] | None = {
+        ColorMode.BRIGHTNESS
+    }
+    _all_light_entities: list[str] = []
 
-    def __init__(self, light: Device, config_entry: DaliCenterConfigEntry) -> None:
+    def __init__(self, controller: AllLightsController) -> None:
         """Initialize the all lights control."""
 
-        self._light = light
-        self._gateway = config_entry.runtime_data.gateway
-        self._config_entry = config_entry
-        self._attr_unique_id = light.unique_id
-        self._attr_available = True
-        self._attr_is_on: bool | None = False
-        self._attr_brightness: int | None = 0
-        self._attr_color_mode = ColorMode.RGBW
-        self._attr_color_temp_kelvin: int | None = 1000
-        self._attr_hs_color: tuple[float, float] | None = None
-        self._attr_rgbw_color: tuple[int, int, int, int] | None = None
-        self._attr_supported_color_modes: set[ColorMode] | set[str] | None = {
-            ColorMode.BRIGHTNESS
-        }
-
-        self._all_light_entities: list[str] = []
+        self._controller = controller
+        self._light = controller
+        self._attr_unique_id = controller.unique_id
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, light.gw_sn)},
+            "identifiers": {(DOMAIN, controller.gw_sn)},
         }
         self._attr_extra_state_attributes = {
-            "gateway_sn": light.gw_sn,
-            "address": light.address,
-            "channel": light.channel,
-            "device_type": light.dev_type,
-            "device_model": light.model,
+            "gateway_sn": controller.gw_sn,
+            "address": controller.address,
+            "channel": controller.channel,
+            "device_type": controller.dev_type,
+            "device_model": controller.model,
             "is_all_lights": True,
             "entity_id": [],
             "total_lights": 0,
@@ -463,16 +442,13 @@ class DaliCenterAllLights(LightEntity):
         ent_reg = er.async_get(self.hass)
 
         # We'll match against the devices discovered from the gateway
-        device_unique_ids = {
-            device.unique_id for device in self._config_entry.runtime_data.devices
-        }
+        device_unique_ids = {device.unique_id for device in self._controller.devices}
 
         self._all_light_entities = [
             entity_entry.entity_id
             for entity_entry in ent_reg.entities.values()
             if (
-                entity_entry.config_entry_id == self._config_entry.entry_id
-                and entity_entry.domain == "light"
+                entity_entry.domain == "light"
                 and entity_entry.unique_id in device_unique_ids
             )  # Only individual device lights
         ]

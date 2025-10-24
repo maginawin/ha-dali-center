@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 import logging
 
-from PySrDaliGateway import CallbackEventType, DaliGateway, Device
+from PySrDaliGateway import CallbackEventType, Device
 from PySrDaliGateway.helper import (
     is_illuminance_sensor,
     is_light_device,
@@ -36,17 +36,16 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center sensor entities from config entry."""
-    gateway = entry.runtime_data.gateway
     devices = entry.runtime_data.devices
 
     sensors: list[SensorEntity] = []
     for device in devices:
         if is_light_device(device.dev_type):
-            sensors.append(DaliCenterEnergySensor(device, gateway))
+            sensors.append(DaliCenterEnergySensor(device))
         elif is_motion_sensor(device.dev_type):
-            sensors.append(DaliCenterMotionSensor(device, gateway))
+            sensors.append(DaliCenterMotionSensor(device))
         elif is_illuminance_sensor(device.dev_type):
-            sensors.append(DaliCenterIlluminanceSensor(device, gateway))
+            sensors.append(DaliCenterIlluminanceSensor(device))
 
     if sensors:
         async_add_entities(sensors)
@@ -63,11 +62,10 @@ class DaliCenterEnergySensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Energy"
 
-    def __init__(self, device: Device, gateway: DaliGateway) -> None:
+    def __init__(self, device: Device) -> None:
         """Initialize the energy sensor."""
 
         self._device = device
-        self._gateway = gateway
         self._attr_unique_id = f"{device.unique_id}_energy"
         self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
@@ -86,13 +84,13 @@ class DaliCenterEnergySensor(SensorEntity):
         """Handle entity addition to Home Assistant."""
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.ENERGY_REPORT, self._handle_energy_update
             )
         )
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
@@ -123,11 +121,10 @@ class DaliCenterMotionSensor(SensorEntity):
     _attr_icon = "mdi:motion-sensor"
     _attr_name = "State"
 
-    def __init__(self, device: Device, gateway: DaliGateway) -> None:
+    def __init__(self, device: Device) -> None:
         """Initialize the motion sensor."""
 
         self._device = device
-        self._gateway = gateway
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value = "no_motion"
@@ -150,13 +147,13 @@ class DaliCenterMotionSensor(SensorEntity):
         """Handle entity addition to Home Assistant."""
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.MOTION_STATUS, self._handle_motion_status
             )
         )
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
@@ -191,11 +188,10 @@ class DaliCenterIlluminanceSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "State"
 
-    def __init__(self, device: Device, gateway: DaliGateway) -> None:
+    def __init__(self, device: Device) -> None:
         """Initialize the illuminance sensor."""
 
         self._device = device
-        self._gateway = gateway
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value: StateType | date | datetime | Decimal = None
@@ -219,19 +215,19 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         """Handle entity addition to Home Assistant."""
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.ILLUMINANCE_STATUS, self._handle_illuminance_status
             )
         )
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._device.register_listener(
                 CallbackEventType.SENSOR_ON_OFF, self._handle_sensor_on_off
             )
         )

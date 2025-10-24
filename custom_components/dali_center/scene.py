@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from PySrDaliGateway import CallbackEventType, DaliGateway, Scene
+from PySrDaliGateway import CallbackEventType, Scene
 from PySrDaliGateway.helper import gen_device_unique_id, gen_group_unique_id
 
 from homeassistant.components.scene import Scene as SceneEntity
@@ -23,16 +23,13 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up DALI Center scene entities from config entry."""
-    gateway = entry.runtime_data.gateway
     scenes = entry.runtime_data.scenes
 
     scene_entities: list[DaliCenterScene] = []
     for scene in scenes:
         try:
-            scene_details = await gateway.read_scene(
-                scene.scene_id, getattr(scene, "channel", 0)
-            )
-            scene_entities.append(DaliCenterScene(scene, gateway, scene_details))
+            scene_details = await scene.read_scene()
+            scene_entities.append(DaliCenterScene(scene, scene_details))
         except (OSError, ValueError, KeyError):
             _LOGGER.exception(
                 "Failed to read scene details for %s, skipping scene",
@@ -46,13 +43,10 @@ async def async_setup_entry(
 class DaliCenterScene(SceneEntity):
     """Representation of a DALI Center Scene."""
 
-    def __init__(
-        self, scene: Scene, gateway: DaliGateway, scene_details: dict[str, Any]
-    ) -> None:
+    def __init__(self, scene: Scene, scene_details: dict[str, Any]) -> None:
         """Initialize the DALI scene."""
 
         self._scene = scene
-        self._gateway = gateway
         self._attr_name = scene.name
         self._attr_unique_id = scene.unique_id
         self._scene_details = scene_details
@@ -72,7 +66,7 @@ class DaliCenterScene(SceneEntity):
         """Handle entity addition to Home Assistant."""
 
         self.async_on_remove(
-            self._gateway.register_listener(
+            self._scene.register_listener(
                 CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )

@@ -12,7 +12,7 @@ dependencies = [
     "homeassistant>=2023.1.0",
     "async_timeout>=4.0.0",
     "voluptuous",
-    "PySrDaliGateway>=0.14.0",
+    "PySrDaliGateway>=0.15.0",
 ]
 
 [project.optional-dependencies]
