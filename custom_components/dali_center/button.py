@@ -29,6 +29,7 @@ async def async_setup_entry(
 class DaliCenterGatewayRestartButton(ButtonEntity):
     """Representation of a Dali Center Gateway Restart Button."""
 
+    _attr_has_entity_name = True
     _attr_icon = "mdi:restart"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 

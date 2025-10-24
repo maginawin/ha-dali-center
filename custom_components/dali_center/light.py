@@ -402,13 +402,12 @@ class DaliCenterAllLights(LightEntity):
     _attr_supported_color_modes: set[ColorMode] | set[str] | None = {
         ColorMode.BRIGHTNESS
     }
-    _all_light_entities: list[str] = []
+    _all_light_entity_ids: list[str] = []
 
     def __init__(self, controller: AllLightsController) -> None:
         """Initialize the all lights control."""
 
         self._controller = controller
-        self._light = controller
         self._attr_unique_id = controller.unique_id
         self._attr_device_info = {
             "identifiers": {(DOMAIN, controller.gw_sn)},
@@ -429,10 +428,10 @@ class DaliCenterAllLights(LightEntity):
         await self._discover_all_light_entities()
         await self._calculate_all_lights_state()
 
-        if self._all_light_entities:
+        if self._all_light_entity_ids:
             self.async_on_remove(
                 async_track_state_change_event(
-                    self.hass, self._all_light_entities, self._handle_light_update
+                    self.hass, self._all_light_entity_ids, self._handle_light_update
                 )
             )
 
@@ -443,7 +442,7 @@ class DaliCenterAllLights(LightEntity):
         # We'll match against the devices discovered from the gateway
         device_unique_ids = {device.unique_id for device in self._controller.devices}
 
-        self._all_light_entities = [
+        self._all_light_entity_ids = [
             entity_entry.entity_id
             for entity_entry in ent_reg.entities.values()
             if (
@@ -454,8 +453,8 @@ class DaliCenterAllLights(LightEntity):
 
         self._attr_extra_state_attributes.update(
             {
-                "entity_id": self._all_light_entities,
-                "total_lights": len(self._all_light_entities),
+                "entity_id": self._all_light_entity_ids,
+                "total_lights": len(self._all_light_entity_ids),
             }
         )
 
@@ -466,7 +465,7 @@ class DaliCenterAllLights(LightEntity):
         supported_color_modes = {ColorMode.ONOFF}
         all_supported_modes: list[set[ColorMode]] = []
 
-        for entity_id in self._all_light_entities:
+        for entity_id in self._all_light_entity_ids:
             if state := self.hass.states.get(entity_id):
                 if modes := state.attributes.get(ATTR_SUPPORTED_COLOR_MODES):
                     all_supported_modes.append(set(modes))
@@ -487,7 +486,7 @@ class DaliCenterAllLights(LightEntity):
 
     async def _calculate_all_lights_state(self) -> None:
         """Calculate all lights state based on individual light states."""
-        if not self._all_light_entities:
+        if not self._all_light_entity_ids:
             return
 
         on_lights: list[Any] = []
@@ -495,7 +494,7 @@ class DaliCenterAllLights(LightEntity):
         total_color_temp = 0
         rgbw_colors: list[tuple[int, int, int, int]] = []
 
-        for entity_id in self._all_light_entities:
+        for entity_id in self._all_light_entity_ids:
             if not (state := self.hass.states.get(entity_id)) or state.state != "on":
                 continue
 
@@ -537,7 +536,7 @@ class DaliCenterAllLights(LightEntity):
     def _handle_light_update(self, event: Event[EventStateChangedData]) -> None:
         """Handle individual light state change."""
         entity_id = event.data["entity_id"]
-        if entity_id in self._all_light_entities:
+        if entity_id in self._all_light_entity_ids:
             self.hass.async_create_task(self._calculate_and_update_all_lights())
 
     async def _calculate_and_update_all_lights(self) -> None:
@@ -551,7 +550,7 @@ class DaliCenterAllLights(LightEntity):
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
 
-        self._light.turn_on(
+        self._controller.turn_on(
             brightness=brightness,
             color_temp_kelvin=color_temp_kelvin,
             rgbw_color=rgbw_color,
@@ -571,6 +570,6 @@ class DaliCenterAllLights(LightEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off all lights."""
-        self._light.turn_off()
+        self._controller.turn_off()
         self._attr_is_on = False
         self.async_write_ha_state()

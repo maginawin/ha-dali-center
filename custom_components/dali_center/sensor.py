@@ -105,7 +105,7 @@ class DaliCenterEnergySensor(SensorEntity):
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id != self._device.dev_id:
+        if dev_id not in (self._device.dev_id, self._device.gw_sn):
             return
 
         self._attr_available = available
