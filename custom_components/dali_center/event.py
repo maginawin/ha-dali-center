@@ -3,25 +3,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Panel
+from PySrDaliGateway import CallbackEventType, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
 
 from homeassistant.components.event import EventDeviceClass, EventEntity
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
-from .entity import GatewayAvailabilityMixin
-from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,16 +24,14 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center event entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-    # Filter panel devices from discovered devices
+    gateway = entry.runtime_data.gateway
     panel_devices = [
         device
         for device in entry.runtime_data.devices
         if is_panel_device(device.dev_type)
     ]
 
-    # Convert Device objects to Panel objects for panel-specific functionality
-    devices: list[Panel] = [
+    devices = [
         Panel(
             gateway,
             unique_id=device.unique_id,
@@ -61,23 +50,10 @@ async def async_setup_entry(
         for device in panel_devices
     ]
 
-    def _on_panel_status(dev_id: str, status: PanelStatus) -> None:
-        signal = f"dali_center_update_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, status)
-
-    gateway.on_panel_status = _on_panel_status
-
-    _LOGGER.debug("Setting up event platform: %d devices", len(devices))
-
-    new_events: list[EventEntity] = [
-        DaliCenterPanelEvent(device, gateway_to_dict(gateway)) for device in devices
-    ]
-
-    if new_events:
-        async_add_entities(new_events)
+    async_add_entities(DaliCenterPanelEvent(device) for device in devices)
 
 
-class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
+class DaliCenterPanelEvent(EventEntity):
     """Representation of a Dali Center Panel Event Entity."""
 
     _attr_has_entity_name = True
@@ -85,48 +61,43 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
     _attr_name = "Panel Buttons"
     _attr_icon = "mdi:gesture-tap-button"
 
-    def __init__(self, panel: Panel, gateway: dict[str, Any]) -> None:
+    def __init__(self, panel: Panel) -> None:
         """Initialize the panel event entity."""
-        GatewayAvailabilityMixin.__init__(self, panel.gw_sn, gateway)
-        EventEntity.__init__(self)
 
         self._panel = panel
         self._attr_unique_id = f"{panel.dev_id}_panel_events"
         self._attr_available = panel.status == "online"
 
         self._attr_event_types = panel.get_available_event_types()
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for the panel."""
-        return {
-            "identifiers": {(DOMAIN, self._panel.dev_id)},
-            "name": self._panel.name,
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, panel.dev_id)},
+            "name": panel.name,
             "manufacturer": MANUFACTURER,
-            "model": self._panel.model,
-            "via_device": (DOMAIN, self._panel.gw_sn),
+            "model": panel.model,
+            "via_device": (DOMAIN, panel.gw_sn),
         }
 
     async def async_added_to_hass(self) -> None:
         """Handle when entity is added to hass."""
-        await super().async_added_to_hass()
-
-        signal = f"dali_center_update_{self._panel.dev_id}"
         self.async_on_remove(
-            async_dispatcher_connect(self.hass, signal, self._handle_device_update)
+            self._panel.register_listener(
+                CallbackEventType.PANEL_STATUS, self._handle_device_update
+            )
         )
 
-        signal = f"dali_center_update_available_{self._panel.dev_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_availability
+            self._panel.register_listener(
+                CallbackEventType.ONLINE_STATUS,
+                self._handle_availability,
             )
         )
 
         self._panel.read_status()
 
     @callback
-    def _handle_device_update(self, status: PanelStatus) -> None:
+    def _handle_device_update(self, dev_id: str, status: PanelStatus) -> None:
+        if dev_id != self._panel.dev_id:
+            return
         event_name = status["event_name"]
         event_type = status["event_type"]
         rotate_value = status["rotate_value"]
@@ -149,4 +120,12 @@ class DaliCenterPanelEvent(GatewayAvailabilityMixin, EventEntity):
             self._trigger_event(event_name)
 
         self.hass.bus.async_fire(f"{DOMAIN}_event", event_data)
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
+
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        if dev_id not in (self._panel.dev_id, self._panel.gw_sn):
+            return
+
+        self._attr_available = available
+        self.schedule_update_ha_state()

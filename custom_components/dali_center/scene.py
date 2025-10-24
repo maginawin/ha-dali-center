@@ -3,19 +3,15 @@
 import logging
 from typing import Any
 
-from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Scene
+from PySrDaliGateway import CallbackEventType, Scene
 from PySrDaliGateway.helper import gen_device_unique_id, gen_group_unique_id
 
 from homeassistant.components.scene import Scene as SceneEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .entity import GatewayAvailabilityMixin
-from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,26 +23,13 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up DALI Center scene entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-    scenes: list[Scene] = entry.runtime_data.scenes
-
-    _LOGGER.debug("Setting up scene platform with %d scenes", len(scenes))
+    scenes = entry.runtime_data.scenes
 
     scene_entities: list[DaliCenterScene] = []
     for scene in scenes:
         try:
-            scene_details = await gateway.read_scene(
-                scene.scene_id, getattr(scene, "channel", 0)
-            )
-            _LOGGER.debug(
-                "Loaded scene details for %s: %d devices",
-                scene.name,
-                len(scene_details.get("devices", [])),
-            )
-
-            scene_entities.append(
-                DaliCenterScene(scene, gateway_to_dict(gateway), scene_details)
-            )
+            scene_details = await scene.read_scene()
+            scene_entities.append(DaliCenterScene(scene, scene_details))
         except (OSError, ValueError, KeyError):
             _LOGGER.exception(
                 "Failed to read scene details for %s, skipping scene",
@@ -57,36 +40,54 @@ async def async_setup_entry(
         async_add_entities(scene_entities)
 
 
-class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
+class DaliCenterScene(SceneEntity):
     """Representation of a DALI Center Scene."""
 
-    def __init__(
-        self, scene: Scene, gateway: dict[str, Any], scene_details: dict[str, Any]
-    ) -> None:
+    def __init__(self, scene: Scene, scene_details: dict[str, Any]) -> None:
         """Initialize the DALI scene."""
-        GatewayAvailabilityMixin.__init__(self, scene.gw_sn, gateway)
-        SceneEntity.__init__(self)
 
         self._scene = scene
         self._attr_name = scene.name
         self._attr_unique_id = scene.unique_id
         self._scene_details = scene_details
+        self._attr_available = True
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, scene.gw_sn)},
+        }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": scene.gw_sn,
+            "scene_id": scene.scene_id,
+            "area_id": scene_details["area_id"],
+            "channel": scene_details["channel"],
+            "entity_id": [],
+        }
 
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for the scene."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._scene.gw_sn)},
+    async def async_added_to_hass(self) -> None:
+        """Handle entity addition to Home Assistant."""
+
+        self.async_on_remove(
+            self._scene.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
+            )
         )
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return scene device information as extra state attributes."""
+        self._update_entity_mappings()
+
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        """Handle gateway availability changes."""
+        if dev_id != self._scene.gw_sn:
+            return
+
+        self._attr_available = available
+        self.schedule_update_ha_state()
+
+    def _update_entity_mappings(self) -> None:
+        """Update entity ID mappings in extra_state_attributes."""
         ent_reg = er.async_get(self.hass)
         mapped_entities: list[str] = []
 
         for device in self._scene_details["devices"]:
-            # Use SDK helper to generate correct unique_id
             if device["dev_type"] == "0401":
                 device_unique_id = gen_group_unique_id(
                     device["address"],
@@ -105,12 +106,7 @@ class DaliCenterScene(GatewayAvailabilityMixin, SceneEntity):
             if entity_id:
                 mapped_entities.append(entity_id)
 
-        return {
-            "scene_id": self._scene.scene_id,
-            "area_id": self._scene_details["area_id"],
-            "channel": self._scene_details["channel"],
-            "entity_id": mapped_entities,
-        }
+        self._attr_extra_state_attributes["entity_id"] = mapped_entities
 
     async def async_activate(self, **kwargs: Any) -> None:
         """Activate the DALI scene."""

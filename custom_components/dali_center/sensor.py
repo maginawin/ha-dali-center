@@ -5,10 +5,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 import logging
-from typing import Any
 
-from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway, Device
+from PySrDaliGateway import CallbackEventType, Device
 from PySrDaliGateway.helper import (
     is_illuminance_sensor,
     is_light_device,
@@ -22,18 +20,11 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import LIGHT_LUX, EntityCategory, UnitOfEnergy
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
 from .const import DOMAIN, MANUFACTURER
-from .entity import GatewayAvailabilityMixin
-from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,45 +36,22 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center sensor entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-    devices: list[Device] = entry.runtime_data.devices
+    devices = entry.runtime_data.devices
 
-    def _on_motion_status(dev_id: str, status: MotionStatus) -> None:
-        signal = f"dali_center_update_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, status)
-
-    def _on_illuminance_status(dev_id: str, status: IlluminanceStatus) -> None:
-        signal = f"dali_center_update_{dev_id}"
-        hass.add_job(async_dispatcher_send, hass, signal, status)
-
-    gateway.on_motion_status = _on_motion_status
-    gateway.on_illuminance_status = _on_illuminance_status
-
-    _LOGGER.info("Setting up sensor platform: %d devices", len(devices))
-
-    added_devices: set[str] = set()
-    new_sensors: list[SensorEntity] = []
+    sensors: list[SensorEntity] = []
     for device in devices:
-        if device.dev_id in added_devices:
-            continue
-
         if is_light_device(device.dev_type):
-            new_sensors.append(DaliCenterEnergySensor(device, gateway_to_dict(gateway)))
-            added_devices.add(device.dev_id)
+            sensors.append(DaliCenterEnergySensor(device))
         elif is_motion_sensor(device.dev_type):
-            new_sensors.append(DaliCenterMotionSensor(device, gateway_to_dict(gateway)))
-            added_devices.add(device.dev_id)
+            sensors.append(DaliCenterMotionSensor(device))
         elif is_illuminance_sensor(device.dev_type):
-            new_sensors.append(
-                DaliCenterIlluminanceSensor(device, gateway_to_dict(gateway))
-            )
-            added_devices.add(device.dev_id)
+            sensors.append(DaliCenterIlluminanceSensor(device))
 
-    if new_sensors:
-        async_add_entities(new_sensors)
+    if sensors:
+        async_add_entities(sensors)
 
 
-class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
+class DaliCenterEnergySensor(SensorEntity):
     """Representation of a Dali Center Energy Sensor."""
 
     _attr_device_class = SensorDeviceClass.ENERGY
@@ -94,54 +62,57 @@ class DaliCenterEnergySensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Energy"
 
-    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
+    def __init__(self, device: Device) -> None:
         """Initialize the energy sensor."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
-        SensorEntity.__init__(self)
 
         self._device = device
         self._attr_unique_id = f"{device.unique_id}_energy"
         self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._device.dev_id)},
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
+        }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": device.gw_sn,
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
         }
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
-        await super().async_added_to_hass()
 
-        signal = f"dali_center_energy_update_{self._device.dev_id}"
         self.async_on_remove(
-            async_dispatcher_connect(self.hass, signal, self._handle_energy_update)
-        )
-
-        signal = f"dali_center_update_available_{self._device.dev_id}"
-        self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_availability
+            self._device.register_listener(
+                CallbackEventType.ENERGY_REPORT, self._handle_energy_update
             )
         )
 
-    def _handle_energy_update(self, energy_value: float) -> None:
+        self.async_on_remove(
+            self._device.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
+            )
+        )
+
+    @callback
+    def _handle_energy_update(self, dev_id: str, energy_value: float) -> None:
+        """Update energy value."""
+        if dev_id != self._device.dev_id:
+            return
         self._attr_native_value = energy_value
+        self.schedule_update_ha_state()
 
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        if dev_id not in (self._device.dev_id, self._device.gw_sn):
+            return
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        attributes = self._get_gateway_attributes()
-        device_attrs = self._get_device_base_attributes(self._device)
-        attributes.update(device_attrs)
-        return attributes
+        self._attr_available = available
+        self.schedule_update_ha_state()
 
 
-class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
+class DaliCenterMotionSensor(SensorEntity):
     """Representation of a Dali Center Motion Sensor."""
 
     _attr_device_class = SensorDeviceClass.ENUM
@@ -150,61 +121,65 @@ class DaliCenterMotionSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_icon = "mdi:motion-sensor"
     _attr_name = "State"
 
-    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
+    def __init__(self, device: Device) -> None:
         """Initialize the motion sensor."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
-        SensorEntity.__init__(self)
 
         self._device = device
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value = "no_motion"
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._device.dev_id)},
-            "name": self._device.name,
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
+            "name": device.name,
             "manufacturer": MANUFACTURER,
-            "model": self._device.model,
-            "via_device": (DOMAIN, self._device.gw_sn),
+            "model": device.model,
+            "via_device": (DOMAIN, device.gw_sn),
+        }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": device.gw_sn,
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
         }
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
-        await super().async_added_to_hass()
 
-        signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(self.hass, signal, self._handle_device_update)
+            self._device.register_listener(
+                CallbackEventType.MOTION_STATUS, self._handle_motion_status
+            )
         )
 
-        signal = f"dali_center_update_available_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_availability
+            self._device.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
         self._device.read_status()
 
-    def _handle_device_update(self, status: MotionStatus) -> None:
+    @callback
+    def _handle_motion_status(self, dev_id: str, status: MotionStatus) -> None:
+        """Handle motion status updates."""
+        if dev_id != self._attr_unique_id:
+            return
+
         motion_state = status["motion_state"]
         self._attr_native_value = motion_state.value
+        self.schedule_update_ha_state()
 
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        if dev_id not in (self._device.dev_id, self._device.gw_sn):
+            return
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        attributes = self._get_gateway_attributes()
-        device_attrs = self._get_device_base_attributes(self._device)
-        attributes.update(device_attrs)
-        return attributes
+        self._attr_available = available
+        self.schedule_update_ha_state()
 
 
-class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
+class DaliCenterIlluminanceSensor(SensorEntity):
     """Representation of a Dali Center Illuminance Sensor."""
 
     _attr_device_class = SensorDeviceClass.ILLUMINANCE
@@ -213,54 +188,60 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "State"
 
-    def __init__(self, device: Device, gateway: dict[str, Any]) -> None:
+    def __init__(self, device: Device) -> None:
         """Initialize the illuminance sensor."""
-        GatewayAvailabilityMixin.__init__(self, device.gw_sn, gateway)
-        SensorEntity.__init__(self)
 
         self._device = device
         self._attr_unique_id = f"{device.unique_id}"
         self._attr_available = device.status == "online"
         self._attr_native_value: StateType | date | datetime | Decimal = None
-        self._sensor_enabled: bool = True  # Track sensor enable state
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._device.dev_id)},
-            "name": self._device.name,
+        self._sensor_enabled: bool = True
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
+            "name": device.name,
             "manufacturer": MANUFACTURER,
-            "model": self._device.model,
-            "via_device": (DOMAIN, self._device.gw_sn),
+            "model": device.model,
+            "via_device": (DOMAIN, device.gw_sn),
+        }
+        self._attr_extra_state_attributes = {
+            "gateway_sn": device.gw_sn,
+            "address": device.address,
+            "channel": device.channel,
+            "device_type": device.dev_type,
+            "device_model": device.model,
         }
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
-        await super().async_added_to_hass()
 
-        signal = f"dali_center_update_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(self.hass, signal, self._handle_device_update)
-        )
-
-        signal = f"dali_center_update_available_{self._attr_unique_id}"
-        self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_device_availability
+            self._device.register_listener(
+                CallbackEventType.ILLUMINANCE_STATUS, self._handle_illuminance_status
             )
         )
 
-        signal = f"dali_center_sensor_on_off_{self._attr_unique_id}"
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, signal, self._handle_sensor_on_off_update
+            self._device.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
+            )
+        )
+
+        self.async_on_remove(
+            self._device.register_listener(
+                CallbackEventType.SENSOR_ON_OFF, self._handle_sensor_on_off
             )
         )
 
         self._device.read_status()
 
-    def _handle_device_update(self, status: IlluminanceStatus) -> None:
+    @callback
+    def _handle_illuminance_status(
+        self, dev_id: str, status: IlluminanceStatus
+    ) -> None:
+        """Handle illuminance status updates."""
+        if dev_id != self._attr_unique_id:
+            return
+
         illuminance_value = status["illuminance_value"]
         is_valid = status["is_valid"]
 
@@ -274,19 +255,22 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
             return
 
         self._attr_native_value = illuminance_value
+        self.schedule_update_ha_state()
 
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        if dev_id not in (self._device.dev_id, self._device.gw_sn):
+            return
 
-    @cached_property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the optional state attributes."""
-        attributes = self._get_gateway_attributes()
-        device_attrs = self._get_device_base_attributes(self._device)
-        attributes.update(device_attrs)
-        return attributes
+        self._attr_available = available
+        self.schedule_update_ha_state()
 
-    def _handle_sensor_on_off_update(self, on_off: bool) -> None:
-        """Handle sensor on/off state updates from gateway."""
+    @callback
+    def _handle_sensor_on_off(self, dev_id: str, on_off: bool) -> None:
+        """Handle sensor on/off updates."""
+        if dev_id != self._attr_unique_id:
+            return
+
         self._sensor_enabled = on_off
         _LOGGER.debug(
             "Illuminance sensor enable state for device %s updated to: %s",
@@ -297,4 +281,4 @@ class DaliCenterIlluminanceSensor(GatewayAvailabilityMixin, SensorEntity):
         if not self._sensor_enabled:
             self._attr_native_value = None
 
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+        self.schedule_update_ha_state()

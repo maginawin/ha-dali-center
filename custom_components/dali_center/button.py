@@ -2,18 +2,14 @@
 
 import logging
 
-from propcache.api import cached_property
-from PySrDaliGateway import DaliGateway
+from PySrDaliGateway import CallbackEventType, DaliGateway
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .entity import GatewayAvailabilityMixin
-from .helper import gateway_to_dict
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,36 +21,46 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Dali Center button entities from config entry."""
-    gateway: DaliGateway = entry.runtime_data.gateway
-
-    _LOGGER.debug("Setting up button platform for gateway %s", gateway.gw_sn)
+    gateway = entry.runtime_data.gateway
 
     async_add_entities([DaliCenterGatewayRestartButton(gateway)])
 
 
-class DaliCenterGatewayRestartButton(GatewayAvailabilityMixin, ButtonEntity):
+class DaliCenterGatewayRestartButton(ButtonEntity):
     """Representation of a Dali Center Gateway Restart Button."""
 
+    _attr_has_entity_name = True
     _attr_icon = "mdi:restart"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, gateway: DaliGateway) -> None:
         """Initialize the gateway restart button."""
-        GatewayAvailabilityMixin.__init__(self, gateway.gw_sn, gateway_to_dict(gateway))
-        ButtonEntity.__init__(self)
 
-        self._gateway_obj = gateway
+        self._gateway = gateway
         self._attr_name = f"{gateway.name} Restart"
         self._attr_unique_id = f"{gateway.gw_sn}_restart"
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for the gateway restart button."""
-        return {
-            "identifiers": {(DOMAIN, self._gateway_obj.gw_sn)},
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, gateway.gw_sn)},
         }
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added to hass."""
+
+        self.async_on_remove(
+            self._gateway.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
+            )
+        )
 
     async def async_press(self) -> None:
         """Handle button press to restart gateway."""
-        _LOGGER.info("Restarting gateway %s", self._gateway_obj.gw_sn)
-        self._gateway_obj.restart_gateway()
+        _LOGGER.info("Restarting gateway %s", self._gateway.gw_sn)
+        self._gateway.restart_gateway()
+
+    @callback
+    def _handle_availability(self, dev_id: str, available: bool) -> None:
+        if dev_id != self._gateway.gw_sn:
+            return
+
+        self._attr_available = available
+        self.schedule_update_ha_state()

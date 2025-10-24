@@ -24,6 +24,10 @@ from .const import CONF_SERIAL_NUMBER, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# Reload timing constants (in seconds)
+RELOAD_UNLOAD_DELAY = 0.5
+RELOAD_SETUP_DELAY = 1.0
+
 OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Optional("refresh_gateway_ip", default=False): bool,
@@ -36,13 +40,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize the options flow."""
-        super().__init__()
         self._config_entry = config_entry
 
     async def _reload_with_delay(self) -> bool:
         try:
             await self.hass.config_entries.async_unload(self._config_entry.entry_id)
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(RELOAD_UNLOAD_DELAY)
 
             result = await self.hass.config_entries.async_setup(
                 self._config_entry.entry_id
@@ -51,9 +54,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if not result:
                 return False
 
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(RELOAD_SETUP_DELAY)
 
-        except Exception:
+        except (OSError, ValueError, RuntimeError):
             _LOGGER.exception("Error during config entry reload")
             return False
 
@@ -159,7 +162,6 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
-        super().__init__()
         self._gateways: list[DaliGateway] = []
         self._selected_gateway: DaliGateway | None = None
 
