@@ -232,7 +232,6 @@ class DaliCenterLightGroup(LightEntity):
             "group_name": group.name,
         }
 
-    @callback
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light group."""
         brightness = kwargs.get(ATTR_BRIGHTNESS)
@@ -255,13 +254,13 @@ class DaliCenterLightGroup(LightEntity):
             self._attr_color_mode = ColorMode.COLOR_TEMP
             self._attr_color_temp_kelvin = color_temp_kelvin
 
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light group."""
         self._group.turn_off()
         self._attr_is_on = False
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
@@ -568,10 +567,10 @@ class DaliCenterAllLights(LightEntity):
             self._attr_color_mode = ColorMode.COLOR_TEMP
             self._attr_color_temp_kelvin = color_temp_kelvin
 
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off all lights."""
         self._light.turn_off()
         self._attr_is_on = False
-        self.hass.loop.call_soon_threadsafe(self.schedule_update_ha_state)
+        self.async_write_ha_state()
