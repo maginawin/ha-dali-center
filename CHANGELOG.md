@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-10-24
+
+### Added
+
+- Automatic device, group, and scene synchronization during setup; manual selection removed from the config flow (#47)
+
+### Fixed
+
+- Entities now register gateway callbacks directly so availability, energy, and sensor updates reach Home Assistant immediately (#48)
+
+### Technical
+
+- **BREAKING CHANGE**: Existing gateways migrate to the new credential schema; remove and re-add the integration only if migration fails (#47)
+- Bumped PySrDaliGateway dependency to >=0.15.0 (#48)
+- Updated integration metadata to declare Dali Center as a Home Assistant hub (364359c)
+
 ## [0.8.0] - 2025-09-19
 
 ### Added
@@ -228,7 +244,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/maginawin/ha-dali-center/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/maginawin/ha-dali-center/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/maginawin/ha-dali-center/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/maginawin/ha-dali-center/compare/v0.6.0...v0.7.0
