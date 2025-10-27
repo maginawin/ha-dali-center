@@ -463,7 +463,7 @@ Benefits:
 
 ### Release Process
 
-1. **Update version** in `manifest.json`
+1. **Update version** in `manifest.json` and `pyproject.toml`
 2. **Update CHANGELOG.md** with release notes:
    - Use simplified structure: Added, Fixed, Technical
    - Include issue references (#123) for user-facing changes
@@ -472,9 +472,13 @@ Benefits:
    - Update version links at bottom of changelog
 3. **Commit changes** to main branch using format: `chore(release): bump version to x.y.z`
 4. **Create and push tag** to upstream: `git tag v{version} && git push upstream v{version}`
-5. **Create GitHub release** using `gh release create v{version} --title "v{version}" --notes "..."`
+5. **Create GitHub release** using `gh release create v{version} -R maginawin/ha-dali-center --title "v{version}" --notes "..."`
    - Copy release notes from CHANGELOG.md with same structure (Added, Fixed, Technical sections)
-6. **Follow semantic versioning**: MAJOR.MINOR.PATCH
+   - **Important**: Specify repository with `-R maginawin/ha-dali-center` flag
+6. **Push to both repositories**:
+   - Push to origin: `git push origin main && git push origin v{version}`
+   - Push to upstream: `git push upstream main` (tag already pushed in step 4)
+7. **Follow semantic versioning**: MAJOR.MINOR.PATCH
 
 #### Changelog Structure Template
 
