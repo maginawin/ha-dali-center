@@ -94,7 +94,6 @@ class DaliCenterPanelEvent(EventEntity):
 
         self._panel.read_status()
 
-    @callback
     def _handle_device_update(self, dev_id: str, status: PanelStatus) -> None:
         if dev_id != self._panel.dev_id:
             return
@@ -108,19 +107,23 @@ class DaliCenterPanelEvent(EventEntity):
             self._panel.dev_id,
         )
 
-        event_data: dict[str, str | int] = {
-            "entity_id": self.entity_id,
-            "event_type": event_name,
-        }
+        @callback
+        def _fire_event() -> None:
+            event_data: dict[str, str | int] = {
+                "entity_id": self.entity_id,
+                "event_type": event_name,
+            }
 
-        if event_type == PanelEventType.ROTATE and rotate_value is not None:
-            event_data["rotate_value"] = rotate_value
-            self._trigger_event(event_name, {"rotate_value": rotate_value})
-        else:
-            self._trigger_event(event_name)
+            if event_type == PanelEventType.ROTATE and rotate_value is not None:
+                event_data["rotate_value"] = rotate_value
+                self._trigger_event(event_name, {"rotate_value": rotate_value})
+            else:
+                self._trigger_event(event_name)
 
-        self.hass.bus.async_fire(f"{DOMAIN}_event", event_data)
-        self.schedule_update_ha_state()
+            self.hass.bus.async_fire(f"{DOMAIN}_event", event_data)
+            self.schedule_update_ha_state()
+
+        self.hass.loop.call_soon_threadsafe(_fire_event)
 
     @callback
     def _handle_availability(self, dev_id: str, available: bool) -> None:
