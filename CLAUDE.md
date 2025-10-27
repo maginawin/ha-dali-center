@@ -261,12 +261,6 @@ ruff check --fix
 mypy --show-error-codes --pretty custom_components/dali_center
 ```
 
-#### Running Tests
-
-```bash
-pytest -v
-```
-
 ## Architecture
 
 ### Core Components

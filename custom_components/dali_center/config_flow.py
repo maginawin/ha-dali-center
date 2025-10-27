@@ -30,7 +30,7 @@ RELOAD_SETUP_DELAY = 1.0
 
 OPTIONS_SCHEMA = vol.Schema(
     {
-        vol.Optional("refresh_gateway_ip", default=False): bool,
+        vol.Optional("refresh", default=False): bool,
     }
 )
 
@@ -72,13 +72,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 data_schema=self.add_suggested_values_to_schema(OPTIONS_SCHEMA, {}),
             )
 
-        if user_input.get("refresh_gateway_ip", False):
-            return await self.async_step_refresh_gateway_ip()
+        if user_input.get("refresh", False):
+            return await self.async_step_refresh()
 
         return self.async_create_entry(data={})
 
-    async def async_step_refresh_gateway_ip(self) -> ConfigFlowResult:
-        """Refresh gateway IP address by serial number discovery."""
+    async def async_step_refresh(self) -> ConfigFlowResult:
+        """Refresh gateway IP, devices, groups, and scenes."""
         errors: dict[str, str] = {}
 
         try:
@@ -92,10 +92,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             discovered_gateways = await discovery.discover_gateways(current_sn)
 
             if not discovered_gateways:
-                _LOGGER.warning("Gateway %s not found during IP refresh", current_sn)
+                _LOGGER.warning("Gateway %s not found during refresh", current_sn)
                 errors["base"] = "gateway_not_found"
                 return self.async_show_form(
-                    step_id="refresh_gateway_ip",
+                    step_id="refresh",
                     errors=errors,
                     data_schema=vol.Schema({}),
                 )
@@ -110,45 +110,50 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
 
             _LOGGER.info(
-                "Gateway %s IP updated to %s", current_sn, updated_gateway.gw_ip
+                "Gateway %s refreshed with IP %s", current_sn, updated_gateway.gw_ip
             )
 
             reload_success = await self._reload_with_delay()
 
             if not reload_success:
-                _LOGGER.error("Failed to reload integration after IP update")
+                _LOGGER.error("Failed to reload integration after refresh")
                 errors["base"] = "cannot_connect"
                 return self.async_show_form(
-                    step_id="refresh_gateway_ip",
+                    step_id="refresh",
                     errors=errors,
                     data_schema=vol.Schema({}),
                 )
 
             return self.async_show_form(
-                step_id="refresh_gateway_ip_result",
+                step_id="refresh_result",
                 data_schema=vol.Schema({}),
                 description_placeholders={
                     "gateway_sn": current_sn,
                     "new_ip": updated_gateway.gw_ip,
+                    "result_message": (
+                        f"Gateway {current_sn} has been refreshed.\n"
+                        f"IP address: {updated_gateway.gw_ip}\n\n"
+                        "All devices, groups, and scenes have been re-discovered."
+                    ),
                 },
             )
 
         except Exception:
-            _LOGGER.exception("Error refreshing gateway IP")
+            _LOGGER.exception("Error refreshing gateway")
             errors["base"] = "cannot_connect"
             return self.async_show_form(
-                step_id="refresh_gateway_ip",
+                step_id="refresh",
                 errors=errors,
                 data_schema=vol.Schema({}),
             )
 
-    async def async_step_refresh_gateway_ip_result(
+    async def async_step_refresh_result(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the gateway IP refresh result step."""
+        """Handle the refresh result step."""
         if user_input is None:
             return self.async_show_form(
-                step_id="refresh_gateway_ip_result",
+                step_id="refresh_result",
                 data_schema=vol.Schema({}),
             )
 

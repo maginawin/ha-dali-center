@@ -96,7 +96,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
     )
 
     try:
-        async with async_timeout.timeout(30):
+        async with async_timeout.timeout(60):
             await gateway.connect()
     except DaliGatewayError as exc:
         _LOGGER.exception("Error connecting to gateway %s", gateway.gw_sn)
