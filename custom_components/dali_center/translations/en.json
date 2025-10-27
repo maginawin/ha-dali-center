@@ -170,10 +170,7 @@
                 "title": "Configuration Options",
                 "description": "Update Dali Center Configuration",
                 "data": {
-                    "refresh_devices": "Refresh Device List",
-                    "refresh_groups": "Refresh Group List",
-                    "refresh_scenes": "Refresh Scene List",
-                    "refresh_gateway_ip": "Refresh Gateway IP Address"
+                    "refresh": "Refresh Gateway (IP, Devices, Groups, Scenes)"
                 }
             },
             "select_entities": {
@@ -186,26 +183,13 @@
                 }
             },
             "refresh": {
-                "title": "Refresh Configuration",
-                "data": {
-                    "refresh_result": "Refresh Result"
-                }
-            },
-            "refresh_result": {
-                "title": "Refresh Results",
-                "description": "{result_message}",
-                "data": {
-                    "refresh_result": "Refresh Result"
-                }
-            },
-            "refresh_gateway_ip": {
-                "title": "Refresh Gateway IP",
-                "description": "Searching for gateway to update IP address...",
+                "title": "Refreshing Gateway",
+                "description": "Searching for gateway and updating configuration...",
                 "data": {}
             },
-            "refresh_gateway_ip_result": {
-                "title": "Gateway IP Updated",
-                "description": "Gateway {gateway_sn} IP address has been updated to {new_ip}",
+            "refresh_result": {
+                "title": "Refresh Complete",
+                "description": "{result_message}",
                 "data": {}
             }
         }
