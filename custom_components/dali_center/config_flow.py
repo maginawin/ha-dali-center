@@ -19,6 +19,7 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import callback
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .const import CONF_SERIAL_NUMBER, DOMAIN
 
@@ -112,6 +113,35 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             _LOGGER.info(
                 "Gateway %s refreshed with IP %s", current_sn, updated_gateway.gw_ip
             )
+
+            # Remove all devices associated with this config entry before reload
+            device_reg = dr.async_get(self.hass)
+            entity_reg = er.async_get(self.hass)
+
+            # First, get all devices for this config entry
+            devices_to_remove = dr.async_entries_for_config_entry(
+                device_reg, self._config_entry.entry_id
+            )
+
+            # Remove all devices (this will also remove associated entities)
+            for device in devices_to_remove:
+                _LOGGER.debug(
+                    "Removing device %s (%s) before reload",
+                    device.name or "Unknown",
+                    device.id,
+                )
+                device_reg.async_remove_device(device.id)
+
+            entities_to_remove = er.async_entries_for_config_entry(
+                entity_reg, self._config_entry.entry_id
+            )
+
+            for entity in entities_to_remove:
+                _LOGGER.debug("Removing entity %s before reload", entity.entity_id)
+                entity_reg.async_remove(entity.entity_id)
+
+            # Wait for reload to complete
+            await self._reload_with_delay()
 
             reload_success = await self._reload_with_delay()
 
