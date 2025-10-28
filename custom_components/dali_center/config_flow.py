@@ -141,8 +141,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 entity_reg.async_remove(entity.entity_id)
 
             # Wait for reload to complete
-            await self._reload_with_delay()
-
             reload_success = await self._reload_with_delay()
 
             if not reload_success:
