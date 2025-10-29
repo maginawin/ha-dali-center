@@ -4,363 +4,86 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Home Assistant custom integration for Dali Center lighting control systems. The integration communicates with Dali Center gateways via MQTT to control DALI lighting devices, groups, and scenes.
-
-## Development Principles
-
-- Use only English in the code, comments, and documentation
-- **Mentorship-Driven Development**: All AI interactions should enhance developer skills
-- **Architecture-First Thinking**: Design decisions before implementation details
-- **Learning Documentation**: Capture decision rationale and alternatives considered
-- **Code Readability First**: Minimize comments in favor of self-documenting code
-- **Virtual Environment Requirement**: All development commands must be executed within the activated virtual environment
-
-## Code Quality Guidelines
-
-Following Home Assistant's [Style Guidelines](https://developers.home-assistant.io/docs/development_guidelines/) for integration development.
-
-### Logging Best Practices
-
-**Source**: [Home Assistant Style Guidelines - Logging](https://developers.home-assistant.io/docs/development_guidelines/)
-
-#### Logging Format
-
-Always use percentage formatting (not f-strings) for log messages:
-
-```python
-# Correct
-_LOGGER.info("Gateway %s connected with %d devices", gw_sn, device_count)
-
-# Incorrect
-_LOGGER.info(f"Gateway {gw_sn} connected with {device_count} devices")
-```
-
-**Reason**: Percentage formatting avoids formatting the message when logging is suppressed at that level, improving performance.
-
-#### Log Level Usage
-
-- **Exception**: Use `_LOGGER.exception()` in exception handlers to include stack trace
-- **Error**: Critical failures requiring user attention
-- **Warning**: Recoverable issues or deprecated features (not normal operations)
-- **Info**: Important state transitions and milestones (use sparingly)
-- **Debug**: Detailed diagnostic information for troubleshooting
-
-#### What NOT to Log
-
-- Redundant logs that repeat what code obviously does
-- Success confirmations for normal operations (absence of error = success)
-- Verbose parameter dumps (Home Assistant traces capture this)
-- Low-value debug messages that don't aid diagnostics
-
-### Comment Guidelines
-
-**Source**: [Home Assistant Style Guidelines - Comments](https://developers.home-assistant.io/docs/development_guidelines/)
-
-Comments should be full sentences ending with a period.
-
-#### When to Comment
-
-- Non-obvious design decisions
-- Complex algorithms requiring explanation
-- Important warnings or gotchas
-- Workarounds with context
-
-#### Prefer Self-Documenting Code
-
-Instead of comments, use:
-
-- Clear, descriptive variable and function names
-- Type hints and docstrings (Google style)
-- Small, well-named functions
-- Logical code organization
-
-### Entity Class Best Practices
-
-**Source**: Home Assistant entity architecture patterns
-
-#### Attribute Declaration Pattern
-
-Distinguish between constant class-level attributes and dynamic instance-level state:
-
-**Class-level attributes** (constants shared across all instances):
-
-```python
-class MyEntity(BaseEntity):
-    _attr_has_entity_name = True
-    _attr_name = "Sensor"  # Same for all instances
-    _attr_icon = "mdi:thermometer"  # Same for all instances
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_min_value = 1000  # Constant
-    _attr_max_value = 8000  # Constant
-```
-
-**Instance-level attributes** (unique per instance):
-
-```python
-    def __init__(self, device: Device) -> None:
-        self._device = device
-        self._attr_unique_id = f"{device.id}_temperature"  # Dynamic
-        self._attr_native_value = device.current_temp  # State
-        self._attr_available = device.status == "online"  # State
-        self._attr_device_info = {  # Device info set in constructor
-            "identifiers": {(DOMAIN, device.dev_id)},
-            "name": device.name,
-            "manufacturer": MANUFACTURER,
-            "model": device.model,
-            "via_device": (DOMAIN, device.gw_sn),
-        }
-```
-
-#### Attribute Declaration Guidelines
-
-**Always use `_attr_*` pattern in constructors. Avoid `@property` and `@cached_property` decorators.**
-
-All entity attributes should be set in the constructor using the `_attr_*` naming convention:
-
-**Good - Attributes in constructor:**
-
-```python
-def __init__(self, device: Device) -> None:
-    self._attr_unique_id = device.unique_id
-    self._attr_device_info = {
-        "identifiers": {(DOMAIN, device.dev_id)},
-        "name": device.name,
-        "manufacturer": MANUFACTURER,
-        "model": device.model,
-        "via_device": (DOMAIN, device.gw_sn),
-    }
-    self._attr_extra_state_attributes = {
-        "gateway_sn": device.gw_sn,
-        "address": device.address,
-        "channel": device.channel,
-    }
-```
-
-**Bad - Using property decorators:**
-
-```python
-@cached_property
-def device_info(self) -> DeviceInfo:
-    return {"identifiers": {(DOMAIN, self._device.dev_id)}}
-
-@cached_property
-def extra_state_attributes(self) -> dict[str, Any]:
-    return {"address": self._device.address}
-```
-
-For dynamic data that needs updating, use methods to update `_attr_*` attributes:
-
-```python
-async def _async_update_group_devices(self) -> None:
-    # ... fetch data
-    self._attr_extra_state_attributes.update({
-        "entity_id": self._group_entity_ids,
-        "total_devices": len(devices),
-    })
-```
-
-#### Benefits
-
-- **Performance**: Class-level attributes shared across instances, reducing memory
-- **Clarity**: Clear separation between configuration (class) and state (instance)
-- **Consistency**: Uniform pattern across all entity classes
-- **Maintainability**: Easier to identify what changes vs what's constant
-
-### Code Pattern Best Practices
-
-#### Use Dictionary Mapping Instead of If-Elif Chains
-
-When mapping string values to other values, prefer dictionaries over if-elif chains for clarity and maintainability.
-
-**Bad - If-Elif Chain:**
-
-```python
-def map_color_mode(self, mode: str) -> ColorMode:
-    if mode == "color_temp":
-        return ColorMode.COLOR_TEMP
-    elif mode == "hs":
-        return ColorMode.HS
-    elif mode == "rgbw":
-        return ColorMode.RGBW
-    else:
-        return ColorMode.BRIGHTNESS
-```
-
-**Good - Dictionary Mapping:**
-
-```python
-def map_color_mode(self, mode: str) -> ColorMode:
-    color_mode_mapping: dict[str, ColorMode] = {
-        "color_temp": ColorMode.COLOR_TEMP,
-        "hs": ColorMode.HS,
-        "rgbw": ColorMode.RGBW,
-    }
-    return color_mode_mapping.get(mode, ColorMode.BRIGHTNESS)
-```
-
-**Benefits:**
-
-- **Readability**: Mapping is immediately visible as a data structure
-- **Maintainability**: Adding new mappings requires only one line
-- **Performance**: O(1) dictionary lookup vs O(n) if-elif chain
-- **Extensibility**: Easy to move mapping to class/module level if needed
-
-**When NOT to use dictionaries:**
-
-- Complex conditional logic beyond simple value mapping
-- Binary decisions (single if-else)
-- Different function signatures for each case
-
-### References
-
-- [Home Assistant Development Guidelines](https://developers.home-assistant.io/docs/development_guidelines/)
-- [Home Assistant Core - Best Practices](https://developers.home-assistant.io/docs/development_checklist/)
-- [Python Logging Best Practices](https://docs.python.org/3/howto/logging.html)
-- [Python @cached_property](https://docs.python.org/3/library/functools.html#functools.cached_property)
-
-## Development Setup
-
-### Virtual Environment
-
-This project uses a virtual environment to manage Python dependencies:
-
-```bash
-# Create virtual environment
-python3 -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate
-
-# Install project with development dependencies
-pip install -e ".[dev]"
-
-# Deactivate when done
-deactivate
-```
-
-### Development Commands
-
-Always run these commands with the virtual environment activated:
-
-#### Code Formatting and Linting
-
-```bash
-# Format code with ruff
-ruff format
-
-# Run linting checks with ruff
-ruff check
-
-# Fix auto-fixable linting issues
-ruff check --fix
-```
-
-#### Type Checking
-
-```bash
-mypy --show-error-codes --pretty custom_components/dali_center
-```
+Home Assistant custom integration for Dali Center lighting control via MQTT.
+
+- Controls DALI devices, groups, and scenes through Dali Center gateways
+- Uses external library: PySrDaliGateway (handles MQTT communication)
+- Platforms: Light, Sensor, Button, Event, Switch, Scene
 
 ## Architecture
 
 ### Core Components
 
-#### Integration Setup (`__init__.py`)
-
-- Entry point for the integration
-- Manages gateway connection lifecycle using PySrDaliGateway library
-- Sets up platforms: Light, Sensor, Button, Event
-- Handles device registry and dispatcher signals
-
-#### External Library (PySrDaliGateway)
-
-- **DaliGateway**: Main gateway class handling MQTT communication
-- **Device/Group/Scene**: Entity definitions and management
-- **Discovery**: Network discovery of Dali Center gateways
-- **Helper functions**: Device type detection and utilities
-
-#### Configuration Flow (`config_flow.py`)
-
-- Multi-step configuration wizard
-- Gateway discovery and selection
-- Entity selection with diff display
-- Options flow for refreshing entities
-
-#### Platform Modules
-
-- **Light** (`light.py`): Controls DALI lighting devices and groups
-- **Sensor** (`sensor.py`): Energy monitoring and device status
-- **Button** (`button.py`): Scene activation buttons
-- **Event** (`event.py`): Panel button events (replaces panel sensors)
-
-#### Support Modules
-
-- **Constants** (`const.py`): Domain and configuration constants
-- **Types** (`types.py`): TypedDict definitions for Home Assistant integration
-- **Helper** (`helper.py`): Utility functions for entity comparison and setup
+- **Integration Setup** (`__init__.py`): Entry point, gateway lifecycle, platform setup
+- **External Library** (PySrDaliGateway): MQTT communication, device/group/scene management, discovery
+- **Configuration Flow** (`config_flow.py`): Multi-step wizard, gateway discovery, entity selection
+- **Platforms**: Light, Sensor, Button, Event, Switch, Scene
+- **Support Modules**: const.py, types.py, helper.py, device_trigger.py
 
 ### Data Flow
 
-1. **Discovery**: Gateway discovery via network scan
-2. **Connection**: MQTT connection to selected gateway
-3. **Entity Discovery**: Query gateway for devices/groups/scenes
-4. **Setup**: Create Home Assistant entities
-5. **Runtime**: Handle status updates and commands via MQTT
+1. Gateway discovery via network scan
+2. MQTT connection to selected gateway
+3. Query gateway for devices/groups/scenes
+4. Create Home Assistant entities
+5. Handle status updates and commands via MQTT
 
-### MQTT Communication
+### Key Files
 
-MQTT communication is handled by the PySrDaliGateway external library:
+- `__init__.py`: Integration setup and lifecycle
+- `config_flow.py`: Configuration UI flows
+- `light.py`, `sensor.py`, `button.py`, `event.py`, `switch.py`, `scene.py`: Platform implementations
+- `device_trigger.py`: Device trigger support
+- `const.py`: Domain constants
+- `types.py`: TypedDict definitions
+- `helper.py`: Utility functions
 
-- **Subscribe Topic**: `/{gw_sn}/client/reciver/`
-- **Publish Topic**: `/{gw_sn}/server/publish/`
-- **Commands**: `writeDev`, `readDev`, `writeGroup`, `writeScene`
-- **Status**: `devStatus`, `onlineStatus`, `reportEnergy`
+## Development Setup
 
-## Key Files
+### Virtual Environment
 
-- `custom_components/dali_center/__init__.py`: Integration setup and lifecycle
-- `custom_components/dali_center/config_flow.py`: Configuration UI flows
-- `custom_components/dali_center/light.py`: Light platform implementation
-- `custom_components/dali_center/sensor.py`: Sensor platform for energy monitoring
-- `custom_components/dali_center/button.py`: Button platform for scene activation
-- `custom_components/dali_center/event.py`: Event platform for panel button events
-- `custom_components/dali_center/const.py`: Domain constants and configuration
-- `custom_components/dali_center/types.py`: TypedDict definitions for HA integration
-- `custom_components/dali_center/helper.py`: Utility functions
-- `custom_components/dali_center/manifest.json`: Integration metadata and dependencies
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+```
 
-## Dependencies
+All development commands must run within activated virtual environment.
 
-- `PySrDaliGateway>=0.1.4`: External library for DALI gateway communication
-- Home Assistant core libraries
+### Development Commands
 
-## Common Development Patterns
+```bash
+# Format and lint
+ruff format
+ruff check --fix
 
-### Adding New Device Types
+# Type check
+mypy --show-error-codes --pretty custom_components/dali_center
+```
 
-1. Check if device type is supported in PySrDaliGateway library
-2. Add entity type definitions in local `types.py` if needed for HA integration
-3. Create platform entity class in appropriate platform file (`light.py`, `sensor.py`, etc.)
-4. Register platform in `__init__.py` _PLATFORMS list
-5. Add entity setup logic in platform's `async_setup_entry` function
+## Code Quality Guidelines
 
-### MQTT Message Handling
+Follow Home Assistant's [Style Guidelines](https://developers.home-assistant.io/docs/development_guidelines/). Use Context7 MCP to query detailed documentation when needed.
 
-- MQTT communication is abstracted by PySrDaliGateway library
-- Integration subscribes to gateway status updates via dispatcher signals
-- Commands sent through PySrDaliGateway's DaliGateway class methods
-- Unique device IDs generated from device properties and gateway serial
+### Key Rules
 
-### Entity Management
+- **Logging**: Use percentage formatting, not f-strings (`"Gateway %s connected"` not `f"Gateway {gw} connected"`)
+- **Comments**: Full sentences with periods. Comment non-obvious decisions, not obvious code
+- **Entity Attributes**: Use `_attr_*` pattern in `__init__`, avoid `@property` decorators
+- **Type Hints**: Required for all new code
+- **Error Handling**: Proper exception handling with appropriate logging
 
-- Entities identified by unique_id combining device properties and gateway serial
-- Device registry maintains gateway and device information
-- Real-time updates handled via Home Assistant's dispatcher system
-- Entity state updates triggered by PySrDaliGateway callbacks
+### Resources
 
-## Testing
+- [Home Assistant Development Guidelines](https://developers.home-assistant.io/docs/development_guidelines/)
+- [Home Assistant Entity Architecture](https://developers.home-assistant.io/docs/core/entity/)
+- Use Context7 to query Home Assistant documentation for specific patterns
 
-Tests are located in `tests/` directory and use pytest with asyncio support. Configuration in `pytest.ini` sets up proper test discovery and async handling.
+## Development Principles
+
+- Use English in code, comments, and documentation
+- Code readability first: prefer self-documenting code over comments
+- Document design decisions and rationale for significant changes
 
 ## Development Workflow
 
@@ -393,66 +116,35 @@ type(scope): concise summary of what changed
 - `test`: Test additions or modifications
 - `chore`: Maintenance tasks (dependencies, tooling, releases)
 
-**Best Practices:**
+**Key Principles: Be specific, concise, and focus on impact over details.**
 
-- **Keep subject line under 72 characters**
-- **Use imperative mood**: "add feature" not "added feature" or "adds feature"
-- **Be specific but concise**: Focus on the impact, not implementation details
-- **Omit obvious details**: The diff shows the "what", commit explains the "why"
-- **Group related changes**: Use single commit for cohesive changes across files
-- **Bullet points**: If using body, keep to 3-4 concise bullet points maximum
-- **No verbose explanations**: Trust the code diff to show implementation details
+- Keep subject line under 72 characters
+- Use imperative mood: "add feature" not "added feature"
+- Omit obvious details: diff shows "what", commit explains "why"
+- Use 3-4 bullet points maximum if body is needed
+
+**IMPORTANT: No Claude Code signatures, co-author attributions, or AI-generated markers in commit messages.**
 
 **Examples:**
 
-✅ Good (single line):
-
-- `feat(gateway): add group control support`
-- `fix(sensor): correct energy calculation overflow`
-- `refactor: remove redundant logs and comments`
-- `chore(release): bump version to 0.2.0`
-
-✅ Good (with bullets):
-
 ```text
-refactor: move register_listener to entity objects and add AllLightsController
+# Good
+feat(gateway): add group control support
+fix(sensor): correct energy calculation overflow
+refactor: move register_listener to entity objects
+chore(release): bump version to 0.2.0
 
-- Add register_listener() to Device/Group/Scene in SDK
-- Add AllLightsController class for all-lights control
-- Remove gateway parameter from integration entities
-- Simplify all-light creation from 14 lines to 1 line
-```
-
-❌ Too verbose:
-
-```text
+# Good with body
 refactor: move register_listener to entity objects
 
-Move register_listener method into Device/Group/Scene classes in SDK,
-eliminating need to pass gateway to integration entities. Add
-AllLightsController class to encapsulate all-lights control logic.
+- Add register_listener() to Device/Group/Scene in SDK
+- Remove gateway parameter from integration entities
+- Simplify all-light creation from 14 lines to 1 line
 
-Changes:
-- SDK: Add register_listener() to Device, Group, Scene classes
-- SDK: Add read_group() to Group class
-- SDK: Add read_scene() to Scene class
-- SDK: Add AllLightsController class for broadcast control
-- Integration: Remove gateway parameter from all entity constructors
-- Integration: Simplify all-light creation from 14 lines to 1 line
-- Integration: Remove config_entry dependency from DaliCenterAllLights
-
-Benefits:
-- Reduced coupling: entities no longer need gateway reference
-- Cleaner API: register_listener available directly on entity objects
-...
+# Bad - too vague
+refactor: cleanup
+fix: bug fixes
 ```
-
-❌ Too vague:
-
-- `refactor: cleanup`
-- `fix: bug fixes`
-
-**IMPORTANT**: Do not include Claude Code signatures, co-author attributions, or AI-generated markers in commit messages. Keep commits clean and focused on the technical changes.
 
 ### Pull Request Process
 
@@ -470,14 +162,11 @@ Benefits:
    - Include commit hashes (abc1234) for technical changes without issues
    - Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format
    - Update version links at bottom of changelog
-3. **Commit changes** to main branch using format: `chore(release): bump version to x.y.z`
-4. **Create and push tag** to upstream: `git tag v{version} && git push upstream v{version}`
-5. **Create GitHub release** using `gh release create v{version} -R maginawin/ha-dali-center --title "v{version}" --notes "..."`
-   - Copy release notes from CHANGELOG.md with same structure (Added, Fixed, Technical sections)
-   - **Important**: Specify repository with `-R maginawin/ha-dali-center` flag
-6. **Push to both repositories**:
-   - Push to origin: `git push origin main && git push origin v{version}`
-   - Push to upstream: `git push upstream main` (tag already pushed in step 4)
+3. **Commit changes** to main branch: `chore(release): bump version to x.y.z`
+4. **Create and push tag**: `git tag v{version} && git push upstream v{version}`
+5. **Create GitHub release**: `gh release create v{version} -R {owner}/{repo} --title "v{version}" --notes "..."`
+   - Copy release notes from CHANGELOG.md with same structure
+6. **Push to all remote repositories** if using multiple remotes
 7. **Follow semantic versioning**: MAJOR.MINOR.PATCH
 
 #### Changelog Structure Template
@@ -488,18 +177,9 @@ Benefits:
 ### Added
 - New user-facing features
 
-### Fixed  
+### Fixed
 - Important bug fixes (#issue)
 
 ### Technical
 - Dependency updates, CI/CD improvements, code refactoring
 ```
-
-### Code Quality Requirements
-
-- **Type hints**: All new code must include proper type annotations
-- **Error handling**: Use proper exception handling with logging
-- **Documentation**: Add docstrings for all public methods and classes
-- **Constants**: Define constants in separate constants file
-- **Testing**: Write unit tests for all new functionality
-- **Architecture Documentation**: Document significant design decisions and alternatives considered
