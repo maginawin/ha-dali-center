@@ -58,7 +58,7 @@ ruff format
 ruff check --fix
 
 # Type check
-mypy --show-error-codes --pretty custom_components/dali_center
+mypy --show-error-codes --pretty {project_path}
 ```
 
 ## Code Quality Guidelines
