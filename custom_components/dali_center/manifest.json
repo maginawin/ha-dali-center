@@ -1,18 +1,13 @@
 {
   "domain": "dali_center",
   "name": "Dali Center",
-  "codeowners": [
-    "@maginawin",
-    "@niracler"
-  ],
+  "codeowners": ["@maginawin", "@niracler"],
   "config_flow": true,
   "documentation": "https://github.com/maginawin/ha-dali-center/blob/main/README.md",
   "integration_type": "hub",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/maginawin/ha-dali-center/issues",
   "quality_scale": "bronze",
-  "requirements": [
-    "PySrDaliGateway>=0.15.0"
-  ],
-  "version": "0.9.2"
+  "requirements": ["PySrDaliGateway>=0.15.0"],
+  "version": "0.9.3"
 }

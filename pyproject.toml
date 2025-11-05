@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ha-dali-center"
-version = "0.9.1"
+version = "0.9.3"
 description = "Home Assistant custom integration for Dali Center lighting control systems"
 authors = [{ name = "maginawin" }, { name = "niracler" }]
 requires-python = ">=3.13.0"
@@ -106,7 +106,7 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "custom_components/dali_center/const.py" = [
-    "D", # pydocstyle  
+    "D", # pydocstyle
 ]
 
 [tool.mypy]
