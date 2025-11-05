@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import async_timeout
@@ -70,14 +71,14 @@ async def async_migrate_entry(
             _LOGGER.info("Migrating gateway configuration from legacy format")
             new_data = migrate_gateway_config(old_data)
 
-            hass.config_entries.async_update_entry(
+            _ = hass.config_entries.async_update_entry(
                 entry,
                 data=new_data,
                 version=2,
             )
             _LOGGER.info("Migration to version 2 completed successfully")
         else:
-            hass.config_entries.async_update_entry(entry, version=2)
+            _ = hass.config_entries.async_update_entry(entry, version=2)
 
     return True
 
@@ -95,8 +96,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         name=entry.data[CONF_NAME],
     )
 
+    # Reduce timeout from 60s to 15s for local devices
     try:
-        async with async_timeout.timeout(60):
+        async with async_timeout.timeout(15):
             await gateway.connect()
     except DaliGatewayError as exc:
         _LOGGER.exception("Error connecting to gateway %s", gateway.gw_sn)
@@ -105,42 +107,69 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
             "You can try to delete the gateway and add it again"
         ) from exc
     except TimeoutError as exc:
-        _LOGGER.warning("Overall timeout connecting to gateway %s", gateway.gw_sn)
+        _LOGGER.warning("Timeout connecting to gateway %s", gateway.gw_sn)
         await _notify_user_error(
             hass,
             "Connection Timeout",
             f"Timeout while connecting to DALI Center gateway. {exc}",
             gateway.gw_sn,
         )
+        raise ConfigEntryNotReady(
+            f"Gateway {gateway.gw_sn} connection timeout"
+        ) from exc
 
+    # Parallel discovery: fetch devices, groups, scenes simultaneously
     try:
-        version = await gateway.get_version()
+        devices, groups, scenes = await asyncio.gather(
+            gateway.discover_devices(),
+            gateway.discover_groups(),
+            gateway.discover_scenes(),
+        )
     except DaliGatewayError as exc:
-        _LOGGER.warning("Failed to get gateway %s version: %s", gateway.gw_sn, exc)
-        await _notify_user_error(hass, "Version Query Failed", str(exc), gateway.gw_sn)
-        version = None
-
-    dev_reg = dr.async_get(hass)
-    dev_reg.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, gateway.gw_sn)},
-        manufacturer=MANUFACTURER,
-        name=gateway.name,
-        model="SR-GW-EDA",
-        sw_version=version["software"] if version else None,
-        hw_version=version["firmware"] if version else None,
-        serial_number=gateway.gw_sn,
-    )
-
-    devices = await gateway.discover_devices()
-    groups = await gateway.discover_groups()
-    scenes = await gateway.discover_scenes()
+        _LOGGER.exception("Error discovering entities for gateway %s", gateway.gw_sn)
+        await _notify_user_error(hass, "Discovery Failed", str(exc), gateway.gw_sn)
+        await gateway.disconnect()
+        raise ConfigEntryNotReady(
+            f"Failed to discover entities for gateway {gateway.gw_sn}"
+        ) from exc
 
     entry.runtime_data = DaliCenterData(
         gateway=gateway,
         devices=devices,
         groups=groups,
         scenes=scenes,
+    )
+
+    # Get version in background (non-blocking)
+    async def _fetch_version() -> None:
+        try:
+            version = await gateway.get_version()
+            if version:
+                dev_reg = dr.async_get(hass)
+                device = dev_reg.async_get_device(identifiers={(DOMAIN, gateway.gw_sn)})
+                if device:
+                    _ = dev_reg.async_update_device(
+                        device.id,
+                        sw_version=version.get("software"),
+                        hw_version=version.get("firmware"),
+                    )
+        except DaliGatewayError as exc:
+            _LOGGER.warning("Failed to get gateway %s version: %s", gateway.gw_sn, exc)
+
+    # Create gateway device entry (without version initially)
+    dev_reg = dr.async_get(hass)
+    _ = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, gateway.gw_sn)},
+        manufacturer=MANUFACTURER,
+        name=gateway.name,
+        model="SR-GW-EDA",
+        serial_number=gateway.gw_sn,
+    )
+
+    # Fetch version in background
+    _ = entry.async_create_background_task(
+        hass, _fetch_version(), f"dali_version_{gateway.gw_sn}"
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
