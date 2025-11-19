@@ -94,9 +94,7 @@ class DaliCenterPanelEvent(EventEntity):
 
         self._panel.read_status()
 
-    def _handle_device_update(self, dev_id: str, status: PanelStatus) -> None:
-        if dev_id != self._panel.dev_id:
-            return
+    def _handle_device_update(self, status: PanelStatus) -> None:
         event_name = status["event_name"]
         event_type = status["event_type"]
         rotate_value = status["rotate_value"]
@@ -126,9 +124,6 @@ class DaliCenterPanelEvent(EventEntity):
         self.hass.loop.call_soon_threadsafe(_fire_event)
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id not in (self._panel.dev_id, self._panel.gw_sn):
-            return
-
+    def _handle_availability(self, available: bool) -> None:
         self._attr_available = available
         self.schedule_update_ha_state()

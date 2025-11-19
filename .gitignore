@@ -19,3 +19,5 @@ coverage.xml
 htmlcov/
 .coverage
 .coverage.*
+
+doc/
