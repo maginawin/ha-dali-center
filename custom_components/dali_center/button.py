@@ -48,9 +48,9 @@ class DaliCenterGatewayRestartButton(ButtonEntity):
 
         self.async_on_remove(
             self._gateway.register_listener(
-                CallbackEventType.ONLINE_STATUS, 
+                CallbackEventType.ONLINE_STATUS,
                 self._handle_availability,
-                self._gateway.gw_sn
+                self._gateway.gw_sn,
             )
         )
 
