@@ -74,11 +74,8 @@ class DaliCenterScene(SceneEntity):
         self._update_entity_mappings()
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
+    def _handle_availability(self, available: bool) -> None:
         """Handle gateway availability changes."""
-        if dev_id != self._scene.gw_sn:
-            return
-
         self._attr_available = available
         self.schedule_update_ha_state()
 

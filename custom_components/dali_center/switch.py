@@ -99,18 +99,12 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
         self._sync_sensor_state()
 
     @callback
-    def _handle_sensor_on_off(self, dev_id: str, on_off: bool) -> None:
+    def _handle_sensor_on_off(self, on_off: bool) -> None:
         """Handle sensor on/off updates."""
-        if dev_id != f"{self._device.dev_id}_sensor_enable":
-            return
-
         self._attr_is_on = on_off
         self.schedule_update_ha_state()
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id not in (self._device.dev_id, self._device.gw_sn):
-            return
-
+    def _handle_availability(self, available: bool) -> None:
         self._attr_available = available
         self.schedule_update_ha_state()

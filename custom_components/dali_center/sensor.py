@@ -96,18 +96,13 @@ class DaliCenterEnergySensor(SensorEntity):
         )
 
     @callback
-    def _handle_energy_update(self, dev_id: str, energy_value: float) -> None:
+    def _handle_energy_update(self, energy_value: float) -> None:
         """Update energy value."""
-        if dev_id != self._device.dev_id:
-            return
         self._attr_native_value = energy_value
         self.schedule_update_ha_state()
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id not in (self._device.dev_id, self._device.gw_sn):
-            return
-
+    def _handle_availability(self, available: bool) -> None:
         self._attr_available = available
         self.schedule_update_ha_state()
 
@@ -161,20 +156,13 @@ class DaliCenterMotionSensor(SensorEntity):
         self._device.read_status()
 
     @callback
-    def _handle_motion_status(self, dev_id: str, status: MotionStatus) -> None:
-        """Handle motion status updates."""
-        if dev_id != self._attr_unique_id:
-            return
-
+    def _handle_motion_status(self, status: MotionStatus) -> None:
         motion_state = status["motion_state"]
         self._attr_native_value = motion_state.value
         self.schedule_update_ha_state()
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id not in (self._device.dev_id, self._device.gw_sn):
-            return
-
+    def _handle_availability(self, available: bool) -> None:
         self._attr_available = available
         self.schedule_update_ha_state()
 
@@ -235,13 +223,8 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._device.read_status()
 
     @callback
-    def _handle_illuminance_status(
-        self, dev_id: str, status: IlluminanceStatus
-    ) -> None:
+    def _handle_illuminance_status(self, status: IlluminanceStatus) -> None:
         """Handle illuminance status updates."""
-        if dev_id != self._attr_unique_id:
-            return
-
         illuminance_value = status["illuminance_value"]
         is_valid = status["is_valid"]
 
@@ -258,19 +241,13 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self.schedule_update_ha_state()
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id not in (self._device.dev_id, self._device.gw_sn):
-            return
-
+    def _handle_availability(self, available: bool) -> None:
         self._attr_available = available
         self.schedule_update_ha_state()
 
     @callback
-    def _handle_sensor_on_off(self, dev_id: str, on_off: bool) -> None:
+    def _handle_sensor_on_off(self, on_off: bool) -> None:
         """Handle sensor on/off updates."""
-        if dev_id != self._attr_unique_id:
-            return
-
         self._sensor_enabled = on_off
         _LOGGER.debug(
             "Illuminance sensor enable state for device %s updated to: %s",

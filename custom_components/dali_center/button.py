@@ -48,7 +48,9 @@ class DaliCenterGatewayRestartButton(ButtonEntity):
 
         self.async_on_remove(
             self._gateway.register_listener(
-                CallbackEventType.ONLINE_STATUS, self._handle_availability
+                CallbackEventType.ONLINE_STATUS,
+                self._handle_availability,
+                self._gateway.gw_sn,
             )
         )
 
@@ -58,9 +60,6 @@ class DaliCenterGatewayRestartButton(ButtonEntity):
         self._gateway.restart_gateway()
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id != self._gateway.gw_sn:
-            return
-
+    def _handle_availability(self, available: bool) -> None:
         self._attr_available = available
         self.schedule_update_ha_state()

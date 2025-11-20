@@ -138,10 +138,7 @@ class DaliCenterLight(LightEntity):
         self._light.read_status()
 
     @callback
-    def _handle_device_update(self, dev_id: str, status: LightStatus) -> None:
-        if dev_id != self._attr_unique_id:
-            return
-
+    def _handle_device_update(self, status: LightStatus) -> None:
         if status.get("is_on") is not None:
             self._attr_is_on = status["is_on"]
 
@@ -182,10 +179,7 @@ class DaliCenterLight(LightEntity):
         self.schedule_update_ha_state()
 
     @callback
-    def _handle_availability(self, dev_id: str, available: bool) -> None:
-        if dev_id not in (self._light.dev_id, self._light.gw_sn):
-            return
-
+    def _handle_availability(self, available: bool) -> None:
         self._attr_available = available
         self.schedule_update_ha_state()
 
