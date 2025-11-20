@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2025-11-20
+
+### Technical
+
+- **BREAKING CHANGE**: Updated PySrDaliGateway dependency to >=0.16.2 with incompatible API changes (#54)
+- Simplified callback handler implementation by moving dev_id filtering to SDK (7e26faf)
+
 ## [0.9.3] - 2025-11-05
 
 ### Technical
@@ -264,7 +271,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.9.4...HEAD
+[0.9.4]: https://github.com/maginawin/ha-dali-center/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/maginawin/ha-dali-center/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/maginawin/ha-dali-center/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/maginawin/ha-dali-center/compare/v0.9.0...v0.9.1
