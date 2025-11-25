@@ -223,9 +223,7 @@ class DaliCenterIlluminanceSensor(SensorEntity):
         self._device.read_status()
 
     @callback
-    def _handle_illuminance_status(
-        self, status: IlluminanceStatus
-    ) -> None:
+    def _handle_illuminance_status(self, status: IlluminanceStatus) -> None:
         """Handle illuminance status updates."""
         illuminance_value = status["illuminance_value"]
         is_valid = status["is_valid"]
