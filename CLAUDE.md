@@ -81,7 +81,9 @@ Follow Home Assistant's [Style Guidelines](https://developers.home-assistant.io/
 
 ## Development Principles
 
-- Use English in code, comments, and documentation
+- **Code Language**: Use English in code, comments, and documentation files
+- **Communication Language**: When communicating with the user/developer, use **Chinese (中文)** as the primary language
+- **Incremental Development**: Propose each code change and get user approval before implementing. Present plan first, then modify one section at a time.
 - Code readability first: prefer self-documenting code over comments
 - Document design decisions and rationale for significant changes
 
@@ -163,11 +165,10 @@ fix: bug fixes
    - Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format
    - Update version links at bottom of changelog
 3. **Commit changes** to main branch: `chore(release): bump version to x.y.z`
-4. **Create and push tag**: `git tag v{version} && git push upstream v{version}`
-5. **Create GitHub release**: `gh release create v{version} -R {owner}/{repo} --title "v{version}" --notes "..."`
+4. **Create and push tag**: `git tag v{version} && git push --tags`
+5. **Create GitHub release**: `gh release create v{version} --title "v{version}" --notes "..."`
    - Copy release notes from CHANGELOG.md with same structure
-6. **Push to all remote repositories** if using multiple remotes
-7. **Follow semantic versioning**: MAJOR.MINOR.PATCH
+6. **Follow semantic versioning**: MAJOR.MINOR.PATCH
 
 #### Changelog Structure Template
 

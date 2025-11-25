@@ -2,14 +2,15 @@
 
 import logging
 
-from PySrDaliGateway import CallbackEventType, DaliGateway
+from PySrDaliGateway import CallbackEventType, DaliGateway, Device
+from PySrDaliGateway.helper import is_light_device
 
-from homeassistant.components.button import ButtonEntity
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,8 +23,21 @@ async def async_setup_entry(
 ) -> None:
     """Set up Dali Center button entities from config entry."""
     gateway = entry.runtime_data.gateway
+    devices = entry.runtime_data.devices
 
-    async_add_entities([DaliCenterGatewayRestartButton(gateway)])
+    # Gateway buttons
+    buttons: list[ButtonEntity] = [
+        DaliCenterGatewayRestartButton(gateway),
+    ]
+
+    # Device identify buttons
+    buttons.extend(
+        DaliCenterDeviceIdentifyButton(device)
+        for device in devices
+        if is_light_device(device.dev_type)
+    )
+
+    async_add_entities(buttons)
 
 
 class DaliCenterGatewayRestartButton(ButtonEntity):
@@ -58,6 +72,47 @@ class DaliCenterGatewayRestartButton(ButtonEntity):
         """Handle button press to restart gateway."""
         _LOGGER.info("Restarting gateway %s", self._gateway.gw_sn)
         self._gateway.restart_gateway()
+
+    @callback
+    def _handle_availability(self, available: bool) -> None:
+        self._attr_available = available
+        self.schedule_update_ha_state()
+
+
+class DaliCenterDeviceIdentifyButton(ButtonEntity):
+    """Representation of a Dali Center Device Identify Button."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = ButtonDeviceClass.IDENTIFY
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, device: Device) -> None:
+        """Initialize the device identify button."""
+
+        self._device = device
+        self._attr_name = "Identify"
+        self._attr_unique_id = f"{device.unique_id}_identify"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device.dev_id)},
+            "name": device.name,
+            "manufacturer": MANUFACTURER,
+            "model": device.model,
+            "via_device": (DOMAIN, device.gw_sn),
+        }
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added to hass."""
+
+        self.async_on_remove(
+            self._device.register_listener(
+                CallbackEventType.ONLINE_STATUS, self._handle_availability
+            )
+        )
+
+    async def async_press(self) -> None:
+        """Handle button press to identify device."""
+        _LOGGER.debug("Identifying device %s", self._device.dev_id)
+        self._device.identify()
 
     @callback
     def _handle_availability(self, available: bool) -> None:
