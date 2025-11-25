@@ -27,7 +27,6 @@ async def async_setup_entry(
 
     # Gateway buttons
     buttons: list[ButtonEntity] = [
-        DaliCenterGatewayIdentifyButton(gateway),
         DaliCenterGatewayRestartButton(gateway),
     ]
 
@@ -73,45 +72,6 @@ class DaliCenterGatewayRestartButton(ButtonEntity):
         """Handle button press to restart gateway."""
         _LOGGER.info("Restarting gateway %s", self._gateway.gw_sn)
         self._gateway.restart_gateway()
-
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
-        self.schedule_update_ha_state()
-
-
-class DaliCenterGatewayIdentifyButton(ButtonEntity):
-    """Representation of a Dali Center Gateway Identify Button."""
-
-    _attr_has_entity_name = True
-    _attr_device_class = ButtonDeviceClass.IDENTIFY
-    _attr_entity_category = EntityCategory.CONFIG
-
-    def __init__(self, gateway: DaliGateway) -> None:
-        """Initialize the gateway identify button."""
-
-        self._gateway = gateway
-        self._attr_name = "Identify"
-        self._attr_unique_id = f"{gateway.gw_sn}_identify"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, gateway.gw_sn)},
-        }
-
-    async def async_added_to_hass(self) -> None:
-        """Handle entity which will be added to hass."""
-
-        self.async_on_remove(
-            self._gateway.register_listener(
-                CallbackEventType.ONLINE_STATUS,
-                self._handle_availability,
-                self._gateway.gw_sn,
-            )
-        )
-
-    async def async_press(self) -> None:
-        """Handle button press to identify gateway."""
-        _LOGGER.debug("Identifying gateway %s", self._gateway.gw_sn)
-        self._gateway.identify_gateway()
 
     @callback
     def _handle_availability(self, available: bool) -> None:
