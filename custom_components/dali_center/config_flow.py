@@ -282,9 +282,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         device.set_device_parameters(params)
                         success_count += 1
                 except Exception:
-                    _LOGGER.exception(
-                        "Failed to set parameters for device %s", dev_id
-                    )
+                    _LOGGER.exception("Failed to set parameters for device %s", dev_id)
                     failed_devices.append(device.name)
 
             # Show result
