@@ -7,6 +7,7 @@ from typing import Any
 from PySrDaliGateway import DaliGateway
 from PySrDaliGateway.discovery import DaliGatewayDiscovery
 from PySrDaliGateway.exceptions import DaliGatewayError
+from PySrDaliGateway.helper import is_light_device
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -19,7 +20,11 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import (
+    config_validation as cv,
+    device_registry as dr,
+    entity_registry as er,
+)
 
 from .const import CONF_SERIAL_NUMBER, DOMAIN
 
@@ -32,6 +37,7 @@ RELOAD_SETUP_DELAY = 1.0
 OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Optional("refresh", default=False): bool,
+        vol.Optional("batch_configure", default=False): bool,
     }
 )
 
@@ -42,6 +48,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize the options flow."""
         self._config_entry = config_entry
+        self._selected_devices: list[str] = []
 
     async def _reload_with_delay(self) -> bool:
         try:
@@ -75,6 +82,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         if user_input.get("refresh", False):
             return await self.async_step_refresh()
+
+        if user_input.get("batch_configure", False):
+            return await self.async_step_batch_configure()
 
         return self.async_create_entry(data={})
 
@@ -186,6 +196,145 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
 
         return self.async_create_entry(data={})
+
+    async def async_step_batch_configure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle batch device configuration step."""
+        errors: dict[str, str] = {}
+
+        if not hasattr(self._config_entry, "runtime_data"):
+            errors["base"] = "gateway_not_found"
+            return self.async_show_form(
+                step_id="batch_configure",
+                errors=errors,
+                data_schema=vol.Schema({}),
+            )
+
+        devices = self._config_entry.runtime_data.devices
+        light_devices = [dev for dev in devices if is_light_device(dev.dev_type)]
+
+        if not light_devices:
+            errors["base"] = "no_devices_found"
+            return self.async_show_form(
+                step_id="batch_configure",
+                errors=errors,
+                data_schema=vol.Schema({}),
+            )
+
+        if user_input is not None:
+            # Store selected devices and move to parameter configuration
+            self._selected_devices = user_input.get("devices", [])
+            if not self._selected_devices:
+                errors["devices"] = "no_devices_selected"
+            else:
+                return await self.async_step_batch_configure_params()
+
+        # Create device selection options
+        device_options = {
+            dev.dev_id: f"{dev.name} (Ch{dev.channel}:{dev.address})"
+            for dev in light_devices
+        }
+
+        return self.async_show_form(
+            step_id="batch_configure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("devices"): vol.All(
+                        cv.multi_select(device_options), vol.Length(min=1)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_batch_configure_params(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle parameter configuration for selected devices."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            # Apply parameters to all selected devices
+            devices = self._config_entry.runtime_data.devices
+            device_map = {dev.dev_id: dev for dev in devices}
+
+            success_count = 0
+            failed_devices = []
+
+            for dev_id in self._selected_devices:
+                device = device_map.get(dev_id)
+                if not device:
+                    continue
+
+                try:
+                    params = {}
+                    if user_input.get("set_fade_time", False):
+                        params["fade_time"] = user_input["fade_time"]
+                    if user_input.get("set_fade_rate", False):
+                        params["fade_rate"] = user_input["fade_rate"]
+                    if user_input.get("set_min_brightness", False):
+                        params["min_brightness"] = user_input["min_brightness"]
+                    if user_input.get("set_max_brightness", False):
+                        params["max_brightness"] = user_input["max_brightness"]
+
+                    if params:
+                        device.set_device_parameters(params)
+                        success_count += 1
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to set parameters for device %s", dev_id
+                    )
+                    failed_devices.append(device.name)
+
+            # Show result
+            result_message = f"Successfully configured {success_count} device(s).\n"
+            if failed_devices:
+                result_message += f"\nFailed devices: {', '.join(failed_devices)}"
+
+            return self.async_show_form(
+                step_id="batch_configure_result",
+                data_schema=vol.Schema({}),
+                description_placeholders={"result_message": result_message},
+            )
+
+        # Show parameter configuration form
+        return self.async_show_form(
+            step_id="batch_configure_params",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional("set_fade_time", default=False): bool,
+                    vol.Optional("fade_time", default=7): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=15)
+                    ),
+                    vol.Optional("set_fade_rate", default=False): bool,
+                    vol.Optional("fade_rate", default=7): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=15)
+                    ),
+                    vol.Optional("set_min_brightness", default=False): bool,
+                    vol.Optional("min_brightness", default=10): vol.All(
+                        vol.Coerce(int), vol.Range(min=10, max=1000)
+                    ),
+                    vol.Optional("set_max_brightness", default=False): bool,
+                    vol.Optional("max_brightness", default=1000): vol.All(
+                        vol.Coerce(int), vol.Range(min=10, max=1000)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_batch_configure_result(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Display batch configuration result."""
+        if user_input is not None:
+            return self.async_create_entry(data={})
+
+        return self.async_show_form(
+            step_id="batch_configure_result",
+            data_schema=vol.Schema({}),
+        )
 
 
 class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
