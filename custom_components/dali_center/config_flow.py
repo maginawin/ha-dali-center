@@ -1,14 +1,14 @@
 """Config flow for the Dali Center integration."""
 
 import asyncio
-from collections.abc import Sequence
 import logging
-from typing import Any, cast
+from typing import Any
 
 from PySrDaliGateway import DaliGateway
 from PySrDaliGateway.discovery import DaliGatewayDiscovery
 from PySrDaliGateway.exceptions import DaliGatewayError
 from PySrDaliGateway.helper import is_light_device
+from PySrDaliGateway.types import DeviceParamCommand, DeviceParamType
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -60,16 +60,31 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         dev_id = getattr(device, "dev_id", None)
         return str(name or dev_id or "Unknown device")
 
+    @staticmethod
+    def _format_parameter_summary(params: DeviceParamType) -> str:
+        """Format parameter dictionary as a readable summary."""
+        param_lines: list[str] = []
+        if "fade_time" in params:
+            param_lines.append(f"- Fade time: {params['fade_time']}")
+        if "fade_rate" in params:
+            param_lines.append(f"- Fade rate: {params['fade_rate']}")
+        if "min_brightness" in params:
+            param_lines.append(f"- Min brightness: {params['min_brightness']}")
+        if "max_brightness" in params:
+            param_lines.append(f"- Max brightness: {params['max_brightness']}")
+
+        return "\n".join(param_lines) if param_lines else "(none)"
+
     async def _validate_batch_input(
         self,
         user_input: dict[str, Any],
         light_devices: list[Any],
         groups: list[Any],
         gateway_target: str,
-    ) -> tuple[dict[str, str], dict[str, int], list[Any]]:
+    ) -> tuple[dict[str, str], DeviceParamType, list[Any]]:
         """Validate batch configure input and build params and targets."""
         errors: dict[str, str] = {}
-        params: dict[str, int] = {}
+        params: DeviceParamType = {}
         selected_targets = user_input.get("targets", [])
         fade_time: int | None = None
         fade_rate: int | None = None
@@ -83,10 +98,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             try:
                 value = int(raw)
             except (TypeError, ValueError):
-                errors[field] = "invalid_parameter"
+                errors[field] = "invalid_format"
                 return None
             if not min_value <= value <= max_value:
-                errors[field] = "invalid_parameter"
+                errors[field] = "out_of_range"
                 return None
             return value
 
@@ -148,7 +163,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 group = group_map[target_id]
                 try:
                     group_info = await group.read_group()
-                except Exception:
+                except DaliGatewayError:
                     _LOGGER.exception(
                         "Failed to read members for group %s", group.group_id
                     )
@@ -412,33 +427,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return self.async_create_entry(data={})
 
         if not self._batch_config_executed:
+            # Show preview before execution.
             if user_input is None:
                 if self._pending_batch_config is None:
                     return self.async_create_entry(data={})
-                params: dict[str, int] = self._pending_batch_config["params"]
-                devices = self._pending_batch_config["devices"]
-                param_lines: list[str] = []
-                if "fade_time" in params:
-                    param_lines.append(f"- Fade time: {params['fade_time']}")
-                if "fade_rate" in params:
-                    param_lines.append(f"- Fade rate: {params['fade_rate']}")
-                if "min_brightness" in params:
-                    param_lines.append(f"- Min brightness: {params['min_brightness']}")
-                if "max_brightness" in params:
-                    param_lines.append(f"- Max brightness: {params['max_brightness']}")
-
+                preview_params: DeviceParamType = self._pending_batch_config["params"]
+                preview_devices = self._pending_batch_config["devices"]
                 param_summary = (
-                    "Parameters to apply:\n" + "\n".join(param_lines)
-                    if param_lines
-                    else "Parameters to apply: (none)"
+                    "Parameters to apply:\n"
+                    + self._format_parameter_summary(preview_params)
                 )
 
                 planned_message = (
                     f"{param_summary}\n\n"
-                    f"Will update {len(devices)} device(s) with selected parameters."
+                    f"Will update {len(preview_devices)} device(s) with selected parameters."
                 )
-                if devices:
-                    planned_message += f"\nDevices: {', '.join(self._device_label(device) for device in devices)}"
+                if preview_devices:
+                    planned_message += f"\nDevices: {', '.join(self._device_label(device) for device in preview_devices)}"
 
                 return self.async_show_form(
                     step_id="batch_configure_result",
@@ -446,59 +451,47 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     description_placeholders={"result_message": planned_message},
                 )
 
+            # Execute batch configuration.
             if self._pending_batch_config is None:
                 return self.async_create_entry(data={})
 
             gateway: DaliGateway = self._pending_batch_config["gateway"]
-            params = self._pending_batch_config["params"]
+            params: DeviceParamType = self._pending_batch_config["params"]
             devices = self._pending_batch_config["devices"]
             configured_devices: list[str] = []
             failed_devices: list[str] = []
-            items: list[dict[str, Any]] = [
-                {
-                    "dev_type": device.dev_type,
-                    "channel": device.channel,
-                    "address": device.address,
-                    "param": params,
-                }
+            items: list[DeviceParamCommand] = [
+                DeviceParamCommand(
+                    dev_type=device.dev_type,
+                    channel=device.channel,
+                    address=device.address,
+                    param=params,
+                )
                 for device in devices
             ]
 
             try:
-                gateway.command_set_dev_params(cast("Sequence[Any]", items))
-            except Exception:
+                gateway.command_set_dev_params(items)
+            except DaliGatewayError:
                 _LOGGER.exception(
                     "Failed to send batch setDevParam for %d target(s)",
                     len(items),
                 )
-                failed_devices.extend(
-                    [self._device_label(device) for device in devices]
-                )
-            else:
-                for device in devices:
-                    try:
-                        device.get_device_parameters()
-                        configured_devices.append(self._device_label(device))
-                    except Exception:
-                        _LOGGER.exception(
-                            "Failed to refresh parameters for device %s", device.dev_id
-                        )
-                        failed_devices.append(self._device_label(device))
 
-            param_lines = []
-            if "fade_time" in params:
-                param_lines.append(f"- Fade time: {params['fade_time']}")
-            if "fade_rate" in params:
-                param_lines.append(f"- Fade rate: {params['fade_rate']}")
-            if "min_brightness" in params:
-                param_lines.append(f"- Min brightness: {params['min_brightness']}")
-            if "max_brightness" in params:
-                param_lines.append(f"- Max brightness: {params['max_brightness']}")
+            # Always attempt to refresh parameters, even if batch command failed.
+            # Some devices might have received the command successfully.
+            for device in devices:
+                try:
+                    device.get_device_parameters()
+                    configured_devices.append(self._device_label(device))
+                except DaliGatewayError:
+                    _LOGGER.exception(
+                        "Failed to refresh parameters for device %s", device.dev_id
+                    )
+                    failed_devices.append(self._device_label(device))
 
-            param_summary = (
-                "Parameters applied:\n" + "\n".join(param_lines)
-                if param_lines
-                else "Parameters applied: (none)"
+            param_summary = "Parameters applied:\n" + self._format_parameter_summary(
+                params
             )
 
             result_message = (

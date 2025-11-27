@@ -167,7 +167,8 @@
             "no_devices_found": "No supported light devices available for batch configuration.",
             "no_targets_selected": "Select at least one device, group, or gateway broadcast target.",
             "no_targets_available": "Selected targets do not contain any supported light devices.",
-            "invalid_parameter": "Enter a valid value within the allowed range or leave the field blank.",
+            "invalid_format": "Enter a valid integer number or leave the field blank.",
+            "out_of_range": "Value is out of the allowed range. Check the field description for valid range.",
             "no_parameters_selected": "Enter at least one parameter to update; leave other fields blank to keep their current values.",
             "min_max_conflict": "Max brightness must be greater than or equal to min brightness."
         },

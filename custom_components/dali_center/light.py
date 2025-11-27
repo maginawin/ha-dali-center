@@ -48,7 +48,9 @@ async def async_setup_entry(
 
     async_add_entities(DaliCenterLightGroup(group) for group in groups)
 
-    async_add_entities([DaliCenterAllLights(AllLightsController(gateway, devices))])
+    async_add_entities(
+        [DaliCenterAllLights(AllLightsController(gateway, devices), entry.entry_id)]
+    )
 
 
 class DaliCenterLight(LightEntity):
@@ -350,10 +352,19 @@ class DaliCenterLightGroup(LightEntity):
             total_brightness // light_count if total_brightness > 0 else 0
         )
 
-        if total_color_temp > 0:
+        # Determine color mode based on available data and supported modes
+        if (
+            total_color_temp > 0
+            and self._attr_supported_color_modes
+            and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
+        ):
             self._attr_color_temp_kelvin = total_color_temp // light_count
             self._attr_color_mode = ColorMode.COLOR_TEMP
-        elif rgbw_colors:
+        elif (
+            rgbw_colors
+            and self._attr_supported_color_modes
+            and ColorMode.RGBW in self._attr_supported_color_modes
+        ):
             color_count = len(rgbw_colors)
             self._attr_rgbw_color = (
                 sum(c[0] for c in rgbw_colors) // color_count,
@@ -362,8 +373,16 @@ class DaliCenterLightGroup(LightEntity):
                 sum(c[3] for c in rgbw_colors) // color_count,
             )
             self._attr_color_mode = ColorMode.RGBW
-        else:
+        elif (
+            self._attr_supported_color_modes
+            and ColorMode.BRIGHTNESS in self._attr_supported_color_modes
+        ):
             self._attr_color_mode = ColorMode.BRIGHTNESS
+        elif self._attr_supported_color_modes:
+            # Fallback to first supported mode
+            self._attr_color_mode = ColorMode(
+                next(iter(self._attr_supported_color_modes))
+            )
 
     @callback
     def _handle_member_light_update(self, event: Event[EventStateChangedData]) -> None:
@@ -398,10 +417,11 @@ class DaliCenterAllLights(LightEntity):
     }
     _all_light_entity_ids: list[str] = []
 
-    def __init__(self, controller: AllLightsController) -> None:
+    def __init__(self, controller: AllLightsController, config_entry_id: str) -> None:
         """Initialize the all lights control."""
 
         self._controller = controller
+        self._config_entry_id = config_entry_id
         self._attr_unique_id = controller.unique_id
         self._attr_device_info = {
             "identifiers": {(DOMAIN, controller.gw_sn)},
@@ -433,16 +453,17 @@ class DaliCenterAllLights(LightEntity):
         """Discover all light entities in this config entry (gateway)."""
         ent_reg = er.async_get(self.hass)
 
-        # We'll match against the devices discovered from the gateway
+        # Get device unique IDs for filtering
         device_unique_ids = {device.unique_id for device in self._controller.devices}
 
+        # Use the standard Home Assistant helper to get entities for this config entry
         self._all_light_entity_ids = [
             entity_entry.entity_id
-            for entity_entry in ent_reg.entities.values()
-            if (
-                entity_entry.domain == "light"
-                and entity_entry.unique_id in device_unique_ids
-            )  # Only individual device lights
+            for entity_entry in er.async_entries_for_config_entry(
+                ent_reg, self._config_entry_id
+            )
+            if entity_entry.domain == "light"
+            and entity_entry.unique_id in device_unique_ids
         ]
 
         self._attr_extra_state_attributes.update(
@@ -511,10 +532,19 @@ class DaliCenterAllLights(LightEntity):
             total_brightness // light_count if total_brightness > 0 else 0
         )
 
-        if total_color_temp > 0:
+        # Determine color mode based on available data and supported modes
+        if (
+            total_color_temp > 0
+            and self._attr_supported_color_modes
+            and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
+        ):
             self._attr_color_temp_kelvin = total_color_temp // light_count
             self._attr_color_mode = ColorMode.COLOR_TEMP
-        elif rgbw_colors:
+        elif (
+            rgbw_colors
+            and self._attr_supported_color_modes
+            and ColorMode.RGBW in self._attr_supported_color_modes
+        ):
             color_count = len(rgbw_colors)
             self._attr_rgbw_color = (
                 sum(c[0] for c in rgbw_colors) // color_count,
@@ -523,8 +553,16 @@ class DaliCenterAllLights(LightEntity):
                 sum(c[3] for c in rgbw_colors) // color_count,
             )
             self._attr_color_mode = ColorMode.RGBW
-        else:
+        elif (
+            self._attr_supported_color_modes
+            and ColorMode.BRIGHTNESS in self._attr_supported_color_modes
+        ):
             self._attr_color_mode = ColorMode.BRIGHTNESS
+        elif self._attr_supported_color_modes:
+            # Fallback to first supported mode
+            self._attr_color_mode = ColorMode(
+                next(iter(self._attr_supported_color_modes))
+            )
 
     @callback
     def _handle_light_update(self, event: Event[EventStateChangedData]) -> None:

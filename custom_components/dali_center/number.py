@@ -43,7 +43,6 @@ class DaliCenterDeviceParameterNumber(NumberEntity):
     """Base number entity for device parameter configuration."""
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_assumed_state = True
     _attr_has_entity_name = True
     _attr_native_step = 1
 
