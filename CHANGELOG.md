@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-11-27
+
+### Added
+
+- Device parameter configuration for lights (fade rate, fade time) directly from device cards (#53, #59)
+- Batch device configuration updates via controller card (#53, #59)
+- Identify button for devices to locate physical lights (#58)
+
+### Technical
+
+- Added Claude Code GitHub Workflow for automated testing (#57)
+
 ## [0.9.4] - 2025-11-20
 
 ### Technical
@@ -271,7 +283,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.9.4...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/maginawin/ha-dali-center/compare/v0.9.4...v0.10.0
 [0.9.4]: https://github.com/maginawin/ha-dali-center/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/maginawin/ha-dali-center/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/maginawin/ha-dali-center/compare/v0.9.1...v0.9.2
