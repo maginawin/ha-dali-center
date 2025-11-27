@@ -33,6 +33,7 @@ _PLATFORMS: list[Platform] = [
     Platform.EVENT,
     Platform.SWITCH,
     Platform.SCENE,
+    Platform.NUMBER,
 ]
 _LOGGER = logging.getLogger(__name__)
 

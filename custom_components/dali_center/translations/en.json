@@ -163,14 +163,22 @@
         },
         "error": {
             "gateway_not_found": "Gateway not found during IP refresh. Please check if gateway is online.",
-            "cannot_connect": "Failed to refresh gateway IP. Please try again."
+            "cannot_connect": "Failed to refresh gateway IP. Please try again.",
+            "no_devices_found": "No supported light devices available for batch configuration.",
+            "no_targets_selected": "Select at least one device, group, or gateway broadcast target.",
+            "no_targets_available": "Selected targets do not contain any supported light devices.",
+            "invalid_format": "Enter a valid integer number or leave the field blank.",
+            "out_of_range": "Value is out of the allowed range. Check the field description for valid range.",
+            "no_parameters_selected": "Enter at least one parameter to update; leave other fields blank to keep their current values.",
+            "min_max_conflict": "Max brightness must be greater than or equal to min brightness."
         },
         "step": {
             "init": {
                 "title": "Configuration Options",
                 "description": "Update Dali Center Configuration",
                 "data": {
-                    "refresh": "Refresh Gateway (IP, Devices, Groups, Scenes)"
+                    "refresh": "Refresh Gateway (IP, Devices, Groups, Scenes)",
+                    "batch_configure": "Batch configure device parameters"
                 }
             },
             "select_entities": {
@@ -189,6 +197,22 @@
             },
             "refresh_result": {
                 "title": "Refresh Complete",
+                "description": "{result_message}",
+                "data": {}
+            },
+            "batch_configure": {
+                "title": "Batch parameters",
+                "description": "**Tips**\n- Only filled fields are sent; leave blank to keep current values.",
+                "data": {
+                    "targets": "Targets (devices, groups, or gateway broadcast)",
+                    "fade_time": "Fade time (0-15)",
+                    "fade_rate": "Fade rate (0-15)",
+                    "min_brightness": "Min brightness (10-1000) (≈1%-100%)",
+                    "max_brightness": "Max brightness (10-1000) (≈1%-100%)"
+                }
+            },
+            "batch_configure_result": {
+                "title": "Configuration Complete",
                 "description": "{result_message}",
                 "data": {}
             }
