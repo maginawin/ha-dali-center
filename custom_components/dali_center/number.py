@@ -114,8 +114,7 @@ class DaliCenterDeviceParameterNumber(NumberEntity):
         else:  # max_brightness
             params = {"max_brightness": int_value}
         self._device.set_device_parameters(params)
-        self._attr_native_value = int_value
-        self.async_write_ha_state()
+        self._device.get_device_parameters()
 
     @callback
     def _handle_availability(self, available: bool) -> None:
