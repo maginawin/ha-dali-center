@@ -240,23 +240,9 @@ class DaliCenterLightGroup(LightEntity):
             rgbw_color=rgbw_color,
         )
 
-        self._attr_is_on = True
-        if brightness is not None:
-            self._attr_brightness = brightness
-        if rgbw_color is not None:
-            self._attr_color_mode = ColorMode.RGBW
-            self._attr_rgbw_color = rgbw_color
-        if color_temp_kelvin is not None:
-            self._attr_color_mode = ColorMode.COLOR_TEMP
-            self._attr_color_temp_kelvin = color_temp_kelvin
-
-        self.async_write_ha_state()
-
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light group."""
         self._group.turn_off()
-        self._attr_is_on = False
-        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
@@ -588,20 +574,6 @@ class DaliCenterAllLights(LightEntity):
             rgbw_color=rgbw_color,
         )
 
-        self._attr_is_on = True
-        if brightness is not None:
-            self._attr_brightness = brightness
-        if rgbw_color is not None:
-            self._attr_color_mode = ColorMode.RGBW
-            self._attr_rgbw_color = rgbw_color
-        if color_temp_kelvin is not None:
-            self._attr_color_mode = ColorMode.COLOR_TEMP
-            self._attr_color_temp_kelvin = color_temp_kelvin
-
-        self.async_write_ha_state()
-
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off all lights."""
         self._controller.turn_off()
-        self._attr_is_on = False
-        self.async_write_ha_state()
