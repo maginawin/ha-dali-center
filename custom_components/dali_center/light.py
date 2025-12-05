@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, cast
 
+from propcache.api import cached_property
 from PySrDaliGateway import AllLightsController, CallbackEventType, Device, Group
 from PySrDaliGateway.helper import is_light_device
 from PySrDaliGateway.types import LightStatus
@@ -204,10 +205,6 @@ class DaliCenterLightGroup(LightEntity):
         ColorMode.BRIGHTNESS
     }
 
-    _group_lights: list[str] = []
-    _group_entity_ids: list[str] = []
-    _group_device_count = 0
-
     def __init__(self, group: Group) -> None:
         """Initialize the light group."""
 
@@ -217,15 +214,28 @@ class DaliCenterLightGroup(LightEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, group.gw_sn)},
         }
-        self._attr_extra_state_attributes = {
-            "gateway_sn": group.gw_sn,
-            "is_dali_group": True,
-            "group_id": group.group_id,
-            "channel": group.channel,
-            "total_devices": 0,
-            "lights": [],
-            "entity_id": [],
-            "group_name": group.name,
+
+    @cached_property
+    def _group_entity_ids(self) -> list[str]:
+        """Get list of entity IDs for devices in this group."""
+        ent_reg = er.async_get(self.hass)
+        return [
+            entity_id
+            for device in self._group.devices
+            if (
+                entity_id := ent_reg.async_get_entity_id(
+                    "light", DOMAIN, device["unique_id"]
+                )
+            )
+        ]
+
+    @cached_property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the group state attributes."""
+        return {
+            "total_devices": len(self._group.devices),
+            "lights": sorted(device["name"] for device in self._group.devices),
+            "entity_id": self._group_entity_ids,
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -246,7 +256,7 @@ class DaliCenterLightGroup(LightEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
-        await self._async_update_group_devices()
+        await self._determine_supported_color_modes()
         await self._calculate_group_state()
         if self._group_entity_ids:
             self.async_on_remove(
@@ -254,38 +264,6 @@ class DaliCenterLightGroup(LightEntity):
                     self.hass, self._group_entity_ids, self._handle_member_light_update
                 )
             )
-
-    async def _async_update_group_devices(self) -> None:
-        """Update the list of devices in this group."""
-
-        group_info = await self._group.read_group()
-        ent_reg = er.async_get(self.hass)
-
-        light_names: list[str] = []
-        light_entities: list[str] = []
-
-        for device_info in group_info["devices"]:
-            light_names.append(device_info["name"])
-
-            if device_unique_id := device_info["unique_id"]:
-                if entity_id := ent_reg.async_get_entity_id(
-                    "light", DOMAIN, device_unique_id
-                ):
-                    light_entities.append(entity_id)
-
-        self._group_lights = sorted(light_names)
-        self._group_entity_ids = sorted(light_entities)
-        self._group_device_count = len(group_info["devices"])
-
-        self._attr_extra_state_attributes.update(
-            {
-                "total_devices": self._group_device_count,
-                "lights": self._group_lights,
-                "entity_id": self._group_entity_ids,
-            }
-        )
-
-        await self._determine_supported_color_modes()
 
     async def _determine_supported_color_modes(self) -> None:
         """Determine supported color modes based on member lights capabilities."""

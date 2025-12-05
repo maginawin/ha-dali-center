@@ -141,23 +141,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         scenes=scenes,
     )
 
-    # Get version in background (non-blocking)
-    async def _fetch_version() -> None:
-        try:
-            version = await gateway.get_version()
-            if version:
-                dev_reg = dr.async_get(hass)
-                device = dev_reg.async_get_device(identifiers={(DOMAIN, gateway.gw_sn)})
-                if device:
-                    _ = dev_reg.async_update_device(
-                        device.id,
-                        sw_version=version.get("software"),
-                        hw_version=version.get("firmware"),
-                    )
-        except DaliGatewayError as exc:
-            _LOGGER.warning("Failed to get gateway %s version: %s", gateway.gw_sn, exc)
-
-    # Create gateway device entry (without version initially)
+    # Create gateway device entry with version info
     dev_reg = dr.async_get(hass)
     _ = dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,
@@ -166,11 +150,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         name=gateway.name,
         model="SR-GW-EDA",
         serial_number=gateway.gw_sn,
-    )
-
-    # Fetch version in background
-    _ = entry.async_create_background_task(
-        hass, _fetch_version(), f"dali_version_{gateway.gw_sn}"
+        sw_version=gateway.software_version or None,
+        hw_version=gateway.firmware_version or None,
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)

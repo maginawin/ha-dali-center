@@ -161,15 +161,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     continue
 
                 group = group_map[target_id]
-                try:
-                    group_info = await group.read_group()
-                except DaliGatewayError:
-                    _LOGGER.exception(
-                        "Failed to read members for group %s", group.group_id
-                    )
-                    continue
-
-                for member in group_info.get("devices", []):
+                for member in group.devices:
                     member_unique_id = member.get("unique_id")
                     if member_unique_id and member_unique_id in devices_by_unique_id:
                         device = devices_by_unique_id[member_unique_id]
