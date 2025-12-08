@@ -111,9 +111,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
             await gateway.connect()
     except DaliGatewayError as exc:
         # Use warning level to reduce log noise for expected connection failures.
-        _LOGGER.warning(
-            "Error connecting to gateway %s: %s", gateway.gw_sn, exc
-        )
+        _LOGGER.warning("Error connecting to gateway %s: %s", gateway.gw_sn, exc)
         await _notify_user_error(hass, "Connection Failed", str(exc), gateway.gw_sn)
         raise ConfigEntryNotReady(
             f"Gateway {gateway.gw_sn} connection failed: {exc}"
