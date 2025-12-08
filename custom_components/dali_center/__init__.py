@@ -102,6 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         username=entry.data[CONF_USERNAME],
         passwd=entry.data[CONF_PASSWORD],
         name=entry.data[CONF_NAME],
+        loop=hass.loop,  # Thread-safe callback dispatch
     )
 
     # Reduce timeout from 60s to 15s for local devices
@@ -109,10 +110,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         async with async_timeout.timeout(15):
             await gateway.connect()
     except DaliGatewayError as exc:
-        _LOGGER.exception("Error connecting to gateway %s", gateway.gw_sn)
+        # Use warning level to reduce log noise for expected connection failures.
+        _LOGGER.warning("Error connecting to gateway %s: %s", gateway.gw_sn, exc)
         await _notify_user_error(hass, "Connection Failed", str(exc), gateway.gw_sn)
         raise ConfigEntryNotReady(
-            "You can try to delete the gateway and add it again"
+            f"Gateway {gateway.gw_sn} connection failed: {exc}"
         ) from exc
     except TimeoutError as exc:
         _LOGGER.warning("Timeout connecting to gateway %s", gateway.gw_sn)
@@ -134,11 +136,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
             gateway.discover_scenes(),
         )
     except DaliGatewayError as exc:
-        _LOGGER.exception("Error discovering entities for gateway %s", gateway.gw_sn)
+        # Use warning level to reduce log noise for expected discovery failures.
+        _LOGGER.warning(
+            "Error discovering entities for gateway %s: %s", gateway.gw_sn, exc
+        )
         await _notify_user_error(hass, "Discovery Failed", str(exc), gateway.gw_sn)
         await gateway.disconnect()
         raise ConfigEntryNotReady(
-            f"Failed to discover entities for gateway {gateway.gw_sn}"
+            f"Failed to discover entities for gateway {gateway.gw_sn}: {exc}"
         ) from exc
 
     entry.runtime_data = DaliCenterData(
