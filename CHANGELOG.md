@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2] - 2025-12-10
+
+### Fixed
+
+- Race condition in event.py causing segfault during startup when multiple integrations load concurrently (#65)
+
 ## [0.11.1] - 2025-12-08
 
 ### Added
@@ -304,7 +310,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.11.2...HEAD
+[0.11.2]: https://github.com/maginawin/ha-dali-center/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/maginawin/ha-dali-center/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/maginawin/ha-dali-center/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/maginawin/ha-dali-center/compare/v0.9.4...v0.10.0
