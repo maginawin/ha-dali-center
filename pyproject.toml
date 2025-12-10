@@ -20,6 +20,8 @@ dev = [
     "mypy>=1.16.0",
     "ruff>=0.12.1",
     "pre-commit",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -112,6 +114,7 @@ convention = "google"
 [tool.mypy]
 python_version = "3.13"
 platform = "linux"
+explicit_package_bases = true
 show_error_codes = true
 follow_imports = "normal"
 local_partial_types = true
@@ -144,6 +147,10 @@ warn_return_any = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
 module = "custom_components.dali_center.*"
 check_untyped_defs = false
 disallow_incomplete_defs = false
@@ -153,3 +160,11 @@ disallow_untyped_decorators = false
 disallow_untyped_defs = false
 warn_return_any = false
 warn_unreachable = false
+
+[tool.pyright]
+reportPrivateUsage = "none"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
