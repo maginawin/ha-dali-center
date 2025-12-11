@@ -44,6 +44,14 @@ _PLATFORMS: list[Platform] = [
 ]
 _LOGGER = logging.getLogger(__name__)
 
+# Semaphore for limiting concurrent gateway initialization.
+# This prevents the "thundering herd" problem when multiple gateways are
+# configured. Without limiting concurrency, all gateways connecting simultaneously
+# can cause Signal 11 crashes due to event loop overload.
+# Allow 2 concurrent initializations as a balance between safety and startup time.
+# See: https://github.com/maginawin/ha-dali-center/issues/63
+_SETUP_SEMAPHORE = asyncio.Semaphore(2)
+
 
 def _setup_dependency_logging() -> None:
     current_logger = logging.getLogger(__name__)
@@ -105,47 +113,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         loop=hass.loop,  # Thread-safe callback dispatch
     )
 
-    # Reduce timeout from 60s to 15s for local devices
-    try:
-        async with async_timeout.timeout(15):
-            await gateway.connect()
-    except DaliGatewayError as exc:
-        # Use warning level to reduce log noise for expected connection failures.
-        _LOGGER.warning("Error connecting to gateway %s: %s", gateway.gw_sn, exc)
-        await _notify_user_error(hass, "Connection Failed", str(exc), gateway.gw_sn)
-        raise ConfigEntryNotReady(
-            f"Gateway {gateway.gw_sn} connection failed: {exc}"
-        ) from exc
-    except TimeoutError as exc:
-        _LOGGER.warning("Timeout connecting to gateway %s", gateway.gw_sn)
-        await _notify_user_error(
-            hass,
-            "Connection Timeout",
-            f"Timeout while connecting to DALI Center gateway. {exc}",
-            gateway.gw_sn,
-        )
-        raise ConfigEntryNotReady(
-            f"Gateway {gateway.gw_sn} connection timeout"
-        ) from exc
+    # Serialize gateway connection and discovery to prevent thundering herd.
+    # This avoids Signal 11 crashes when multiple gateways initialize concurrently.
+    _LOGGER.debug("Gateway %s: Waiting for setup semaphore", gateway.gw_sn)
+    async with _SETUP_SEMAPHORE:
+        _LOGGER.debug("Gateway %s: Acquired setup semaphore", gateway.gw_sn)
 
-    # Parallel discovery: fetch devices, groups, scenes simultaneously
-    try:
-        devices, groups, scenes = await asyncio.gather(
-            gateway.discover_devices(),
-            gateway.discover_groups(),
-            gateway.discover_scenes(),
-        )
-    except DaliGatewayError as exc:
-        # Use warning level to reduce log noise for expected discovery failures.
-        _LOGGER.warning(
-            "Error discovering entities for gateway %s: %s", gateway.gw_sn, exc
-        )
-        await _notify_user_error(hass, "Discovery Failed", str(exc), gateway.gw_sn)
-        await gateway.disconnect()
-        raise ConfigEntryNotReady(
-            f"Failed to discover entities for gateway {gateway.gw_sn}: {exc}"
-        ) from exc
+        # Reduce timeout from 60s to 15s for local devices
+        try:
+            async with async_timeout.timeout(15):
+                await gateway.connect()
+        except DaliGatewayError as exc:
+            # Use warning level to reduce log noise for expected connection failures.
+            _LOGGER.warning("Error connecting to gateway %s: %s", gateway.gw_sn, exc)
+            await _notify_user_error(hass, "Connection Failed", str(exc), gateway.gw_sn)
+            raise ConfigEntryNotReady(
+                f"Gateway {gateway.gw_sn} connection failed: {exc}"
+            ) from exc
+        except TimeoutError as exc:
+            _LOGGER.warning("Timeout connecting to gateway %s", gateway.gw_sn)
+            await _notify_user_error(
+                hass,
+                "Connection Timeout",
+                f"Timeout while connecting to DALI Center gateway. {exc}",
+                gateway.gw_sn,
+            )
+            raise ConfigEntryNotReady(
+                f"Gateway {gateway.gw_sn} connection timeout"
+            ) from exc
 
+        # Parallel discovery: fetch devices, groups, scenes simultaneously
+        try:
+            devices, groups, scenes = await asyncio.gather(
+                gateway.discover_devices(),
+                gateway.discover_groups(),
+                gateway.discover_scenes(),
+            )
+        except DaliGatewayError as exc:
+            # Use warning level to reduce log noise for expected discovery failures.
+            _LOGGER.warning(
+                "Error discovering entities for gateway %s: %s", gateway.gw_sn, exc
+            )
+            await _notify_user_error(hass, "Discovery Failed", str(exc), gateway.gw_sn)
+            await gateway.disconnect()
+            raise ConfigEntryNotReady(
+                f"Failed to discover entities for gateway {gateway.gw_sn}: {exc}"
+            ) from exc
+
+        _LOGGER.debug("Gateway %s: Releasing setup semaphore", gateway.gw_sn)
+
+    # Platform setup runs outside semaphore to allow parallel entity registration
     entry.runtime_data = DaliCenterData(
         gateway=gateway,
         devices=devices,
