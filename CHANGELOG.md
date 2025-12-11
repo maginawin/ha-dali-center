@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.3] - 2025-12-11
+
+### Fixed
+
+- Thundering herd problem causing Signal 11 crashes when multiple gateways initialize simultaneously (#66)
+
 ## [0.11.2] - 2025-12-10
 
 ### Fixed
