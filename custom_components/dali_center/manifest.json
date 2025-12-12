@@ -13,6 +13,6 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/maginawin/ha-dali-center/issues",
   "quality_scale": "bronze",
-  "requirements": ["PySrDaliGateway>=0.19.1,<0.20.0"],
-  "version": "0.11.3"
+  "requirements": ["PySrDaliGateway>=0.19.2,<0.20.0"],
+  "version": "0.11.4"
 }
