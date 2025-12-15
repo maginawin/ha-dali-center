@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
+from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,20 +35,18 @@ async def async_setup_entry(
     )
 
 
-class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
+class DaliCenterIlluminanceSensorEnableSwitch(DaliDeviceEntity, SwitchEntity):
     """Representation of an Illuminance Sensor Enable/Disable Switch."""
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_has_entity_name = True
     _attr_name = "Sensor Enable"
     _attr_icon = "mdi:brightness-6"
 
     def __init__(self, device: Device) -> None:
         """Initialize the illuminance sensor enable/disable switch."""
-
+        super().__init__(device)
         self._device = device
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
-        self._attr_available = device.status == "online"
         self._attr_is_on: bool | None = True
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device.dev_id)},
@@ -83,16 +82,11 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
+        await super().async_added_to_hass()
 
         self.async_on_remove(
             self._device.register_listener(
                 CallbackEventType.SENSOR_ON_OFF, self._handle_sensor_on_off
-            )
-        )
-
-        self.async_on_remove(
-            self._device.register_listener(
-                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
@@ -102,9 +96,4 @@ class DaliCenterIlluminanceSensorEnableSwitch(SwitchEntity):
     def _handle_sensor_on_off(self, on_off: bool) -> None:
         """Handle sensor on/off updates."""
         self._attr_is_on = on_off
-        self.schedule_update_ha_state()
-
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
         self.schedule_update_ha_state()

@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN, MANUFACTURER
+from .entity import DaliCenterEntity, DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,10 +55,9 @@ async def async_setup_entry(
     )
 
 
-class DaliCenterLight(LightEntity):
+class DaliCenterLight(DaliDeviceEntity, LightEntity):
     """Representation of a Dali Center Light."""
 
-    _attr_has_entity_name = True
     _attr_is_on: bool | None = None
     _attr_brightness: int | None = None
     _white_level: int | None = None
@@ -70,11 +70,9 @@ class DaliCenterLight(LightEntity):
 
     def __init__(self, light: Device) -> None:
         """Initialize the light entity."""
-
+        super().__init__(light)
         self._light = light
         self._attr_name = "Light"
-        self._attr_unique_id = light.unique_id
-        self._attr_available = light.status == "online"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, light.dev_id)},
             "name": light.name,
@@ -125,16 +123,11 @@ class DaliCenterLight(LightEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
 
         self.async_on_remove(
             self._light.register_listener(
                 CallbackEventType.LIGHT_STATUS, self._handle_device_update
-            )
-        )
-
-        self.async_on_remove(
-            self._light.register_listener(
-                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
@@ -181,20 +174,13 @@ class DaliCenterLight(LightEntity):
 
         self.schedule_update_ha_state()
 
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
-        self.schedule_update_ha_state()
 
-
-class DaliCenterLightGroup(LightEntity):
+class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
     """Representation of a Dali Center Light Group."""
 
-    _attr_has_entity_name = True
     _attr_icon = "mdi:lightbulb-group"
     _attr_min_color_temp_kelvin = 1000
     _attr_max_color_temp_kelvin = 8000
-    _attr_available = True
     _attr_is_on: bool | None = False
     _attr_brightness: int | None = 0
     _attr_color_mode = ColorMode.BRIGHTNESS
@@ -207,10 +193,9 @@ class DaliCenterLightGroup(LightEntity):
 
     def __init__(self, group: Group) -> None:
         """Initialize the light group."""
-
+        super().__init__(group)
         self._group = group
         self._attr_name = f"{group.name}"
-        self._attr_unique_id = f"{group.unique_id}"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, group.gw_sn)},
         }
@@ -256,6 +241,7 @@ class DaliCenterLightGroup(LightEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
         await self._determine_supported_color_modes()
         await self._calculate_group_state()
         if self._group_entity_ids:
@@ -361,15 +347,13 @@ class DaliCenterLightGroup(LightEntity):
         self.schedule_update_ha_state()
 
 
-class DaliCenterAllLights(LightEntity):
+class DaliCenterAllLights(DaliDeviceEntity, LightEntity):
     """Gateway-level all lights control via broadcast commands."""
 
-    _attr_has_entity_name = True
     _attr_name = "All Lights"
     _attr_icon = "mdi:lightbulb-group-outline"
     _attr_min_color_temp_kelvin = 1000
     _attr_max_color_temp_kelvin = 8000
-    _attr_available = True
     _attr_is_on: bool | None = False
     _attr_brightness: int | None = 0
     _attr_color_mode = ColorMode.RGBW
@@ -383,10 +367,9 @@ class DaliCenterAllLights(LightEntity):
 
     def __init__(self, controller: AllLightsController, config_entry_id: str) -> None:
         """Initialize the all lights control."""
-
+        super().__init__(controller)
         self._controller = controller
         self._config_entry_id = config_entry_id
-        self._attr_unique_id = controller.unique_id
         self._attr_device_info = {
             "identifiers": {(DOMAIN, controller.gw_sn)},
         }
@@ -403,6 +386,7 @@ class DaliCenterAllLights(LightEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
         await self._discover_all_light_entities()
         await self._calculate_all_lights_state()
 
