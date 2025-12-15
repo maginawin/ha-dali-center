@@ -25,6 +25,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
 from .const import DOMAIN, MANUFACTURER
+from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ async def async_setup_entry(
         async_add_entities(sensors)
 
 
-class DaliCenterEnergySensor(SensorEntity):
+class DaliCenterEnergySensor(DaliDeviceEntity, SensorEntity):
     """Representation of a Dali Center Energy Sensor."""
 
     _attr_device_class = SensorDeviceClass.ENERGY
@@ -59,15 +60,13 @@ class DaliCenterEnergySensor(SensorEntity):
     _attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 2
-    _attr_has_entity_name = True
     _attr_name = "Energy"
 
     def __init__(self, device: Device) -> None:
         """Initialize the energy sensor."""
-
+        super().__init__(device)
         self._device = device
         self._attr_unique_id = f"{device.unique_id}_energy"
-        self._attr_available = device.status == "online"
         self._attr_native_value = 0.0
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device.dev_id)},
@@ -82,16 +81,11 @@ class DaliCenterEnergySensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
 
         self.async_on_remove(
             self._device.register_listener(
                 CallbackEventType.ENERGY_REPORT, self._handle_energy_update
-            )
-        )
-
-        self.async_on_remove(
-            self._device.register_listener(
-                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
@@ -101,27 +95,19 @@ class DaliCenterEnergySensor(SensorEntity):
         self._attr_native_value = energy_value
         self.schedule_update_ha_state()
 
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
-        self.schedule_update_ha_state()
 
-
-class DaliCenterMotionSensor(SensorEntity):
+class DaliCenterMotionSensor(DaliDeviceEntity, SensorEntity):
     """Representation of a Dali Center Motion Sensor."""
 
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ["no_motion", "motion", "vacant", "presence", "occupancy"]
-    _attr_has_entity_name = True
     _attr_icon = "mdi:motion-sensor"
     _attr_name = "State"
 
     def __init__(self, device: Device) -> None:
         """Initialize the motion sensor."""
-
+        super().__init__(device)
         self._device = device
-        self._attr_unique_id = f"{device.unique_id}"
-        self._attr_available = device.status == "online"
         self._attr_native_value = "no_motion"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device.dev_id)},
@@ -140,16 +126,11 @@ class DaliCenterMotionSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
 
         self.async_on_remove(
             self._device.register_listener(
                 CallbackEventType.MOTION_STATUS, self._handle_motion_status
-            )
-        )
-
-        self.async_on_remove(
-            self._device.register_listener(
-                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
@@ -161,27 +142,19 @@ class DaliCenterMotionSensor(SensorEntity):
         self._attr_native_value = motion_state.value
         self.schedule_update_ha_state()
 
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
-        self.schedule_update_ha_state()
 
-
-class DaliCenterIlluminanceSensor(SensorEntity):
+class DaliCenterIlluminanceSensor(DaliDeviceEntity, SensorEntity):
     """Representation of a Dali Center Illuminance Sensor."""
 
     _attr_device_class = SensorDeviceClass.ILLUMINANCE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = LIGHT_LUX
-    _attr_has_entity_name = True
     _attr_name = "State"
 
     def __init__(self, device: Device) -> None:
         """Initialize the illuminance sensor."""
-
+        super().__init__(device)
         self._device = device
-        self._attr_unique_id = f"{device.unique_id}"
-        self._attr_available = device.status == "online"
         self._attr_native_value: StateType | date | datetime | Decimal = None
         self._sensor_enabled: bool = True
         self._attr_device_info = {
@@ -201,16 +174,11 @@ class DaliCenterIlluminanceSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
+        await super().async_added_to_hass()
 
         self.async_on_remove(
             self._device.register_listener(
                 CallbackEventType.ILLUMINANCE_STATUS, self._handle_illuminance_status
-            )
-        )
-
-        self.async_on_remove(
-            self._device.register_listener(
-                CallbackEventType.ONLINE_STATUS, self._handle_availability
             )
         )
 
@@ -238,11 +206,6 @@ class DaliCenterIlluminanceSensor(SensorEntity):
             return
 
         self._attr_native_value = illuminance_value
-        self.schedule_update_ha_state()
-
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
         self.schedule_update_ha_state()
 
     @callback

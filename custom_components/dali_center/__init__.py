@@ -142,7 +142,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
                 f"Gateway {gateway.gw_sn} connection timeout"
             ) from exc
 
-        # Parallel discovery: fetch devices, groups, scenes simultaneously
         try:
             devices, groups, scenes = await asyncio.gather(
                 gateway.discover_devices(),
@@ -150,7 +149,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
                 gateway.discover_scenes(),
             )
         except DaliGatewayError as exc:
-            # Use warning level to reduce log noise for expected discovery failures.
             _LOGGER.warning(
                 "Error discovering entities for gateway %s: %s", gateway.gw_sn, exc
             )
@@ -162,7 +160,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
 
         _LOGGER.debug("Gateway %s: Releasing setup semaphore", gateway.gw_sn)
 
-    # Platform setup runs outside semaphore to allow parallel entity registration
     entry.runtime_data = DaliCenterData(
         gateway=gateway,
         devices=devices,
@@ -170,7 +167,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
         scenes=scenes,
     )
 
-    # Create gateway device entry with version info
     dev_reg = dr.async_get(hass)
     _ = dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,

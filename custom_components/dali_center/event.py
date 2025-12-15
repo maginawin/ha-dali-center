@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
+from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,20 +54,18 @@ async def async_setup_entry(
     async_add_entities(DaliCenterPanelEvent(device) for device in devices)
 
 
-class DaliCenterPanelEvent(EventEntity):
+class DaliCenterPanelEvent(DaliDeviceEntity, EventEntity):
     """Representation of a Dali Center Panel Event Entity."""
 
-    _attr_has_entity_name = True
     _attr_device_class = EventDeviceClass.BUTTON
     _attr_name = "Panel Buttons"
     _attr_icon = "mdi:gesture-tap-button"
 
     def __init__(self, panel: Panel) -> None:
         """Initialize the panel event entity."""
-
+        super().__init__(panel)
         self._panel = panel
         self._attr_unique_id = f"{panel.dev_id}_panel_events"
-        self._attr_available = panel.status == "online"
 
         self._attr_event_types = panel.get_available_event_types()
         self._attr_device_info = {
@@ -79,16 +78,11 @@ class DaliCenterPanelEvent(EventEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle when entity is added to hass."""
-        self.async_on_remove(
-            self._panel.register_listener(
-                CallbackEventType.PANEL_STATUS, self._handle_device_update
-            )
-        )
+        await super().async_added_to_hass()
 
         self.async_on_remove(
             self._panel.register_listener(
-                CallbackEventType.ONLINE_STATUS,
-                self._handle_availability,
+                CallbackEventType.PANEL_STATUS, self._handle_device_update
             )
         )
 
@@ -118,9 +112,4 @@ class DaliCenterPanelEvent(EventEntity):
             self._trigger_event(event_name)
 
         self.hass.bus.async_fire(f"{DOMAIN}_event", event_data)
-        self.schedule_update_ha_state()
-
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
         self.schedule_update_ha_state()

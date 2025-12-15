@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
+from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 
@@ -39,11 +40,10 @@ async def async_setup_entry(
         async_add_entities(numbers)
 
 
-class DaliCenterDeviceParameterNumber(NumberEntity):
+class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):
     """Base number entity for device parameter configuration."""
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_has_entity_name = True
     _attr_native_step = 1
 
     def __init__(
@@ -56,7 +56,7 @@ class DaliCenterDeviceParameterNumber(NumberEntity):
         icon: str,
     ) -> None:
         """Initialize the device parameter number entity."""
-
+        super().__init__(device)
         self._device = device
         self._parameter: Literal[
             "fade_time", "fade_rate", "min_brightness", "max_brightness"
@@ -64,7 +64,6 @@ class DaliCenterDeviceParameterNumber(NumberEntity):
         self._attr_name = name
         self._attr_icon = icon
         self._attr_unique_id = f"{device.unique_id}_{parameter}"
-        self._attr_available = device.status == "online"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device.dev_id)},
         }
@@ -86,12 +85,7 @@ class DaliCenterDeviceParameterNumber(NumberEntity):
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
-
-        self.async_on_remove(
-            self._device.register_listener(
-                CallbackEventType.ONLINE_STATUS, self._handle_availability
-            )
-        )
+        await super().async_added_to_hass()
 
         self.async_on_remove(
             self._device.register_listener(
@@ -114,11 +108,6 @@ class DaliCenterDeviceParameterNumber(NumberEntity):
             params = {"max_brightness": int_value}
         self._device.set_device_parameters(params)
         self._device.get_device_parameters()
-
-    @callback
-    def _handle_availability(self, available: bool) -> None:
-        self._attr_available = available
-        self.schedule_update_ha_state()
 
     @callback
     def _handle_device_parameters(self, params: DeviceParamType) -> None:
