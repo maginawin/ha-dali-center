@@ -1,5 +1,7 @@
 """Support for Dali Center Gateway Control Buttons."""
 
+from __future__ import annotations
+
 import logging
 
 from PySrDaliGateway import CallbackEventType, DaliGateway, Device
@@ -8,6 +10,7 @@ from PySrDaliGateway.helper import is_light_device
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
@@ -15,6 +18,8 @@ from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 1  # Serial button presses to prevent race conditions
 
 
 async def async_setup_entry(
@@ -52,9 +57,9 @@ class DaliCenterGatewayRestartButton(ButtonEntity):
         self._gateway = gateway
         self._attr_name = f"{gateway.name} Restart"
         self._attr_unique_id = f"{gateway.gw_sn}_restart"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, gateway.gw_sn)},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, gateway.gw_sn)},
+        )
 
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added to hass."""
@@ -90,13 +95,13 @@ class DaliCenterDeviceIdentifyButton(DaliDeviceEntity, ButtonEntity):
         self._device = device
         self._attr_name = "Identify"
         self._attr_unique_id = f"{device.unique_id}_identify"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.dev_id)},
-            "name": device.name,
-            "manufacturer": MANUFACTURER,
-            "model": device.model,
-            "via_device": (DOMAIN, device.gw_sn),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device.dev_id)},
+            name=device.name,
+            manufacturer=MANUFACTURER,
+            model=device.model,
+            via_device=(DOMAIN, device.gw_sn),
+        )
 
     async def async_press(self) -> None:
         """Handle button press to identify device."""

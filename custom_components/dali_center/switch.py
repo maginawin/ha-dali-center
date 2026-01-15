@@ -11,6 +11,7 @@ from PySrDaliGateway.helper import is_illuminance_sensor
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
@@ -18,6 +19,8 @@ from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 1  # Serial control to prevent race conditions
 
 
 async def async_setup_entry(
@@ -48,13 +51,13 @@ class DaliCenterIlluminanceSensorEnableSwitch(DaliDeviceEntity, SwitchEntity):
         self._device = device
         self._attr_unique_id = f"{device.dev_id}_sensor_enable"
         self._attr_is_on: bool | None = True
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.dev_id)},
-            "name": device.name,
-            "manufacturer": MANUFACTURER,
-            "model": device.model,
-            "via_device": (DOMAIN, device.gw_sn),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device.dev_id)},
+            name=device.name,
+            manufacturer=MANUFACTURER,
+            model=device.model,
+            via_device=(DOMAIN, device.gw_sn),
+        )
         self._attr_extra_state_attributes = {
             "gateway_sn": device.gw_sn,
             "address": device.address,

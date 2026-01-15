@@ -11,11 +11,14 @@ from PySrDaliGateway.types import DeviceParamType
 from homeassistant.components.number import NumberEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
+
+PARALLEL_UPDATES = 1  # Serial control to prevent race conditions
 
 
 async def async_setup_entry(
@@ -64,9 +67,9 @@ class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):
         self._attr_name = name
         self._attr_icon = icon
         self._attr_unique_id = f"{device.unique_id}_{parameter}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.dev_id)},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device.dev_id)},
+        )
         self._attr_extra_state_attributes = {
             "gateway_sn": device.gw_sn,
             "address": device.address,
