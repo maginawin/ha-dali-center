@@ -10,6 +10,7 @@ from PySrDaliGateway.types import PanelEventType, PanelStatus
 
 from homeassistant.components.event import EventDeviceClass, EventEntity
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
@@ -17,6 +18,8 @@ from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0  # Read-only event entities, no concurrency limit needed
 
 
 async def async_setup_entry(
@@ -68,13 +71,13 @@ class DaliCenterPanelEvent(DaliDeviceEntity, EventEntity):
         self._attr_unique_id = f"{panel.dev_id}_panel_events"
 
         self._attr_event_types = panel.get_available_event_types()
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, panel.dev_id)},
-            "name": panel.name,
-            "manufacturer": MANUFACTURER,
-            "model": panel.model,
-            "via_device": (DOMAIN, panel.gw_sn),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, panel.dev_id)},
+            name=panel.name,
+            manufacturer=MANUFACTURER,
+            model=panel.model,
+            via_device=(DOMAIN, panel.gw_sn),
+        )
 
     async def async_added_to_hass(self) -> None:
         """Handle when entity is added to hass."""

@@ -22,6 +22,7 @@ from homeassistant.components.light import (
 from homeassistant.components.light.const import ColorMode
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -30,6 +31,8 @@ from .entity import DaliCenterEntity, DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 1  # Serial control to prevent device overload
 
 
 async def async_setup_entry(
@@ -73,13 +76,13 @@ class DaliCenterLight(DaliDeviceEntity, LightEntity):
         super().__init__(light)
         self._light = light
         self._attr_name = "Light"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, light.dev_id)},
-            "name": light.name,
-            "manufacturer": MANUFACTURER,
-            "model": light.model,
-            "via_device": (DOMAIN, light.gw_sn),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, light.dev_id)},
+            name=light.name,
+            manufacturer=MANUFACTURER,
+            model=light.model,
+            via_device=(DOMAIN, light.gw_sn),
+        )
         self._attr_extra_state_attributes = {
             "gateway_sn": light.gw_sn,
             "address": light.address,
@@ -196,9 +199,9 @@ class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
         super().__init__(group)
         self._group = group
         self._attr_name = f"{group.name}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, group.gw_sn)},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, group.gw_sn)},
+        )
 
     @cached_property
     def _group_entity_ids(self) -> list[str]:
@@ -370,9 +373,9 @@ class DaliCenterAllLights(DaliDeviceEntity, LightEntity):
         super().__init__(controller)
         self._controller = controller
         self._config_entry_id = config_entry_id
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, controller.gw_sn)},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, controller.gw_sn)},
+        )
         self._attr_extra_state_attributes = {
             "gateway_sn": controller.gw_sn,
             "address": controller.address,

@@ -21,6 +21,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import LIGHT_LUX, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
@@ -29,6 +30,8 @@ from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0  # Read-only sensors, no concurrency limit needed
 
 
 async def async_setup_entry(
@@ -68,9 +71,9 @@ class DaliCenterEnergySensor(DaliDeviceEntity, SensorEntity):
         self._device = device
         self._attr_unique_id = f"{device.unique_id}_energy"
         self._attr_native_value = 0.0
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.dev_id)},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device.dev_id)},
+        )
         self._attr_extra_state_attributes = {
             "gateway_sn": device.gw_sn,
             "address": device.address,
@@ -109,13 +112,13 @@ class DaliCenterMotionSensor(DaliDeviceEntity, SensorEntity):
         super().__init__(device)
         self._device = device
         self._attr_native_value = "no_motion"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.dev_id)},
-            "name": device.name,
-            "manufacturer": MANUFACTURER,
-            "model": device.model,
-            "via_device": (DOMAIN, device.gw_sn),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device.dev_id)},
+            name=device.name,
+            manufacturer=MANUFACTURER,
+            model=device.model,
+            via_device=(DOMAIN, device.gw_sn),
+        )
         self._attr_extra_state_attributes = {
             "gateway_sn": device.gw_sn,
             "address": device.address,
@@ -157,13 +160,13 @@ class DaliCenterIlluminanceSensor(DaliDeviceEntity, SensorEntity):
         self._device = device
         self._attr_native_value: StateType | date | datetime | Decimal = None
         self._sensor_enabled: bool = True
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.dev_id)},
-            "name": device.name,
-            "manufacturer": MANUFACTURER,
-            "model": device.model,
-            "via_device": (DOMAIN, device.gw_sn),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device.dev_id)},
+            name=device.name,
+            manufacturer=MANUFACTURER,
+            model=device.model,
+            via_device=(DOMAIN, device.gw_sn),
+        )
         self._attr_extra_state_attributes = {
             "gateway_sn": device.gw_sn,
             "address": device.address,
