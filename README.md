@@ -27,6 +27,11 @@ The DALI Center integration brings comprehensive DALI lighting control to Home A
 
 - [DIN Rail Ethernet (IP) DALI Gateway SR-GW-EDA](https://www.sunricher.com/din-rail-ethernet-dali-gateway-sr-gw-eda.html)
 
+**Minimum Gateway Versions:**
+
+- Software Version: 3.59 or later
+- Firmware Version: 1.45 or later
+
 **Supported DALI Devices:**
 
 ### Lighting Drivers
