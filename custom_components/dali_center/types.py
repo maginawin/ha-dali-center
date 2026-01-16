@@ -1,5 +1,7 @@
 """Type definitions for the Dali Center integration."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from PySrDaliGateway import DaliGateway, Device, Group, Scene
