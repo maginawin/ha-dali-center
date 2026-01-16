@@ -101,14 +101,15 @@ class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the device parameter."""
         int_value = int(value)
+        params: DeviceParamType = {}
         if self._parameter == "fade_time":
-            params: DeviceParamType = {"fade_time": int_value}
+            params["fade_time"] = int_value
         elif self._parameter == "fade_rate":
-            params = {"fade_rate": int_value}
+            params["fade_rate"] = int_value
         elif self._parameter == "min_brightness":
-            params = {"min_brightness": int_value}
-        else:  # max_brightness
-            params = {"max_brightness": int_value}
+            params["min_brightness"] = int_value
+        else:
+            params["max_brightness"] = int_value
         self._device.set_device_parameters(params)
         self._device.get_device_parameters()
 

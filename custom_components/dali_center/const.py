@@ -1,5 +1,7 @@
 """Constants for the Dali Center integration."""
 
+from __future__ import annotations
+
 from typing import Final
 
 DOMAIN = "dali_center"

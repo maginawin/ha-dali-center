@@ -1,5 +1,7 @@
 """Helper functions for Dali Center."""
 
+from __future__ import annotations
+
 from typing import Any
 
 from homeassistant.const import (
