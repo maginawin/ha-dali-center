@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from propcache.api import cached_property
 from PySrDaliGateway import AllLightsController, CallbackEventType, Device, Group
@@ -30,9 +31,103 @@ from .const import DOMAIN, MANUFACTURER
 from .entity import DaliCenterEntity, DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
+if TYPE_CHECKING:
+    from homeassistant.core import State
+
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1  # Serial control to prevent device overload
+
+
+@dataclass
+class AggregatedLightState:
+    """Aggregated state from multiple light entities."""
+
+    is_on: bool
+    brightness: int
+    color_temp_kelvin: int | None
+    rgbw_color: tuple[int, int, int, int] | None
+    color_mode: ColorMode | None
+
+
+def calculate_aggregated_light_state(
+    entity_ids: list[str],
+    states_getter: Any,
+    supported_color_modes: set[ColorMode] | set[str] | None,
+) -> AggregatedLightState:
+    """Calculate aggregated state from multiple light entities.
+
+    This is a shared helper for DaliCenterLightGroup and DaliCenterAllLights
+    to avoid code duplication.
+    """
+    on_lights: list[State] = []
+    total_brightness = 0
+    total_color_temp = 0
+    rgbw_colors: list[tuple[int, int, int, int]] = []
+
+    for entity_id in entity_ids:
+        state = states_getter(entity_id)
+        if state is None or state.state != "on":
+            continue
+
+        on_lights.append(state)
+        if brightness := state.attributes.get(ATTR_BRIGHTNESS):
+            total_brightness += brightness
+        if color_temp := state.attributes.get(ATTR_COLOR_TEMP_KELVIN):
+            total_color_temp += color_temp
+        if color := state.attributes.get(ATTR_RGBW_COLOR):
+            rgbw_colors.append(color)
+
+    is_on = bool(on_lights)
+    if not on_lights:
+        return AggregatedLightState(
+            is_on=False,
+            brightness=0,
+            color_temp_kelvin=None,
+            rgbw_color=None,
+            color_mode=None,
+        )
+
+    light_count = len(on_lights)
+    brightness = total_brightness // light_count if total_brightness > 0 else 0
+
+    # Determine color mode based on available data and supported modes
+    color_temp_kelvin: int | None = None
+    rgbw_color: tuple[int, int, int, int] | None = None
+    color_mode: ColorMode | None = None
+
+    if (
+        total_color_temp > 0
+        and supported_color_modes
+        and ColorMode.COLOR_TEMP in supported_color_modes
+    ):
+        color_temp_kelvin = total_color_temp // light_count
+        color_mode = ColorMode.COLOR_TEMP
+    elif (
+        rgbw_colors
+        and supported_color_modes
+        and ColorMode.RGBW in supported_color_modes
+    ):
+        color_count = len(rgbw_colors)
+        rgbw_color = (
+            sum(c[0] for c in rgbw_colors) // color_count,
+            sum(c[1] for c in rgbw_colors) // color_count,
+            sum(c[2] for c in rgbw_colors) // color_count,
+            sum(c[3] for c in rgbw_colors) // color_count,
+        )
+        color_mode = ColorMode.RGBW
+    elif supported_color_modes and ColorMode.BRIGHTNESS in supported_color_modes:
+        color_mode = ColorMode.BRIGHTNESS
+    elif supported_color_modes:
+        color_mode = ColorMode(next(iter(supported_color_modes)))
+
+    return AggregatedLightState(
+        is_on=is_on,
+        brightness=brightness,
+        color_temp_kelvin=color_temp_kelvin,
+        rgbw_color=rgbw_color,
+        color_mode=color_mode,
+    )
 
 
 async def async_setup_entry(
@@ -277,65 +372,20 @@ class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
         if not self._group_entity_ids:
             return
 
-        on_lights: list[Any] = []
-        total_brightness = 0
-        total_color_temp = 0
-        rgbw_colors: list[tuple[int, int, int, int]] = []
-
-        for entity_id in self._group_entity_ids:
-            if not (state := self.hass.states.get(entity_id)) or state.state != "on":
-                continue
-
-            on_lights.append(state)
-            if brightness := state.attributes.get(ATTR_BRIGHTNESS):
-                total_brightness += brightness
-            if color_temp := state.attributes.get(ATTR_COLOR_TEMP_KELVIN):
-                total_color_temp += color_temp
-            if rgbw_color := state.attributes.get(ATTR_RGBW_COLOR):
-                rgbw_colors.append(rgbw_color)
-
-        self._attr_is_on = bool(on_lights)
-
-        if not on_lights:
-            self._attr_brightness = 0
-            return
-
-        light_count = len(on_lights)
-        self._attr_brightness = (
-            total_brightness // light_count if total_brightness > 0 else 0
+        state = calculate_aggregated_light_state(
+            self._group_entity_ids,
+            self.hass.states.get,
+            self._attr_supported_color_modes,
         )
 
-        # Determine color mode based on available data and supported modes
-        if (
-            total_color_temp > 0
-            and self._attr_supported_color_modes
-            and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
-        ):
-            self._attr_color_temp_kelvin = total_color_temp // light_count
-            self._attr_color_mode = ColorMode.COLOR_TEMP
-        elif (
-            rgbw_colors
-            and self._attr_supported_color_modes
-            and ColorMode.RGBW in self._attr_supported_color_modes
-        ):
-            color_count = len(rgbw_colors)
-            self._attr_rgbw_color = (
-                sum(c[0] for c in rgbw_colors) // color_count,
-                sum(c[1] for c in rgbw_colors) // color_count,
-                sum(c[2] for c in rgbw_colors) // color_count,
-                sum(c[3] for c in rgbw_colors) // color_count,
-            )
-            self._attr_color_mode = ColorMode.RGBW
-        elif (
-            self._attr_supported_color_modes
-            and ColorMode.BRIGHTNESS in self._attr_supported_color_modes
-        ):
-            self._attr_color_mode = ColorMode.BRIGHTNESS
-        elif self._attr_supported_color_modes:
-            # Fallback to first supported mode
-            self._attr_color_mode = ColorMode(
-                next(iter(self._attr_supported_color_modes))
-            )
+        self._attr_is_on = state.is_on
+        self._attr_brightness = state.brightness
+        if state.color_temp_kelvin is not None:
+            self._attr_color_temp_kelvin = state.color_temp_kelvin
+        if state.rgbw_color is not None:
+            self._attr_rgbw_color = state.rgbw_color
+        if state.color_mode is not None:
+            self._attr_color_mode = state.color_mode
 
     @callback
     def _handle_member_light_update(self, event: Event[EventStateChangedData]) -> None:
@@ -455,65 +505,20 @@ class DaliCenterAllLights(DaliDeviceEntity, LightEntity):
         if not self._all_light_entity_ids:
             return
 
-        on_lights: list[Any] = []
-        total_brightness = 0
-        total_color_temp = 0
-        rgbw_colors: list[tuple[int, int, int, int]] = []
-
-        for entity_id in self._all_light_entity_ids:
-            if not (state := self.hass.states.get(entity_id)) or state.state != "on":
-                continue
-
-            on_lights.append(state)
-            if brightness := state.attributes.get(ATTR_BRIGHTNESS):
-                total_brightness += brightness
-            if color_temp := state.attributes.get(ATTR_COLOR_TEMP_KELVIN):
-                total_color_temp += color_temp
-            if rgbw_color := state.attributes.get(ATTR_RGBW_COLOR):
-                rgbw_colors.append(rgbw_color)
-
-        self._attr_is_on = bool(on_lights)
-
-        if not on_lights:
-            self._attr_brightness = 0
-            return
-
-        light_count = len(on_lights)
-        self._attr_brightness = (
-            total_brightness // light_count if total_brightness > 0 else 0
+        state = calculate_aggregated_light_state(
+            self._all_light_entity_ids,
+            self.hass.states.get,
+            self._attr_supported_color_modes,
         )
 
-        # Determine color mode based on available data and supported modes
-        if (
-            total_color_temp > 0
-            and self._attr_supported_color_modes
-            and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
-        ):
-            self._attr_color_temp_kelvin = total_color_temp // light_count
-            self._attr_color_mode = ColorMode.COLOR_TEMP
-        elif (
-            rgbw_colors
-            and self._attr_supported_color_modes
-            and ColorMode.RGBW in self._attr_supported_color_modes
-        ):
-            color_count = len(rgbw_colors)
-            self._attr_rgbw_color = (
-                sum(c[0] for c in rgbw_colors) // color_count,
-                sum(c[1] for c in rgbw_colors) // color_count,
-                sum(c[2] for c in rgbw_colors) // color_count,
-                sum(c[3] for c in rgbw_colors) // color_count,
-            )
-            self._attr_color_mode = ColorMode.RGBW
-        elif (
-            self._attr_supported_color_modes
-            and ColorMode.BRIGHTNESS in self._attr_supported_color_modes
-        ):
-            self._attr_color_mode = ColorMode.BRIGHTNESS
-        elif self._attr_supported_color_modes:
-            # Fallback to first supported mode
-            self._attr_color_mode = ColorMode(
-                next(iter(self._attr_supported_color_modes))
-            )
+        self._attr_is_on = state.is_on
+        self._attr_brightness = state.brightness
+        if state.color_temp_kelvin is not None:
+            self._attr_color_temp_kelvin = state.color_temp_kelvin
+        if state.rgbw_color is not None:
+            self._attr_rgbw_color = state.rgbw_color
+        if state.color_mode is not None:
+            self._attr_color_mode = state.color_mode
 
     @callback
     def _handle_light_update(self, event: Event[EventStateChangedData]) -> None:

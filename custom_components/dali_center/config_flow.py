@@ -1,5 +1,7 @@
 """Config flow for the Dali Center integration."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Any
@@ -131,14 +133,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if max_brightness is not None:
                 params["max_brightness"] = max_brightness
 
-        if (
-            not errors
-            and fade_time is None
-            and fade_rate is None
-            and min_brightness is None
-            and max_brightness is None
-        ):
-            errors["base"] = "no_parameters_selected"
+            if not params:
+                errors["base"] = "no_parameters_selected"
 
         if not selected_targets:
             errors["targets"] = "no_targets_selected"
@@ -683,7 +679,7 @@ class DaliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_abort(reason="unknown")
 
-    def is_matching(self, other_flow: "ConfigFlow") -> bool:
+    def is_matching(self, other_flow: ConfigFlow) -> bool:
         """Check if another flow is matching this one."""
         return False
 
