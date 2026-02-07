@@ -1,0 +1,11 @@
+scan_bus:
+  target:
+    device:
+      integration: dali_center
+  fields: {}
+
+stop_scan:
+  target:
+    device:
+      integration: dali_center
+  fields: {}

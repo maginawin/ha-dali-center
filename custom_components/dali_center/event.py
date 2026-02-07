@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import logging
 
-from PySrDaliGateway import CallbackEventType, Panel
+from PySrDaliGateway import CallbackEventType, Device, Panel
 from PySrDaliGateway.helper import is_panel_device
 from PySrDaliGateway.types import PanelEventType, PanelStatus
 
 from homeassistant.components.event import EventDeviceClass, EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, SIGNAL_ADD_ENTITIES
 from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
@@ -55,6 +56,37 @@ async def async_setup_entry(
     ]
 
     async_add_entities(DaliCenterPanelEvent(device) for device in devices)
+
+    @callback
+    def _async_add_new_panels(new_devices: list[Device]) -> None:
+        """Add new panel event entities discovered by bus scan."""
+        new_panels = [
+            Panel(
+                gateway,
+                unique_id=device.unique_id,
+                dev_id=device.dev_id,
+                name=device.name,
+                dev_type=device.dev_type,
+                channel=device.channel,
+                address=device.address,
+                status=device.status,
+                dev_sn=device.dev_sn,
+                area_name=device.area_name,
+                area_id=device.area_id,
+                model=device.model,
+                properties=device.properties,
+            )
+            for device in new_devices
+            if is_panel_device(device.dev_type)
+        ]
+        if new_panels:
+            async_add_entities(DaliCenterPanelEvent(panel) for panel in new_panels)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"{SIGNAL_ADD_ENTITIES}_{entry.entry_id}", _async_add_new_panels
+        )
+    )
 
 
 class DaliCenterPanelEvent(DaliDeviceEntity, EventEntity):

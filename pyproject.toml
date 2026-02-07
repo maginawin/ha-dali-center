@@ -110,6 +110,10 @@ convention = "google"
 "custom_components/dali_center/const.py" = [
     "D", # pydocstyle
 ]
+"tests/*" = [
+    "SLF001", # Tests legitimately access private members for verification.
+    "PLC0415", # Deferred imports needed to apply patches before module loads.
+]
 
 [tool.mypy]
 python_version = "3.13"

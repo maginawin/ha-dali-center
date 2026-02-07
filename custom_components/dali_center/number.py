@@ -12,9 +12,10 @@ from homeassistant.components.number import NumberEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_ADD_ENTITIES
 from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
@@ -41,6 +42,26 @@ async def async_setup_entry(
 
     if numbers:
         async_add_entities(numbers)
+
+    @callback
+    def _async_add_new_numbers(new_devices: list[Device]) -> None:
+        """Add new number entities discovered by bus scan."""
+        new_numbers: list[NumberEntity] = []
+        for device in new_devices:
+            if not is_light_device(device.dev_type):
+                continue
+            new_numbers.append(DaliCenterFadeTimeNumber(device))
+            new_numbers.append(DaliCenterFadeRateNumber(device))
+            new_numbers.append(DaliCenterMinBrightnessNumber(device))
+            new_numbers.append(DaliCenterMaxBrightnessNumber(device))
+        if new_numbers:
+            async_add_entities(new_numbers)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"{SIGNAL_ADD_ENTITIES}_{entry.entry_id}", _async_add_new_numbers
+        )
+    )
 
 
 class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):

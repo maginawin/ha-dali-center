@@ -24,10 +24,11 @@ from homeassistant.components.light.const import ColorMode
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, SIGNAL_ADD_ENTITIES
 from .entity import DaliCenterEntity, DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
@@ -150,6 +151,23 @@ async def async_setup_entry(
 
     async_add_entities(
         [DaliCenterAllLights(AllLightsController(gateway, devices), entry.entry_id)]
+    )
+
+    @callback
+    def _async_add_new_lights(new_devices: list[Device]) -> None:
+        """Add new light entities discovered by bus scan."""
+        new_lights = [
+            DaliCenterLight(device)
+            for device in new_devices
+            if is_light_device(device.dev_type)
+        ]
+        if new_lights:
+            async_add_entities(new_lights)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"{SIGNAL_ADD_ENTITIES}_{entry.entry_id}", _async_add_new_lights
+        )
     )
 
 
