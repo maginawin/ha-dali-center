@@ -6,6 +6,7 @@ import contextlib
 import logging
 
 from PySrDaliGateway import Device
+from PySrDaliGateway.exceptions import BusScanCancelledError
 
 from homeassistant.components.persistent_notification import async_create, async_dismiss
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -84,6 +85,15 @@ async def async_do_bus_scan(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
 
     try:
         scan_result = await gateway.scan_bus(gateway.channel_total)
+    except BusScanCancelledError:
+        _LOGGER.info("Bus scan cancelled for gateway %s", gw_sn)
+        async_create(
+            hass,
+            "Bus scan was cancelled. No changes were made.",
+            title=f"DALI Center ({gw_sn}): Bus Scan Cancelled",
+            notification_id=notification_id,
+        )
+        return
     except TimeoutError:
         _LOGGER.warning("Bus scan timed out for gateway %s", gw_sn)
         async_create(
@@ -164,11 +174,13 @@ def _remove_devices(
 
 
 async def async_do_stop_scan(hass: HomeAssistant, entry: DaliCenterConfigEntry) -> None:
-    """Stop an in-progress bus scan."""
-    gateway = entry.runtime_data.gateway
+    """Stop an in-progress bus scan.
 
-    if not gateway.bus_scanning:
-        return
+    Always sends the stop command regardless of SDK-tracked state,
+    because the gateway may be scanning from a previous session or
+    an auto-triggered rescan that the SDK doesn't know about.
+    """
+    gateway = entry.runtime_data.gateway
 
     _LOGGER.info("Stopping bus scan for gateway %s", gateway.gw_sn)
     await gateway.stop_scan()

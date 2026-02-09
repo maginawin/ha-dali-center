@@ -248,6 +248,32 @@ class TestAsyncDoBusScan:
         # Notification dismissed.
         self.mock_notify_dismiss.assert_called_once()
 
+    async def test_scan_cancelled_shows_notification(self) -> None:
+        """Cancelled scan shows notification and makes no changes."""
+        from PySrDaliGateway.exceptions import BusScanCancelledError
+
+        from custom_components.dali_center.services import async_do_bus_scan
+
+        gateway = _make_gateway()
+        gateway.scan_bus.side_effect = BusScanCancelledError("cancelled")
+
+        dev = _make_device("dev_1")
+        entry = _make_entry(gateway, devices=[dev])
+        hass = _make_hass()
+
+        await async_do_bus_scan(hass, entry)
+
+        # Device list unchanged.
+        assert len(entry.runtime_data.devices) == 1
+
+        # Cancellation notification shown (not dismissed).
+        cancelled_calls = [
+            c
+            for c in self.mock_notify_create.call_args_list
+            if "cancelled" in str(c).lower()
+        ]
+        assert len(cancelled_calls) == 1
+
 
 # ---------------------------------------------------------------------------
 # async_do_stop_scan
@@ -278,8 +304,12 @@ class TestAsyncDoStopScan:
         gateway.stop_scan.assert_awaited_once()
         self.mock_notify_dismiss.assert_called_once()
 
-    async def test_stop_scan_when_not_scanning(self) -> None:
-        """Stop scan does nothing when no scan is in progress."""
+    async def test_stop_scan_always_sends_command(self) -> None:
+        """Stop scan sends command even when SDK reports not scanning.
+
+        The gateway may be scanning from a previous session or auto-triggered
+        rescan. The stop command is idempotent and safe to send regardless.
+        """
         from custom_components.dali_center.services import async_do_stop_scan
 
         gateway = _make_gateway(bus_scanning=False)
@@ -288,8 +318,8 @@ class TestAsyncDoStopScan:
 
         await async_do_stop_scan(hass, entry)
 
-        gateway.stop_scan.assert_not_awaited()
-        self.mock_notify_dismiss.assert_not_called()
+        gateway.stop_scan.assert_awaited_once()
+        self.mock_notify_dismiss.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
