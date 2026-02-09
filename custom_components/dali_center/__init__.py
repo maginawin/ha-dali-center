@@ -31,6 +31,7 @@ from .const import (
     sn_to_mac,
 )
 from .helper import migrate_gateway_config
+from .services import async_setup_services
 from .types import DaliCenterConfigEntry, DaliCenterData
 
 _PLATFORMS: list[Platform] = [
@@ -181,6 +182,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
+
+    # Register services once (guard against duplicate registration from multiple entries).
+    if not hass.services.has_service(DOMAIN, "scan_bus"):
+        async_setup_services(hass)
+
     return True
 
 

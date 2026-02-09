@@ -12,9 +12,10 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, SIGNAL_ADD_ENTITIES
 from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
@@ -35,6 +36,23 @@ async def async_setup_entry(
         DaliCenterIlluminanceSensorEnableSwitch(device)
         for device in devices
         if is_illuminance_sensor(device.dev_type)
+    )
+
+    @callback
+    def _async_add_new_switches(new_devices: list[Device]) -> None:
+        """Add new switch entities discovered by bus scan."""
+        new_switches = [
+            DaliCenterIlluminanceSensorEnableSwitch(device)
+            for device in new_devices
+            if is_illuminance_sensor(device.dev_type)
+        ]
+        if new_switches:
+            async_add_entities(new_switches)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"{SIGNAL_ADD_ENTITIES}_{entry.entry_id}", _async_add_new_switches
+        )
     )
 
 

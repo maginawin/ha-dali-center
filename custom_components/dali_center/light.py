@@ -24,10 +24,11 @@ from homeassistant.components.light.const import ColorMode
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, SIGNAL_ADD_ENTITIES
 from .entity import DaliCenterEntity, DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
@@ -152,6 +153,23 @@ async def async_setup_entry(
         [DaliCenterAllLights(AllLightsController(gateway, devices), entry.entry_id)]
     )
 
+    @callback
+    def _async_add_new_lights(new_devices: list[Device]) -> None:
+        """Add new light entities discovered by bus scan."""
+        new_lights = [
+            DaliCenterLight(device)
+            for device in new_devices
+            if is_light_device(device.dev_type)
+        ]
+        if new_lights:
+            async_add_entities(new_lights)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"{SIGNAL_ADD_ENTITIES}_{entry.entry_id}", _async_add_new_lights
+        )
+    )
+
 
 class DaliCenterLight(DaliDeviceEntity, LightEntity):
     """Representation of a Dali Center Light."""
@@ -159,7 +177,7 @@ class DaliCenterLight(DaliDeviceEntity, LightEntity):
     _attr_is_on: bool | None = None
     _attr_brightness: int | None = None
     _white_level: int | None = None
-    _attr_color_mode: ColorMode | str | None = None
+    _attr_color_mode: ColorMode | None = None
     _attr_color_temp_kelvin: int | None = None
     _attr_hs_color: tuple[float, float] | None = None
     _attr_rgbw_color: tuple[int, int, int, int] | None = None
@@ -285,9 +303,7 @@ class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
     _attr_color_temp_kelvin: int | None = 1000
     _attr_hs_color: tuple[float, float] | None = None
     _attr_rgbw_color: tuple[int, int, int, int] | None = None
-    _attr_supported_color_modes: set[ColorMode] | set[str] | None = {
-        ColorMode.BRIGHTNESS
-    }
+    _attr_supported_color_modes: set[ColorMode] | None = {ColorMode.BRIGHTNESS}
 
     def __init__(self, group: Group) -> None:
         """Initialize the light group."""
@@ -413,9 +429,7 @@ class DaliCenterAllLights(DaliDeviceEntity, LightEntity):
     _attr_color_temp_kelvin: int | None = 1000
     _attr_hs_color: tuple[float, float] | None = None
     _attr_rgbw_color: tuple[int, int, int, int] | None = None
-    _attr_supported_color_modes: set[ColorMode] | set[str] | None = {
-        ColorMode.BRIGHTNESS
-    }
+    _attr_supported_color_modes: set[ColorMode] | None = {ColorMode.BRIGHTNESS}
     _all_light_entity_ids: list[str] = []
 
     def __init__(self, controller: AllLightsController, config_entry_id: str) -> None:

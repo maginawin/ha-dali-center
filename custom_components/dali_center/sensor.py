@@ -22,10 +22,11 @@ from homeassistant.components.sensor import (
 from homeassistant.const import LIGHT_LUX, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, SIGNAL_ADD_ENTITIES
 from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
@@ -53,6 +54,26 @@ async def async_setup_entry(
 
     if sensors:
         async_add_entities(sensors)
+
+    @callback
+    def _async_add_new_sensors(new_devices: list[Device]) -> None:
+        """Add new sensor entities discovered by bus scan."""
+        new_sensors: list[SensorEntity] = []
+        for device in new_devices:
+            if is_light_device(device.dev_type):
+                new_sensors.append(DaliCenterEnergySensor(device))
+            elif is_motion_sensor(device.dev_type):
+                new_sensors.append(DaliCenterMotionSensor(device))
+            elif is_illuminance_sensor(device.dev_type):
+                new_sensors.append(DaliCenterIlluminanceSensor(device))
+        if new_sensors:
+            async_add_entities(new_sensors)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"{SIGNAL_ADD_ENTITIES}_{entry.entry_id}", _async_add_new_sensors
+        )
+    )
 
 
 class DaliCenterEnergySensor(DaliDeviceEntity, SensorEntity):

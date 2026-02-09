@@ -1,4 +1,14 @@
 {
+    "services": {
+        "scan_bus": {
+            "name": "Scan bus",
+            "description": "Scan the DALI bus for devices. New devices are automatically added and missing devices are removed."
+        },
+        "stop_scan": {
+            "name": "Stop scan",
+            "description": "Stop an in-progress DALI bus scan. No changes are made to existing devices."
+        }
+    },
     "entity": {
         "sensor": {
             "energy": {

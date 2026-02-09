@@ -65,7 +65,7 @@ class TestDaliCenterPanelEvent:
             patch.object(panel_event, "_trigger_event") as mock_trigger,
             patch.object(panel_event, "schedule_update_ha_state") as mock_schedule,
         ):
-            panel_event._handle_device_update(status)  # noqa: SLF001
+            panel_event._handle_device_update(status)
 
             # CRITICAL: call_soon_threadsafe should NOT be called
             # The buggy implementation calls it, causing the segfault
@@ -92,7 +92,7 @@ class TestDaliCenterPanelEvent:
             patch.object(panel_event, "_trigger_event") as mock_trigger,
             patch.object(panel_event, "schedule_update_ha_state") as mock_schedule,
         ):
-            panel_event._handle_device_update(status)  # noqa: SLF001
+            panel_event._handle_device_update(status)
 
             # Should NOT use call_soon_threadsafe
             mock_hass.loop.call_soon_threadsafe.assert_not_called()
@@ -117,7 +117,7 @@ class TestDaliCenterPanelEvent:
             patch.object(panel_event, "_trigger_event"),
             patch.object(panel_event, "schedule_update_ha_state"),
         ):
-            panel_event._handle_device_update(status)  # noqa: SLF001
+            panel_event._handle_device_update(status)
 
             # Should NOT use call_soon_threadsafe
             mock_hass.loop.call_soon_threadsafe.assert_not_called()
