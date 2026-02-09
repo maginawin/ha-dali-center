@@ -177,7 +177,7 @@ class DaliCenterLight(DaliDeviceEntity, LightEntity):
     _attr_is_on: bool | None = None
     _attr_brightness: int | None = None
     _white_level: int | None = None
-    _attr_color_mode: ColorMode | str | None = None
+    _attr_color_mode: ColorMode | None = None
     _attr_color_temp_kelvin: int | None = None
     _attr_hs_color: tuple[float, float] | None = None
     _attr_rgbw_color: tuple[int, int, int, int] | None = None
@@ -303,9 +303,7 @@ class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
     _attr_color_temp_kelvin: int | None = 1000
     _attr_hs_color: tuple[float, float] | None = None
     _attr_rgbw_color: tuple[int, int, int, int] | None = None
-    _attr_supported_color_modes: set[ColorMode] | set[str] | None = {
-        ColorMode.BRIGHTNESS
-    }
+    _attr_supported_color_modes: set[ColorMode] | None = {ColorMode.BRIGHTNESS}
 
     def __init__(self, group: Group) -> None:
         """Initialize the light group."""
@@ -431,9 +429,7 @@ class DaliCenterAllLights(DaliDeviceEntity, LightEntity):
     _attr_color_temp_kelvin: int | None = 1000
     _attr_hs_color: tuple[float, float] | None = None
     _attr_rgbw_color: tuple[int, int, int, int] | None = None
-    _attr_supported_color_modes: set[ColorMode] | set[str] | None = {
-        ColorMode.BRIGHTNESS
-    }
+    _attr_supported_color_modes: set[ColorMode] | None = {ColorMode.BRIGHTNESS}
     _all_light_entity_ids: list[str] = []
 
     def __init__(self, controller: AllLightsController, config_entry_id: str) -> None:

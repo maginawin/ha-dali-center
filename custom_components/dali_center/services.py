@@ -60,7 +60,7 @@ def _resolve_entry_from_device_id(
     for entry_id in device.config_entries:
         entry = hass.config_entries.async_get_entry(entry_id)
         if entry is not None and entry.domain == DOMAIN:
-            return entry  # type: ignore[return-value]
+            return entry
     return None
 
 

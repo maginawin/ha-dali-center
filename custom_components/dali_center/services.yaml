@@ -1,11 +1,19 @@
 scan_bus:
-  target:
-    device:
-      integration: dali_center
-  fields: {}
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: dali_center
+          multiple: true
 
 stop_scan:
-  target:
-    device:
-      integration: dali_center
-  fields: {}
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: dali_center
+          multiple: true
