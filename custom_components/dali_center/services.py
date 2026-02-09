@@ -73,7 +73,8 @@ async def async_do_bus_scan(hass: HomeAssistant, entry: DaliCenterConfigEntry) -
     # Show "scanning" notification.
     async_create(
         hass,
-        "Scanning DALI bus. Light control may be temporarily unresponsive.",
+        "Scanning DALI bus. This may take 5–10 minutes. "
+        "Light control may be temporarily unresponsive.",
         title=f"DALI Center ({gw_sn}): Bus Scan",
         notification_id=notification_id,
     )
