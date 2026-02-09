@@ -1,4 +1,4 @@
-"""Tests for DALI bus scan logic in __init__.py."""
+"""Tests for DALI bus scan logic in services.py."""
 
 from __future__ import annotations
 
@@ -62,26 +62,26 @@ def _make_hass() -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
-# _async_do_bus_scan
+# async_do_bus_scan
 # ---------------------------------------------------------------------------
 class TestAsyncDoBusScan:
-    """Test _async_do_bus_scan function."""
+    """Test async_do_bus_scan function."""
 
     @pytest.fixture(autouse=True)
     def _patch_ha_helpers(self) -> None:  # type: ignore[misc]
-        """Patch Home Assistant helper functions used by _async_do_bus_scan."""
+        """Patch Home Assistant helper functions used by async_do_bus_scan."""
         with (
             patch(
-                "custom_components.dali_center.async_create"
+                "custom_components.dali_center.services.async_create"
             ) as self.mock_notify_create,
             patch(
-                "custom_components.dali_center.async_dismiss"
+                "custom_components.dali_center.services.async_dismiss"
             ) as self.mock_notify_dismiss,
             patch(
-                "custom_components.dali_center.async_dispatcher_send"
+                "custom_components.dali_center.services.async_dispatcher_send"
             ) as self.mock_dispatcher_send,
             patch(
-                "custom_components.dali_center.dr.async_get"
+                "custom_components.dali_center.services.dr.async_get"
             ) as self.mock_dev_reg_get,
         ):
             self.mock_dev_reg = MagicMock()
@@ -90,7 +90,7 @@ class TestAsyncDoBusScan:
 
     async def test_scan_discovers_new_devices(self) -> None:
         """New devices from scan are added to runtime_data and dispatched."""
-        from custom_components.dali_center import _async_do_bus_scan
+        from custom_components.dali_center.services import async_do_bus_scan
 
         gateway = _make_gateway()
         existing_dev = _make_device("existing_1")
@@ -100,7 +100,7 @@ class TestAsyncDoBusScan:
         entry = _make_entry(gateway, devices=[existing_dev])
         hass = _make_hass()
 
-        await _async_do_bus_scan(hass, entry)
+        await async_do_bus_scan(hass, entry)
 
         # New device should be appended to runtime_data.devices.
         assert new_dev in entry.runtime_data.devices
@@ -118,7 +118,7 @@ class TestAsyncDoBusScan:
 
     async def test_scan_removes_missing_devices(self) -> None:
         """Devices missing from scan results are removed from runtime_data and registry."""
-        from custom_components.dali_center import _async_do_bus_scan
+        from custom_components.dali_center.services import async_do_bus_scan
 
         gateway = _make_gateway()
         remaining_dev = _make_device("remaining_1")
@@ -133,7 +133,7 @@ class TestAsyncDoBusScan:
         mock_device_entry.id = "ha_device_id_removed"
         self.mock_dev_reg.async_get_device.return_value = mock_device_entry
 
-        await _async_do_bus_scan(hass, entry)
+        await async_do_bus_scan(hass, entry)
 
         # Removed device should no longer be in runtime_data.
         assert removed_dev not in entry.runtime_data.devices
@@ -146,7 +146,7 @@ class TestAsyncDoBusScan:
 
     async def test_scan_no_changes(self) -> None:
         """When scan results match existing devices, no add/remove actions occur."""
-        from custom_components.dali_center import _async_do_bus_scan
+        from custom_components.dali_center.services import async_do_bus_scan
 
         gateway = _make_gateway()
         dev = _make_device("dev_1")
@@ -155,7 +155,7 @@ class TestAsyncDoBusScan:
         entry = _make_entry(gateway, devices=[dev])
         hass = _make_hass()
 
-        await _async_do_bus_scan(hass, entry)
+        await async_do_bus_scan(hass, entry)
 
         # No SIGNAL_ADD_ENTITIES dispatch (only scan state signals).
         add_calls = [
@@ -170,14 +170,14 @@ class TestAsyncDoBusScan:
 
     async def test_scan_sends_scan_state_signals(self) -> None:
         """Scan state signals are sent at start (True) and end (False)."""
-        from custom_components.dali_center import _async_do_bus_scan
+        from custom_components.dali_center.services import async_do_bus_scan
 
         gateway = _make_gateway()
         gateway.scan_bus.return_value = []
         entry = _make_entry(gateway)
         hass = _make_hass()
 
-        await _async_do_bus_scan(hass, entry)
+        await async_do_bus_scan(hass, entry)
 
         scan_state_signal = f"{SIGNAL_SCAN_STATE}_{entry.entry_id}"
         scan_calls = [
@@ -193,21 +193,21 @@ class TestAsyncDoBusScan:
 
     async def test_scan_shows_notification(self) -> None:
         """Persistent notifications are shown during scan and on completion."""
-        from custom_components.dali_center import _async_do_bus_scan
+        from custom_components.dali_center.services import async_do_bus_scan
 
         gateway = _make_gateway()
         gateway.scan_bus.return_value = []
         entry = _make_entry(gateway)
         hass = _make_hass()
 
-        await _async_do_bus_scan(hass, entry)
+        await async_do_bus_scan(hass, entry)
 
         # At least two notifications: scanning + result.
         assert self.mock_notify_create.call_count >= 2
 
     async def test_scan_timeout_shows_notification(self) -> None:
         """Timeout during scan shows failure notification and makes no changes."""
-        from custom_components.dali_center import _async_do_bus_scan
+        from custom_components.dali_center.services import async_do_bus_scan
 
         gateway = _make_gateway()
         gateway.scan_bus.side_effect = TimeoutError()
@@ -216,7 +216,7 @@ class TestAsyncDoBusScan:
         entry = _make_entry(gateway, devices=[dev])
         hass = _make_hass()
 
-        await _async_do_bus_scan(hass, entry)
+        await async_do_bus_scan(hass, entry)
 
         # Device list unchanged.
         assert len(entry.runtime_data.devices) == 1
@@ -231,7 +231,7 @@ class TestAsyncDoBusScan:
 
     async def test_scan_exception_dismisses_notification(self) -> None:
         """Unexpected exception dismisses notification and makes no changes."""
-        from custom_components.dali_center import _async_do_bus_scan
+        from custom_components.dali_center.services import async_do_bus_scan
 
         gateway = _make_gateway()
         gateway.scan_bus.side_effect = RuntimeError("unexpected")
@@ -240,7 +240,7 @@ class TestAsyncDoBusScan:
         entry = _make_entry(gateway, devices=[dev])
         hass = _make_hass()
 
-        await _async_do_bus_scan(hass, entry)
+        await async_do_bus_scan(hass, entry)
 
         # Device list unchanged.
         assert len(entry.runtime_data.devices) == 1
@@ -250,43 +250,43 @@ class TestAsyncDoBusScan:
 
 
 # ---------------------------------------------------------------------------
-# _async_do_stop_scan
+# async_do_stop_scan
 # ---------------------------------------------------------------------------
 class TestAsyncDoStopScan:
-    """Test _async_do_stop_scan function."""
+    """Test async_do_stop_scan function."""
 
     @pytest.fixture(autouse=True)
     def _patch_ha_helpers(self) -> None:  # type: ignore[misc]
         """Patch Home Assistant helper functions."""
         with (
             patch(
-                "custom_components.dali_center.async_dismiss"
+                "custom_components.dali_center.services.async_dismiss"
             ) as self.mock_notify_dismiss,
         ):
             yield
 
     async def test_stop_scan_when_scanning(self) -> None:
         """Stop scan calls gateway.stop_scan and dismisses notification."""
-        from custom_components.dali_center import _async_do_stop_scan
+        from custom_components.dali_center.services import async_do_stop_scan
 
         gateway = _make_gateway(bus_scanning=True)
         entry = _make_entry(gateway)
         hass = _make_hass()
 
-        await _async_do_stop_scan(hass, entry)
+        await async_do_stop_scan(hass, entry)
 
         gateway.stop_scan.assert_awaited_once()
         self.mock_notify_dismiss.assert_called_once()
 
     async def test_stop_scan_when_not_scanning(self) -> None:
         """Stop scan does nothing when no scan is in progress."""
-        from custom_components.dali_center import _async_do_stop_scan
+        from custom_components.dali_center.services import async_do_stop_scan
 
         gateway = _make_gateway(bus_scanning=False)
         entry = _make_entry(gateway)
         hass = _make_hass()
 
-        await _async_do_stop_scan(hass, entry)
+        await async_do_stop_scan(hass, entry)
 
         gateway.stop_scan.assert_not_awaited()
         self.mock_notify_dismiss.assert_not_called()
@@ -300,7 +300,7 @@ class TestRemoveDevices:
 
     def test_removes_from_runtime_data_and_registry(self) -> None:
         """Removed devices are cleaned from both runtime_data and device registry."""
-        from custom_components.dali_center import _remove_devices
+        from custom_components.dali_center.services import _remove_devices
 
         gateway = _make_gateway()
         dev_a = _make_device("dev_a")
@@ -311,7 +311,7 @@ class TestRemoveDevices:
         mock_device_entry = MagicMock()
         mock_device_entry.id = "ha_id_b"
 
-        with patch("custom_components.dali_center.dr.async_get") as mock_dr:
+        with patch("custom_components.dali_center.services.dr.async_get") as mock_dr:
             mock_dev_reg = MagicMock()
             mock_dr.return_value = mock_dev_reg
             mock_dev_reg.async_get_device.return_value = mock_device_entry
@@ -324,7 +324,7 @@ class TestRemoveDevices:
 
     def test_suppresses_value_error_for_missing_device(self) -> None:
         """Does not raise if device is already absent from runtime_data list."""
-        from custom_components.dali_center import _remove_devices
+        from custom_components.dali_center.services import _remove_devices
 
         gateway = _make_gateway()
         dev_a = _make_device("dev_a")
@@ -332,7 +332,7 @@ class TestRemoveDevices:
         entry = _make_entry(gateway, devices=[dev_a])
         hass = _make_hass()
 
-        with patch("custom_components.dali_center.dr.async_get") as mock_dr:
+        with patch("custom_components.dali_center.services.dr.async_get") as mock_dr:
             mock_dev_reg = MagicMock()
             mock_dr.return_value = mock_dev_reg
             mock_dev_reg.async_get_device.return_value = None
@@ -352,7 +352,7 @@ class TestResolveEntryFromDeviceId:
 
     def test_resolves_valid_device_id(self) -> None:
         """Returns config entry for a valid device_id."""
-        from custom_components.dali_center import _resolve_entry_from_device_id
+        from custom_components.dali_center.services import _resolve_entry_from_device_id
 
         hass = _make_hass()
         mock_device = MagicMock()
@@ -361,7 +361,7 @@ class TestResolveEntryFromDeviceId:
         mock_entry = MagicMock()
         mock_entry.domain = DOMAIN
 
-        with patch("custom_components.dali_center.dr.async_get") as mock_dr:
+        with patch("custom_components.dali_center.services.dr.async_get") as mock_dr:
             mock_dev_reg = MagicMock()
             mock_dr.return_value = mock_dev_reg
             mock_dev_reg.async_get.return_value = mock_device
@@ -374,11 +374,11 @@ class TestResolveEntryFromDeviceId:
 
     def test_returns_none_for_unknown_device(self) -> None:
         """Returns None when device_id is not found in registry."""
-        from custom_components.dali_center import _resolve_entry_from_device_id
+        from custom_components.dali_center.services import _resolve_entry_from_device_id
 
         hass = _make_hass()
 
-        with patch("custom_components.dali_center.dr.async_get") as mock_dr:
+        with patch("custom_components.dali_center.services.dr.async_get") as mock_dr:
             mock_dev_reg = MagicMock()
             mock_dr.return_value = mock_dev_reg
             mock_dev_reg.async_get.return_value = None
@@ -389,7 +389,7 @@ class TestResolveEntryFromDeviceId:
 
     def test_returns_none_for_wrong_domain(self) -> None:
         """Returns None when device belongs to a different integration."""
-        from custom_components.dali_center import _resolve_entry_from_device_id
+        from custom_components.dali_center.services import _resolve_entry_from_device_id
 
         hass = _make_hass()
         mock_device = MagicMock()
@@ -398,7 +398,7 @@ class TestResolveEntryFromDeviceId:
         mock_entry = MagicMock()
         mock_entry.domain = "other_integration"
 
-        with patch("custom_components.dali_center.dr.async_get") as mock_dr:
+        with patch("custom_components.dali_center.services.dr.async_get") as mock_dr:
             mock_dev_reg = MagicMock()
             mock_dr.return_value = mock_dev_reg
             mock_dev_reg.async_get.return_value = mock_device

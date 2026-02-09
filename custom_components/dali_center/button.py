@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER, SIGNAL_ADD_ENTITIES, SIGNAL_SCAN_STATE
 from .entity import DaliDeviceEntity
+from .services import async_do_bus_scan, async_do_stop_scan
 from .types import DaliCenterConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -156,11 +157,6 @@ class DaliCenterScanBusButton(ButtonEntity):
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to scan state changes to update availability."""
-        # Import here to avoid circular dependency at module level.
-        from . import _async_do_bus_scan  # noqa: PLC0415
-
-        self._do_bus_scan = _async_do_bus_scan
-
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -181,7 +177,7 @@ class DaliCenterScanBusButton(ButtonEntity):
         """Handle button press to start bus scan."""
         _LOGGER.info("Bus scan requested for gateway %s", self._gateway.gw_sn)
         # Run in background so the button press returns immediately.
-        self.hass.async_create_task(self._do_bus_scan(self.hass, self._entry))
+        self.hass.async_create_task(async_do_bus_scan(self.hass, self._entry))
 
     @callback
     def _handle_scan_state(self, scanning: bool) -> None:
@@ -219,10 +215,6 @@ class DaliCenterStopScanButton(ButtonEntity):
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to scan state changes to update availability."""
-        from . import _async_do_stop_scan  # noqa: PLC0415
-
-        self._do_stop_scan = _async_do_stop_scan
-
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -242,7 +234,7 @@ class DaliCenterStopScanButton(ButtonEntity):
     async def async_press(self) -> None:
         """Handle button press to stop bus scan."""
         _LOGGER.info("Stop scan requested for gateway %s", self._gateway.gw_sn)
-        await self._do_stop_scan(self.hass, self._entry)
+        await async_do_stop_scan(self.hass, self._entry)
 
     @callback
     def _handle_scan_state(self, scanning: bool) -> None:

@@ -75,10 +75,11 @@ class TestDaliCenterScanBusButton:
         mock_hass = MagicMock()
         button.hass = mock_hass
 
-        mock_do_scan = AsyncMock()
-        button._do_bus_scan = mock_do_scan
-
-        await button.async_press()
+        with patch(
+            "custom_components.dali_center.button.async_do_bus_scan",
+            new_callable=AsyncMock,
+        ):
+            await button.async_press()
 
         # Should use async_create_task (fire-and-forget).
         mock_hass.async_create_task.assert_called_once()
@@ -146,13 +147,14 @@ class TestDaliCenterStopScanButton:
         mock_hass = MagicMock()
         button.hass = mock_hass
 
-        mock_do_stop = AsyncMock()
-        button._do_stop_scan = mock_do_stop
+        with patch(
+            "custom_components.dali_center.button.async_do_stop_scan",
+            new_callable=AsyncMock,
+        ) as mock_do_stop:
+            await button.async_press()
 
-        await button.async_press()
-
-        # Should await directly (not fire-and-forget).
-        mock_do_stop.assert_awaited_once_with(mock_hass, entry)
+            # Should await directly (not fire-and-forget).
+            mock_do_stop.assert_awaited_once_with(mock_hass, entry)
 
     @pytest.mark.parametrize(
         ("scanning_before", "scanning_after"),
