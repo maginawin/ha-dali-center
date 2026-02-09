@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-02-09
+
+### Added
+
+- DALI bus scan with dynamic entity management (#71)
+
+### Fixed
+
+- Handle scan cancellation and always send stop command (#72)
+- Add estimated scan duration to notification
+
+### Changed
+
+- Simplify code and reduce duplication (#70)
+- Apply HA best practices to all platforms (#68)
+
+### Documentation
+
+- Add minimum gateway version requirements
+
 ## [0.11.5] - 2025-12-16
 
 ### Changed
