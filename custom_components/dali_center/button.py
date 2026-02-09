@@ -142,6 +142,7 @@ class DaliCenterScanBusButton(ButtonEntity):
         """Initialize the scan bus button."""
         self._gateway = gateway
         self._entry = entry
+        self._is_scanning = gateway.bus_scanning
         self._attr_name = "Scan Bus"
         self._attr_unique_id = f"{gateway.gw_sn}_scan_bus"
         self._attr_device_info = DeviceInfo(
@@ -151,7 +152,7 @@ class DaliCenterScanBusButton(ButtonEntity):
     @property
     def available(self) -> bool:
         """Scan button is unavailable while a scan is in progress."""
-        return not self._gateway.bus_scanning
+        return not self._is_scanning
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to scan state changes to update availability."""
@@ -185,6 +186,7 @@ class DaliCenterScanBusButton(ButtonEntity):
     @callback
     def _handle_scan_state(self, scanning: bool) -> None:
         """Update availability when scan state changes."""
+        self._is_scanning = scanning
         self.async_write_ha_state()
 
     @callback
@@ -203,6 +205,7 @@ class DaliCenterStopScanButton(ButtonEntity):
         """Initialize the stop scan button."""
         self._gateway = gateway
         self._entry = entry
+        self._is_scanning = gateway.bus_scanning
         self._attr_name = "Stop Scan"
         self._attr_unique_id = f"{gateway.gw_sn}_stop_scan"
         self._attr_device_info = DeviceInfo(
@@ -212,7 +215,7 @@ class DaliCenterStopScanButton(ButtonEntity):
     @property
     def available(self) -> bool:
         """Stop button is only available while a scan is in progress."""
-        return self._gateway.bus_scanning
+        return self._is_scanning
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to scan state changes to update availability."""
@@ -244,6 +247,7 @@ class DaliCenterStopScanButton(ButtonEntity):
     @callback
     def _handle_scan_state(self, scanning: bool) -> None:
         """Update availability when scan state changes."""
+        self._is_scanning = scanning
         self.async_write_ha_state()
 
     @callback
