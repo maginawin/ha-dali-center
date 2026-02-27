@@ -343,6 +343,12 @@ class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
 
+        _LOGGER.debug(
+            "Group %s: async_turn_on called, brightness=%s, kwargs=%s",
+            self._group.name,
+            brightness,
+            kwargs,
+        )
         self._group.turn_on(
             brightness=brightness,
             color_temp_kelvin=color_temp_kelvin,
@@ -351,6 +357,7 @@ class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light group."""
+        _LOGGER.debug("Group %s: async_turn_off called", self._group.name)
         self._group.turn_off()
 
     async def async_added_to_hass(self) -> None:
