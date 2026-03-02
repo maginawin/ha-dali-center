@@ -9,12 +9,14 @@ from typing import TYPE_CHECKING, Any, cast
 from propcache.api import cached_property
 from PySrDaliGateway import AllLightsController, CallbackEventType, Device, Group
 from PySrDaliGateway.helper import is_light_device
-from PySrDaliGateway.types import LightStatus
+from PySrDaliGateway.types import DeviceParamType, LightStatus
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
+    ATTR_MAX_COLOR_TEMP_KELVIN,
+    ATTR_MIN_COLOR_TEMP_KELVIN,
     ATTR_RGBW_COLOR,
     ATTR_SUPPORTED_COLOR_MODES,
     LightEntity,
@@ -247,6 +249,15 @@ class DaliCenterLight(DaliDeviceEntity, LightEntity):
             )
         )
 
+        # Register DEV_PARAM listener and query CCT range for CCT devices.
+        if self._light.dev_type == "0102":
+            self.async_on_remove(
+                self._light.register_listener(
+                    CallbackEventType.DEV_PARAM, self._handle_dev_param_update
+                )
+            )
+            self._light.get_device_parameters()
+
         self._light.read_status()
 
     @callback
@@ -289,6 +300,19 @@ class DaliCenterLight(DaliDeviceEntity, LightEntity):
             self._attr_rgbw_color = status["rgbw_color"]
 
         self.schedule_update_ha_state()
+
+    @callback
+    def _handle_dev_param_update(self, param: DeviceParamType) -> None:
+        """Handle device parameter update for CCT range."""
+        cct_warm = param.get("cct_warm", 0)
+        cct_cool = param.get("cct_cool", 0)
+
+        if not cct_warm or not cct_cool:
+            return
+
+        self._attr_min_color_temp_kelvin = cct_warm
+        self._attr_max_color_temp_kelvin = cct_cool
+        self.async_write_ha_state()
 
 
 class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
@@ -409,6 +433,48 @@ class DaliCenterLightGroup(DaliCenterEntity, LightEntity):
             self._attr_rgbw_color = state.rgbw_color
         if state.color_mode is not None:
             self._attr_color_mode = state.color_mode
+
+        self._calculate_group_cct_range()
+
+    def _calculate_group_cct_range(self) -> None:
+        """Calculate group CCT range as union of member CCT ranges.
+
+        Only considers members that support COLOR_TEMP and have non-default
+        CCT values (i.e., device parameters have been received).
+        """
+        if (
+            not self._attr_supported_color_modes
+            or ColorMode.COLOR_TEMP not in self._attr_supported_color_modes
+        ):
+            return
+
+        warm_values: list[int] = []
+        cool_values: list[int] = []
+
+        for entity_id in self._group_entity_ids:
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue
+            if ColorMode.COLOR_TEMP not in (
+                state.attributes.get(ATTR_SUPPORTED_COLOR_MODES) or []
+            ):
+                continue
+
+            min_ct = state.attributes.get(ATTR_MIN_COLOR_TEMP_KELVIN)
+            max_ct = state.attributes.get(ATTR_MAX_COLOR_TEMP_KELVIN)
+
+            # Skip members still at defaults (parameters not yet received).
+            if min_ct is None or max_ct is None:
+                continue
+            if min_ct == 1000 and max_ct == 8000:
+                continue
+
+            warm_values.append(min_ct)
+            cool_values.append(max_ct)
+
+        if warm_values and cool_values:
+            self._attr_min_color_temp_kelvin = min(warm_values)
+            self._attr_max_color_temp_kelvin = max(cool_values)
 
     @callback
     def _handle_member_light_update(self, event: Event[EventStateChangedData]) -> None:
