@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-03-02
+
+### Added
+
+- Read CCT range from device parameters for individual lights (#73)
+- Aggregate group CCT range as union of member device ranges (#73)
+
 ## [0.12.0] - 2026-02-09
 
 ### Added
