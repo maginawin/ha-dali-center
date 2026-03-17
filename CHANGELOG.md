@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-03-17
+
+### Added
+
+- Power On Level number entity for configuring device power-on brightness (#78)
+- System Failure Level number entity for configuring device failure fallback (#78)
+- CCT Coolest / CCT Warmest number entities for configuring color temperature range on CCT devices (#78)
+- Batch configure support for new parameters in Options Flow (#78)
+
+### Changed
+
+- Refactored base class `async_set_native_value` to generic implementation (#78)
+- Bumped PySrDaliGateway minimum to >=0.20.4 (#78)
+
 ## [0.12.1] - 2026-03-02
 
 ### Added
@@ -363,7 +377,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.11.5...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/maginawin/ha-dali-center/compare/v0.12.1...v0.13.0
+[0.12.1]: https://github.com/maginawin/ha-dali-center/compare/v0.12.0...v0.12.1
+[0.12.0]: https://github.com/maginawin/ha-dali-center/compare/v0.11.5...v0.12.0
 [0.11.5]: https://github.com/maginawin/ha-dali-center/compare/v0.11.4...v0.11.5
 [0.11.4]: https://github.com/maginawin/ha-dali-center/compare/v0.11.3...v0.11.4
 [0.11.3]: https://github.com/maginawin/ha-dali-center/compare/v0.11.2...v0.11.3
