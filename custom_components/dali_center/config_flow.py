@@ -64,19 +64,25 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         dev_id = getattr(device, "dev_id", None)
         return str(name or dev_id or "Unknown device")
 
-    @staticmethod
-    def _format_parameter_summary(params: DeviceParamType) -> str:
-        """Format parameter dictionary as a readable summary."""
-        param_lines: list[str] = []
-        if "fade_time" in params:
-            param_lines.append(f"- Fade time: {params['fade_time']}")
-        if "fade_rate" in params:
-            param_lines.append(f"- Fade rate: {params['fade_rate']}")
-        if "min_brightness" in params:
-            param_lines.append(f"- Min brightness: {params['min_brightness']}")
-        if "max_brightness" in params:
-            param_lines.append(f"- Max brightness: {params['max_brightness']}")
+    _PARAM_LABELS: dict[str, str] = {
+        "fade_time": "Fade time",
+        "fade_rate": "Fade rate",
+        "min_brightness": "Min brightness",
+        "max_brightness": "Max brightness",
+        "power_status": "Power on level",
+        "system_failure_status": "System failure level",
+        "cct_cool": "CCT coolest",
+        "cct_warm": "CCT warmest",
+    }
 
+    @classmethod
+    def _format_parameter_summary(cls, params: DeviceParamType) -> str:
+        """Format parameter dictionary as a readable summary."""
+        param_lines = [
+            f"- {label}: {params[key]}"  # type: ignore[literal-required]
+            for key, label in cls._PARAM_LABELS.items()
+            if key in params
+        ]
         return "\n".join(param_lines) if param_lines else "(none)"
 
     async def _validate_batch_input(
@@ -90,48 +96,46 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
         params: DeviceParamType = {}
         selected_targets = user_input.get("targets", [])
-        fade_time: int | None = None
-        fade_rate: int | None = None
-        min_brightness: int | None = None
-        max_brightness: int | None = None
 
-        def _parse_int(field: str, min_value: int, max_value: int) -> int | None:
+        # (field_name, min_value, max_value)
+        param_fields: list[tuple[str, int, int]] = [
+            ("fade_time", 0, 15),
+            ("fade_rate", 0, 15),
+            ("min_brightness", 10, 1000),
+            ("max_brightness", 10, 1000),
+            ("power_status", 10, 1000),
+            ("system_failure_status", 0, 254),
+            ("cct_cool", 1000, 10000),
+            ("cct_warm", 1000, 10000),
+        ]
+        parsed: dict[str, int] = {}
+        for field, min_val, max_val in param_fields:
             raw = user_input.get(field, "")
             if raw in ("", None):
-                return None
+                continue
             try:
                 value = int(raw)
             except (TypeError, ValueError):
                 errors[field] = "invalid_format"
-                return None
-            if not min_value <= value <= max_value:
+                continue
+            if not min_val <= value <= max_val:
                 errors[field] = "out_of_range"
-                return None
-            return value
-
-        fade_time = _parse_int("fade_time", 0, 15)
-        fade_rate = _parse_int("fade_rate", 0, 15)
-        min_brightness = _parse_int("min_brightness", 10, 1000)
-        max_brightness = _parse_int("max_brightness", 10, 1000)
+                continue
+            parsed[field] = value
 
         if (
             not errors.get("min_brightness")
             and not errors.get("max_brightness")
-            and min_brightness is not None
-            and max_brightness is not None
-            and min_brightness > max_brightness
+            and "min_brightness" in parsed
+            and "max_brightness" in parsed
+            and parsed["min_brightness"] > parsed["max_brightness"]
         ):
             errors["max_brightness"] = "min_max_conflict"
 
         if not errors:
-            if fade_time is not None:
-                params["fade_time"] = fade_time
-            if fade_rate is not None:
-                params["fade_rate"] = fade_rate
-            if min_brightness is not None:
-                params["min_brightness"] = min_brightness
-            if max_brightness is not None:
-                params["max_brightness"] = max_brightness
+            for field, _, _ in param_fields:
+                if field in parsed:
+                    params[field] = parsed[field]  # type: ignore[literal-required]
 
             if not params:
                 errors["base"] = "no_parameters_selected"
@@ -377,6 +381,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional("fade_rate", default=""): cv.string,
                 vol.Optional("min_brightness", default=""): cv.string,
                 vol.Optional("max_brightness", default=""): cv.string,
+                vol.Optional("power_status", default=""): cv.string,
+                vol.Optional("system_failure_status", default=""): cv.string,
+                vol.Optional("cct_cool", default=""): cv.string,
+                vol.Optional("cct_warm", default=""): cv.string,
             }
         )
 
