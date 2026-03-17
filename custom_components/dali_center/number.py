@@ -19,7 +19,34 @@ from .const import DOMAIN, SIGNAL_ADD_ENTITIES
 from .entity import DaliDeviceEntity
 from .types import DaliCenterConfigEntry
 
+DeviceParameterName = Literal[
+    "fade_time",
+    "fade_rate",
+    "min_brightness",
+    "max_brightness",
+    "power_status",
+    "system_failure_status",
+    "cct_cool",
+    "cct_warm",
+]
+
 PARALLEL_UPDATES = 1  # Serial control to prevent race conditions
+
+
+def _create_number_entities(device: Device) -> list[NumberEntity]:
+    """Create number entities for a light device based on its type."""
+    entities: list[NumberEntity] = [
+        DaliCenterFadeTimeNumber(device),
+        DaliCenterFadeRateNumber(device),
+        DaliCenterMinBrightnessNumber(device),
+        DaliCenterMaxBrightnessNumber(device),
+        DaliCenterPowerOnLevelNumber(device),
+        DaliCenterSystemFailureLevelNumber(device),
+    ]
+    if device.dev_type == "0102":
+        entities.append(DaliCenterCctCoolestNumber(device))
+        entities.append(DaliCenterCctWarmestNumber(device))
+    return entities
 
 
 async def async_setup_entry(
@@ -35,10 +62,7 @@ async def async_setup_entry(
         if not is_light_device(device.dev_type):
             continue
 
-        numbers.append(DaliCenterFadeTimeNumber(device))
-        numbers.append(DaliCenterFadeRateNumber(device))
-        numbers.append(DaliCenterMinBrightnessNumber(device))
-        numbers.append(DaliCenterMaxBrightnessNumber(device))
+        numbers.extend(_create_number_entities(device))
 
     if numbers:
         async_add_entities(numbers)
@@ -50,10 +74,7 @@ async def async_setup_entry(
         for device in new_devices:
             if not is_light_device(device.dev_type):
                 continue
-            new_numbers.append(DaliCenterFadeTimeNumber(device))
-            new_numbers.append(DaliCenterFadeRateNumber(device))
-            new_numbers.append(DaliCenterMinBrightnessNumber(device))
-            new_numbers.append(DaliCenterMaxBrightnessNumber(device))
+            new_numbers.extend(_create_number_entities(device))
         if new_numbers:
             async_add_entities(new_numbers)
 
@@ -73,18 +94,17 @@ class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):
     def __init__(
         self,
         device: Device,
-        parameter: Literal[
-            "fade_time", "fade_rate", "min_brightness", "max_brightness"
-        ],
+        parameter: DeviceParameterName,
         name: str,
         icon: str,
+        *,
+        min_value: int,
+        max_value: int,
     ) -> None:
         """Initialize the device parameter number entity."""
         super().__init__(device)
         self._device = device
-        self._parameter: Literal[
-            "fade_time", "fade_rate", "min_brightness", "max_brightness"
-        ] = parameter
+        self._parameter: DeviceParameterName = parameter
         self._attr_name = name
         self._attr_icon = icon
         self._attr_unique_id = f"{device.unique_id}_{parameter}"
@@ -98,14 +118,8 @@ class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):
             "device_type": device.dev_type,
             "device_model": device.model,
         }
-
-        # Set parameter-specific min/max values
-        if parameter in ("fade_time", "fade_rate"):
-            self._attr_native_min_value = 0
-            self._attr_native_max_value = 15
-        else:  # brightness parameters (10-1000 represents 1%-100%)
-            self._attr_native_min_value = 10
-            self._attr_native_max_value = 1000
+        self._attr_native_min_value = min_value
+        self._attr_native_max_value = max_value
 
     async def async_added_to_hass(self) -> None:
         """Handle entity addition to Home Assistant."""
@@ -122,15 +136,7 @@ class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the device parameter."""
         int_value = int(value)
-        params: DeviceParamType = {}
-        if self._parameter == "fade_time":
-            params["fade_time"] = int_value
-        elif self._parameter == "fade_rate":
-            params["fade_rate"] = int_value
-        elif self._parameter == "min_brightness":
-            params["min_brightness"] = int_value
-        else:
-            params["max_brightness"] = int_value
+        params: DeviceParamType = {self._parameter: int_value}
         self._device.set_device_parameters(params)
         self._device.get_device_parameters()
 
@@ -154,6 +160,8 @@ class DaliCenterFadeTimeNumber(DaliCenterDeviceParameterNumber):
             parameter="fade_time",
             name="Fade Time",
             icon="mdi:timer-sand",
+            min_value=0,
+            max_value=15,
         )
 
 
@@ -167,6 +175,8 @@ class DaliCenterFadeRateNumber(DaliCenterDeviceParameterNumber):
             parameter="fade_rate",
             name="Fade Rate",
             icon="mdi:speedometer",
+            min_value=0,
+            max_value=15,
         )
 
 
@@ -180,6 +190,8 @@ class DaliCenterMinBrightnessNumber(DaliCenterDeviceParameterNumber):
             parameter="min_brightness",
             name="Minimum Brightness",
             icon="mdi:brightness-6",
+            min_value=10,
+            max_value=1000,
         )
 
 
@@ -193,4 +205,66 @@ class DaliCenterMaxBrightnessNumber(DaliCenterDeviceParameterNumber):
             parameter="max_brightness",
             name="Maximum Brightness",
             icon="mdi:brightness-7",
+            min_value=10,
+            max_value=1000,
+        )
+
+
+class DaliCenterPowerOnLevelNumber(DaliCenterDeviceParameterNumber):
+    """Number entity for power on level configuration."""
+
+    def __init__(self, device: Device) -> None:
+        """Initialize power on level number entity."""
+        super().__init__(
+            device=device,
+            parameter="power_status",
+            name="Power On Level",
+            icon="mdi:power-on",
+            min_value=10,
+            max_value=1000,
+        )
+
+
+class DaliCenterSystemFailureLevelNumber(DaliCenterDeviceParameterNumber):
+    """Number entity for system failure level configuration."""
+
+    def __init__(self, device: Device) -> None:
+        """Initialize system failure level number entity."""
+        super().__init__(
+            device=device,
+            parameter="system_failure_status",
+            name="System Failure Level",
+            icon="mdi:alert-outline",
+            min_value=0,
+            max_value=254,
+        )
+
+
+class DaliCenterCctCoolestNumber(DaliCenterDeviceParameterNumber):
+    """Number entity for CCT coolest temperature configuration."""
+
+    def __init__(self, device: Device) -> None:
+        """Initialize CCT coolest number entity."""
+        super().__init__(
+            device=device,
+            parameter="cct_cool",
+            name="CCT Coolest",
+            icon="mdi:thermometer-low",
+            min_value=1000,
+            max_value=10000,
+        )
+
+
+class DaliCenterCctWarmestNumber(DaliCenterDeviceParameterNumber):
+    """Number entity for CCT warmest temperature configuration."""
+
+    def __init__(self, device: Device) -> None:
+        """Initialize CCT warmest number entity."""
+        super().__init__(
+            device=device,
+            parameter="cct_warm",
+            name="CCT Warmest",
+            icon="mdi:thermometer-high",
+            min_value=1000,
+            max_value=10000,
         )
