@@ -79,7 +79,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def _format_parameter_summary(cls, params: DeviceParamType) -> str:
         """Format parameter dictionary as a readable summary."""
         param_lines = [
-            f"- {label}: {params[key]}"
+            f"- {label}: {params[key]}"  # type: ignore[literal-required]
             for key, label in cls._PARAM_LABELS.items()
             if key in params
         ]
@@ -135,7 +135,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if not errors:
             for field, _, _ in param_fields:
                 if field in parsed:
-                    params[field] = parsed[field]
+                    params[field] = parsed[field]  # type: ignore[literal-required]
 
             if not params:
                 errors["base"] = "no_parameters_selected"

@@ -136,7 +136,7 @@ class DaliCenterDeviceParameterNumber(DaliDeviceEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the device parameter."""
         int_value = int(value)
-        params: DeviceParamType = {self._parameter: int_value}
+        params: DeviceParamType = {self._parameter: int_value}  # type: ignore[misc]
         self._device.set_device_parameters(params)
         self._device.get_device_parameters()
 
