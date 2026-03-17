@@ -223,7 +223,11 @@
                     "fade_time": "Fade time (0-15)",
                     "fade_rate": "Fade rate (0-15)",
                     "min_brightness": "Min brightness (10-1000) (≈1%-100%)",
-                    "max_brightness": "Max brightness (10-1000) (≈1%-100%)"
+                    "max_brightness": "Max brightness (10-1000) (≈1%-100%)",
+                    "power_status": "Power on level (10-1000) (≈1%-100%)",
+                    "system_failure_status": "System failure level (0-254)",
+                    "cct_cool": "CCT coolest (1000-10000 K)",
+                    "cct_warm": "CCT warmest (1000-10000 K)"
                 }
             },
             "batch_configure_result": {
