@@ -51,8 +51,8 @@ class TestPowerOnLevelEntity:
         entity = DaliCenterPowerOnLevelNumber(_make_device())
         assert entity._attr_name == "Power On Level"
         assert entity._attr_icon == "mdi:power-on"
-        assert entity._attr_native_min_value == 10
-        assert entity._attr_native_max_value == 1000
+        assert entity._attr_native_min_value == 0
+        assert entity._attr_native_max_value == 255
 
     def test_read_power_status(self) -> None:
         """Entity should update native_value from DEV_PARAM callback."""
@@ -81,10 +81,31 @@ class TestPowerOnLevelEntity:
         entity = DaliCenterPowerOnLevelNumber(device)
         entity.hass = MagicMock()
 
-        await entity.async_set_native_value(800)
+        await entity.async_set_native_value(200)
 
-        device.set_device_parameters.assert_called_once_with({"power_status": 800})
+        device.set_device_parameters.assert_called_once_with({"power_status": 200})
         device.get_device_parameters.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_set_mask_value(self) -> None:
+        """Setting 255 (MASK) should send 255 to device."""
+        device = _make_device()
+        entity = DaliCenterPowerOnLevelNumber(device)
+        entity.hass = MagicMock()
+
+        await entity.async_set_native_value(255)
+
+        device.set_device_parameters.assert_called_once_with({"power_status": 255})
+
+    def test_read_mask_value(self) -> None:
+        """Entity should correctly read back MASK value (255)."""
+        entity = DaliCenterPowerOnLevelNumber(_make_device())
+        entity.hass = MagicMock()
+
+        with patch.object(entity, "schedule_update_ha_state"):
+            entity._handle_device_parameters({"power_status": 255})
+
+        assert entity._attr_native_value == 255
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +120,7 @@ class TestSystemFailureLevelEntity:
         assert entity._attr_name == "System Failure Level"
         assert entity._attr_icon == "mdi:alert-outline"
         assert entity._attr_native_min_value == 0
-        assert entity._attr_native_max_value == 254
+        assert entity._attr_native_max_value == 255
 
     def test_read_system_failure_status(self) -> None:
         """Entity should update native_value from DEV_PARAM callback."""
@@ -123,6 +144,29 @@ class TestSystemFailureLevelEntity:
         device.set_device_parameters.assert_called_once_with(
             {"system_failure_status": 0}
         )
+
+    @pytest.mark.asyncio
+    async def test_set_mask_value(self) -> None:
+        """Setting 255 (MASK) should send 255 to device."""
+        device = _make_device()
+        entity = DaliCenterSystemFailureLevelNumber(device)
+        entity.hass = MagicMock()
+
+        await entity.async_set_native_value(255)
+
+        device.set_device_parameters.assert_called_once_with(
+            {"system_failure_status": 255}
+        )
+
+    def test_read_mask_value(self) -> None:
+        """Entity should correctly read back MASK value (255)."""
+        entity = DaliCenterSystemFailureLevelNumber(_make_device())
+        entity.hass = MagicMock()
+
+        with patch.object(entity, "schedule_update_ha_state"):
+            entity._handle_device_parameters({"system_failure_status": 255})
+
+        assert entity._attr_native_value == 255
 
 
 # ---------------------------------------------------------------------------

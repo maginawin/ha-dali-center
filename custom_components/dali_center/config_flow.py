@@ -103,8 +103,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             ("fade_rate", 0, 15),
             ("min_brightness", 10, 1000),
             ("max_brightness", 10, 1000),
-            ("power_status", 10, 1000),
-            ("system_failure_status", 0, 254),
+            ("power_status", 0, 255),
+            ("system_failure_status", 0, 255),
             ("cct_cool", 1000, 10000),
             ("cct_warm", 1000, 10000),
         ]

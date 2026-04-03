@@ -220,8 +220,8 @@ class DaliCenterPowerOnLevelNumber(DaliCenterDeviceParameterNumber):
             parameter="power_status",
             name="Power On Level",
             icon="mdi:power-on",
-            min_value=10,
-            max_value=1000,
+            min_value=0,
+            max_value=255,
         )
 
 
@@ -236,7 +236,7 @@ class DaliCenterSystemFailureLevelNumber(DaliCenterDeviceParameterNumber):
             name="System Failure Level",
             icon="mdi:alert-outline",
             min_value=0,
-            max_value=254,
+            max_value=255,
         )
 
 
