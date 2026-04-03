@@ -85,6 +85,7 @@ jobs:
         uses: ludeeus/setup-homeassistant@main
         with:
           config-dir: ./test_config
+          tag: stable
 
   validate-hacs:
     runs-on: "ubuntu-latest"
