@@ -80,11 +80,12 @@ jobs:
           echo "  logs:" >> $config_path/configuration.yaml
           echo "    custom_components.dali_center: debug" >> $config_path/configuration.yaml
 
-      - name: Setup Home Assistant
-        id: homeassistant
-        uses: ludeeus/setup-homeassistant@main
-        with:
-          config-dir: ./test_config
+      - name: Validate with Home Assistant
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/test_config:/config \
+            ghcr.io/home-assistant/home-assistant:stable \
+            /bin/bash -c "hass --script check_config -c /config"
 
   validate-hacs:
     runs-on: "ubuntu-latest"
