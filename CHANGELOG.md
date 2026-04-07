@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-04-07
+
+### Fixed
+
+- **BREAKING**: Power On Level range corrected from 10-1000 to 0-255 (#81)
+- **BREAKING**: System Failure Level range corrected from 0-254 to 0-255 (#81)
+
+### Added
+
+- MASK (255) support for Power On Level and System Failure Level (#79, #81)
+- "(255=MASK)" hint in number entity labels and batch configure form (#81)
+
+### Changed
+
+- Batch configure validation ranges synced to 0-255 for power_status and system_failure_status (#81)
+
 ## [0.13.0] - 2026-03-17
 
 ### Added
@@ -377,7 +393,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DALI Control panels (2-Key, 4-Key, 6-Key, 8-Key)
 - DALI Groups and Scenes
 
-[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/maginawin/ha-dali-center/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/maginawin/ha-dali-center/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/maginawin/ha-dali-center/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/maginawin/ha-dali-center/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/maginawin/ha-dali-center/compare/v0.11.5...v0.12.0
