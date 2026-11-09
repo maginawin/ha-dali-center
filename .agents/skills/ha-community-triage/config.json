@@ -1,0 +1,26 @@
+{
+  "repositories": ["maginawin/ha-dali-center", "maginawin/PySrDaliGateway"],
+  "initial_days": 30,
+  "review_weekday": 0,
+  "timezone": "Asia/Taipei",
+  "state_file": "automations/ha-community-state.json",
+  "space": "fv99ju",
+  "work_item_type": "issue",
+  "template": {"id": 8335722, "name": "普通缺陷"},
+  "project": {"id": 7153248982, "name": "第三方平台维护", "type": "项目"},
+  "product": {"id": 7153011173, "name": "第三方平台", "type": "产品"},
+  "operator": "焦荣斌",
+  "board": "Server",
+  "priority": "待定",
+  "title_prefix": "[HA 社区]",
+  "dedupe_terms": ["[HA 社区]", "DALI", "Dali", "dali", "PySrDaliGateway", "Sunricher"],
+  "fields": {
+    "name": "name",
+    "steps": "field_214ad0",
+    "expected": "description",
+    "actual": "field_1a16bf",
+    "board": "field_a18f2e",
+    "project": "field_54fb44",
+    "product": "field_159237"
+  }
+}
